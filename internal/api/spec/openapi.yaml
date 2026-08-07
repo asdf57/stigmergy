@@ -1,0 +1,116 @@
+# This file defines shared API metadata, system endpoints, and schemas used by
+# every resource module. generate-api combines it with spec/resources/*.yaml.
+openapi: 3.1.0
+info:
+  title: Homelab Control Plane API
+  version: 0.1.0
+  description: Homelab API
+servers:
+  - url: /
+tags:
+  - name: System
+paths:
+  /healthz:
+    get:
+      tags: [System]
+      summary: Check process liveness
+      operationId: getLiveness
+      responses:
+        '200':
+          description: The process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      tags: [System]
+      summary: Check storage readiness
+      operationId: getReadiness
+      responses:
+        '200':
+          description: The API can reach etcd
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: The API cannot reach its resource store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+    Metadata:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 253
+          pattern: '^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$'
+        uid:
+          type: string
+          readOnly: true
+        resourceVersion:
+          type: string
+          readOnly: true
+        generation:
+          type: integer
+          format: int64
+          readOnly: true
+        creationTimestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        deletionTimestamp:
+          type: [string, 'null']
+          format: date-time
+          readOnly: true
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+    ListMetadata:
+      type: object
+      additionalProperties: false
+      required: [resourceVersion]
+      properties:
+        resourceVersion:
+          type: string
+    DeleteCollectionResult:
+      type: object
+      additionalProperties: false
+      required: [deleted]
+      properties:
+        deleted:
+          type: integer
+          format: int64
+          minimum: 0
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

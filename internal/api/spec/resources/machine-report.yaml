@@ -1,0 +1,261 @@
+# This resource module opts MachineReport into generated CRUD/bulk-delete paths
+# and defines the complete schema used to validate agent observations.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: MachineReport
+  plural: machine-reports
+  spec-schema: MachineReportSpec
+  operations: [create, list, get, put, delete, delete-collection]
+
+MachineReportSpec:
+  type: object
+  additionalProperties: false
+  required:
+    - observed_at
+    - storage
+    - system
+    - cpu
+    - interfaces
+  properties:
+    observed_at:
+      type: string
+      format: date-time
+    storage:
+      type: array
+      items:
+        $ref: '#/MachineReportStorageDevice'
+    system:
+      $ref: '#/MachineReportSystem'
+    cpu:
+      $ref: '#/MachineReportCPU'
+    interfaces:
+      type: array
+      items:
+        $ref: '#/MachineReportNetworkInterface'
+
+MachineReportStorageDevice:
+  type: object
+  additionalProperties: false
+  required:
+    - name
+    - kname
+    - path
+    - type
+    - size
+    - rota
+    - model
+    - serial
+    - wwn
+    - tran
+  properties:
+    name:
+      type: string
+    kname:
+      type: string
+    path:
+      type: string
+    type:
+      type: string
+    size:
+      type: integer
+      format: int64
+      minimum: 0
+    rota:
+      type: boolean
+    model:
+      type: string
+    serial:
+      type: string
+    wwn:
+      type: string
+    tran:
+      type: string
+
+MachineReportSystem:
+  type: object
+  additionalProperties: false
+  required:
+    - bios_date
+    - bios_release
+    - bios_vendor
+    - bios_version
+    - board_asset_tag
+    - board_name
+    - board_serial
+    - board_vendor
+    - board_version
+    - chassis_asset_tag
+    - chassis_serial
+    - chassis_type
+    - chassis_vendor
+    - chassis_version
+    - modalias
+    - product_family
+    - product_name
+    - product_serial
+    - product_sku
+    - product_version
+    - product_uuid
+    - sys_vendor
+  properties:
+    bios_date: {type: string}
+    bios_release: {type: string}
+    bios_vendor: {type: string}
+    bios_version: {type: string}
+    board_asset_tag: {type: string}
+    board_name: {type: string}
+    board_serial: {type: string}
+    board_vendor: {type: string}
+    board_version: {type: string}
+    chassis_asset_tag: {type: string}
+    chassis_serial: {type: string}
+    chassis_type: {type: string}
+    chassis_vendor: {type: string}
+    chassis_version: {type: string}
+    modalias: {type: string}
+    product_family: {type: string}
+    product_name: {type: string}
+    product_serial: {type: string}
+    product_sku: {type: string}
+    product_version: {type: string}
+    product_uuid: {type: string}
+    sys_vendor: {type: string}
+
+MachineReportCPU:
+  type: object
+  additionalProperties: false
+  required:
+    - vendor_id
+    - model_name
+    - sockets
+    - physical_cores
+    - logical_cpus
+    - cores
+  properties:
+    vendor_id:
+      type: string
+    model_name:
+      type: string
+    sockets:
+      type: integer
+      minimum: 1
+    physical_cores:
+      type: integer
+      minimum: 1
+    logical_cpus:
+      type: integer
+      minimum: 1
+    cores:
+      type: array
+      minItems: 1
+      items:
+        $ref: '#/MachineReportCPUCore'
+
+MachineReportCPUCore:
+  type: object
+  additionalProperties: false
+  required:
+    - processor
+    - vendor_id
+    - cpu_family
+    - model
+    - model_name
+    - stepping
+    - microcode
+    - mhz
+    - cache_size_kb
+    - physical_id
+    - siblings
+    - core_id
+    - cpu_cores
+    - apicid
+    - initial_apicid
+    - flags
+    - bugs
+    - bogomips
+    - clflush_size
+    - cache_alignment
+    - address_sizes
+    - power_management
+  properties:
+    processor: {type: integer, minimum: 0}
+    vendor_id: {type: string}
+    cpu_family: {type: integer, minimum: 0}
+    model: {type: integer, minimum: 0}
+    model_name: {type: string}
+    stepping: {type: integer, minimum: 0}
+    microcode: {type: string}
+    mhz: {type: number, minimum: 0}
+    cache_size_kb: {type: integer, minimum: 0}
+    physical_id: {type: integer, minimum: 0}
+    siblings: {type: integer, minimum: 0}
+    core_id: {type: integer, minimum: 0}
+    cpu_cores: {type: integer, minimum: 0}
+    apicid: {type: integer, minimum: 0}
+    initial_apicid: {type: integer, minimum: 0}
+    flags:
+      type: array
+      items: {type: string}
+    bugs:
+      type: array
+      items: {type: string}
+    bogomips: {type: number, minimum: 0}
+    clflush_size: {type: integer, minimum: 0}
+    cache_alignment: {type: integer, minimum: 0}
+    address_sizes: {type: string}
+    power_management:
+      type: array
+      items: {type: string}
+
+MachineReportNetworkInterface:
+  type: object
+  additionalProperties: false
+  required:
+    - name
+    - type
+    - index
+    - mac
+    - mtu
+    - state
+    - addresses
+  properties:
+    name:
+      type: string
+      minLength: 1
+    type:
+      type: string
+    index:
+      type: integer
+      minimum: 0
+    mac:
+      type: string
+    mtu:
+      type: integer
+      minimum: 0
+    state:
+      type: string
+    addresses:
+      type: array
+      items:
+        $ref: '#/MachineReportNetworkAddress'
+
+MachineReportNetworkAddress:
+  type: object
+  additionalProperties: false
+  required:
+    - address
+    - prefix_length
+    - family
+  properties:
+    address:
+      type: string
+    prefix_length:
+      type: integer
+      minimum: 0
+      maximum: 128
+    family:
+      type: string
+      enum:
+        - ipv4
+        - ipv6

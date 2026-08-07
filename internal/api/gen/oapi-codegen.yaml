@@ -1,0 +1,8 @@
+# This file configures oapi-codegen to turn the bundled contract into Go models
+# and an embedded OpenAPI document in the isolated gen package.
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/v2.8.0/configuration-schema.json
+package: gen
+output: gen/openapi.gen.go
+generate:
+  models: true
+  embedded-spec: true
