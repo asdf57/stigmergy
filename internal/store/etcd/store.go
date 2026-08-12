@@ -31,6 +31,10 @@ func New(client *clientv3.Client, prefix string) *Store {
 	}
 }
 
+func (s *Store) Watch(ctx context.Context, path string) <-chan clientv3.WatchResponse {
+	return s.client.Watch(ctx, path, clientv3.WithPrefix()
+}
+
 func (s *Store) Create(ctx context.Context, candidate resource.Resource) (resource.Resource, error) {
 	uid, err := s.newUID()
 	if err != nil {
