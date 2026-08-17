@@ -5,14 +5,19 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/asdf57/prov-controller-test/go/internal/resource"
-	storage "github.com/asdf57/prov-controller-test/go/internal/store"
 	clientv3 "go.etcd.io/etcd/client/v3"
+)
+
+var (
+	ErrNotFound = errors.New("resource not found")
+	ErrConflict = errors.New("resource version conflict")
 )
 
 type Store struct {
@@ -31,8 +36,8 @@ func New(client *clientv3.Client, prefix string) *Store {
 	}
 }
 
-func (s *Store) Watch(ctx context.Context, path string) <-chan clientv3.WatchResponse {
-	return s.client.Watch(ctx, path, clientv3.WithPrefix()
+func (s *Store) Watch(ctx context.Context, kind string) <-chan clientv3.WatchResponse {
+	return s.client.Watch(ctx, s.keys.resourcePrefix(kind), clientv3.WithPrefix())
 }
 
 func (s *Store) Create(ctx context.Context, candidate resource.Resource) (resource.Resource, error) {
@@ -67,7 +72,7 @@ func (s *Store) Create(ctx context.Context, candidate resource.Resource) (resour
 		return resource.Resource{}, fmt.Errorf("create resource: %w", err)
 	}
 	if !response.Succeeded {
-		return resource.Resource{}, fmt.Errorf("%w: %s %q already exists", storage.ErrConflict, candidate.Kind, candidate.Metadata.Name)
+		return resource.Resource{}, fmt.Errorf("%w: %s %q already exists", ErrConflict, candidate.Kind, candidate.Metadata.Name)
 	}
 
 	candidate.Metadata.ResourceVersion = strconv.FormatInt(response.Header.Revision, 10)
@@ -80,7 +85,7 @@ func (s *Store) Get(ctx context.Context, kind, name string) (resource.Resource, 
 		return resource.Resource{}, fmt.Errorf("get resource: %w", err)
 	}
 	if len(response.Kvs) == 0 {
-		return resource.Resource{}, fmt.Errorf("%w: %s %q", storage.ErrNotFound, kind, name)
+		return resource.Resource{}, fmt.Errorf("%w: %s %q", ErrNotFound, kind, name)
 	}
 	return decode(response.Kvs[0].Value, response.Kvs[0].ModRevision)
 }
@@ -119,10 +124,10 @@ func (s *Store) Update(ctx context.Context, candidate resource.Resource, expecte
 		return resource.Resource{}, err
 	}
 	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
-		return resource.Resource{}, fmt.Errorf("%w: expected %d, current %s", storage.ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
+		return resource.Resource{}, fmt.Errorf("%w: expected %d, current %s", ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
 	}
 	if candidate.Metadata.UID != "" && candidate.Metadata.UID != existing.Metadata.UID {
-		return resource.Resource{}, fmt.Errorf("%w: metadata.uid is immutable", storage.ErrConflict)
+		return resource.Resource{}, fmt.Errorf("%w: metadata.uid is immutable", ErrConflict)
 	}
 
 	candidate.Metadata.UID = existing.Metadata.UID
@@ -148,7 +153,7 @@ func (s *Store) Update(ctx context.Context, candidate resource.Resource, expecte
 		return resource.Resource{}, fmt.Errorf("update resource: %w", err)
 	}
 	if !response.Succeeded {
-		return resource.Resource{}, fmt.Errorf("%w: %s %q changed", storage.ErrConflict, candidate.Kind, candidate.Metadata.Name)
+		return resource.Resource{}, fmt.Errorf("%w: %s %q changed", ErrConflict, candidate.Kind, candidate.Metadata.Name)
 	}
 
 	candidate.Metadata.ResourceVersion = strconv.FormatInt(response.Header.Revision, 10)
@@ -161,7 +166,7 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 		return err
 	}
 	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
-		return fmt.Errorf("%w: expected %d, current %s", storage.ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
+		return fmt.Errorf("%w: expected %d, current %s", ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
 	}
 
 	resourceKey := s.keys.resource(kind, name)
@@ -176,7 +181,7 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 		return fmt.Errorf("delete resource: %w", err)
 	}
 	if !response.Succeeded {
-		return fmt.Errorf("%w: %s %q changed", storage.ErrConflict, kind, name)
+		return fmt.Errorf("%w: %s %q changed", ErrConflict, kind, name)
 	}
 	return nil
 }

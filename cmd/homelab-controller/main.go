@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,8 +12,9 @@ import (
 
 	"github.com/asdf57/prov-controller-test/go/internal/api"
 	"github.com/asdf57/prov-controller-test/go/internal/config"
+	"github.com/asdf57/prov-controller-test/go/internal/controller"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/machine"
 	etcdstore "github.com/asdf57/prov-controller-test/go/internal/store/etcd"
-	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -48,38 +48,11 @@ func run() error {
 		}
 	}(etcdClient)
 
-	go func() {
-		watchChan := etcdClient.Watch(context.Background(), configuration.EtcdPrefix, clientv3.WithPrefix(), clientv3.WithPrevKV())
-		for watchResp := range watchChan {
-			if err := watchResp.Err(); err != nil {
-				log.Printf("Watch error: %v", err)
-				continue
-			}
-
-			for _, event := range watchResp.Events {
-				switch event.Type {
-				case mvccpb.PUT:
-					slog.Info("PUT event", "key", string(event.Kv.Key), "value", event.Kv.Value)
-					if event.PrevKv != nil {
-						slog.Info("Prev val", "value", event.PrevKv.Value)
-					}
-				case mvccpb.DELETE:
-					slog.Info("DELETE event", "key", string(event.Kv.Key))
-					if event.PrevKv != nil {
-						slog.Info("Prev val", "value", event.PrevKv.Value)
-					}
-
-				}
-			}
-		}
-	}()
+	// Top level context
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	resourceStore := etcdstore.New(etcdClient, configuration.EtcdPrefix)
-
-	// Controller subsystem wiring is intentionally disabled until Store.Watch
-	// and Manager.Serve are implemented.
-	//
-	// controllerStore := controller.NewControllerStore(resourceStore)
 
 	handler := api.New(logger, resourceStore, configuration.RequestTimeout)
 	server := &http.Server{
@@ -89,29 +62,29 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	// Top level context
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Set up the MachineReport resource controller
+	machineReportReconciler := machine.NewMachineReportReconciler()
+	machineReportController := controller.NewController(machineReportReconciler)
 
-	// machineReportController := machine.NewMachineReportController()
-	// manager := controller.NewManager(
-	// 	controllerStore,
-	// 	[]controller.Registration{
-	// 		{
-	// 			Name:           "machine-report-controller",
-	// 			ReconcilesKind: "MachineReport",
-	// 			Watches:        []controller.Watch{{Kind: "MachineReport"}},
-	// 			ResyncPeriod:   5 * time.Minute,
-	// 			Reconciler:     machineReportController,
-	// 		},
-	// 	},
-	// )
-	//
-	// controllerError := make(chan error, 1)
-	// go func() {
-	// 	logger.Info("starting controller subsystem")
-	// 	controllerError <- manager.Serve(ctx)
-	// }()
+	manager := controller.NewManager(
+		logger,
+		resourceStore,
+		[]controller.Registration{
+			{
+				Name:           "machine-report-controller",
+				ReconcilesKind: "MachineReport",
+				Watches:        []controller.Watch{{Kind: "MachineReport"}},
+				ResyncPeriod:   5 * time.Minute,
+				Controller:     machineReportController,
+			},
+		},
+	)
+
+	controllerError := make(chan error, 1)
+	go func() {
+		logger.Info("starting controller subsystem")
+		controllerError <- manager.Serve(ctx)
+	}()
 
 	// Create a channel for the HTTP server (so we can exit if/when it fails)
 	serverError := make(chan error, 1)
