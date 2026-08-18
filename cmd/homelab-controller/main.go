@@ -63,7 +63,7 @@ func run() error {
 	}
 
 	// Set up the MachineReport resource controller
-	machineReportReconciler := machine.NewMachineReportReconciler()
+	machineReportReconciler := machine.NewMachineReportReconciler(resourceStore)
 	machineReportController := controller.NewController(machineReportReconciler)
 
 	manager := controller.NewManager(
@@ -71,11 +71,11 @@ func run() error {
 		resourceStore,
 		[]controller.Registration{
 			{
-				Name:           "machine-report-controller",
-				ReconcilesKind: "MachineReport",
-				Watches:        []controller.Watch{{Kind: "MachineReport"}},
-				ResyncPeriod:   5 * time.Minute,
-				Controller:     machineReportController,
+				Name:       "machine-report-controller",
+				Controller: machineReportController,
+				Watches: []controller.Watch{
+					{Kind: "MachineReport", Mapper: controller.IdentityMapper},
+				},
 			},
 		},
 	)

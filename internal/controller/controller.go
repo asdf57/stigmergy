@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"time"
 
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
 	"github.com/asdf57/prov-controller-test/go/internal/utils"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -61,24 +59,24 @@ func (c *Controller) Run(ctx context.Context) {
 	}
 }
 
+// RequestMapper converts a watched resource into reconciliation requests.
+type RequestMapper func(context.Context, Request) ([]Request, error)
+
+// IdentityMapper reconciles the resource that produced the watch event.
+func IdentityMapper(_ context.Context, request Request) ([]Request, error) {
+	return []Request{request}, nil
+}
+
 type Watch struct {
 	Kind string
+	// Mapper converts a watched resource into reconciliation requests.
+	Mapper RequestMapper
 }
 
 type Registration struct {
-	Name           string
-	ReconcilesKind string
-	Watches        []Watch // Watches are the secondary resources
-	ResyncPeriod   time.Duration
-	Controller     *Controller
-}
-
-// Store is an abstraction that takes in the etcd store and spits out
-// Event objects (containing the Kind, name, and event type). This is
-// the format that the ControllerManager can then accept and use.
-type Store interface {
-	Watch(context.Context, string, int64) (<-chan Event, error)
-	List(context.Context, string) (resource.List, error)
+	Name       string
+	Watches    []Watch
+	Controller *Controller
 }
 
 func EtcdEventsToRequests(response clientv3.WatchResponse) ([]Request, error) {
