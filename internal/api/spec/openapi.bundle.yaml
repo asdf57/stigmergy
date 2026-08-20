@@ -45,6 +45,65 @@ components:
             required:
                 - resourceVersion
             type: object
+        Machine:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Machine
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/MachineSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        MachineCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Machine
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/MachineSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        MachineList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/Machine'
+                    type: array
+                kind:
+                    const: MachineList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
         MachineReport:
             additionalProperties: false
             properties:
@@ -408,6 +467,21 @@ components:
                 - product_uuid
                 - sys_vendor
             type: object
+        MachineSpec:
+            additionalProperties: false
+            properties:
+                product_uuid:
+                    type: string
+                serial_number:
+                    type: string
+                source_report:
+                    minLength: 1
+                    type: string
+            required:
+                - source_report
+                - product_uuid
+                - serial_number
+            type: object
         Metadata:
             additionalProperties: false
             properties:
@@ -697,6 +771,251 @@ paths:
             summary: Create or replace one MachineReport
             tags:
                 - MachineReports
+    /api/v1alpha1/machines:
+        delete:
+            operationId: deleteMachines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all Machine resources
+            tags:
+                - Machines
+        get:
+            operationId: listMachines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MachineList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List Machine resources
+            tags:
+                - Machines
+        post:
+            operationId: createMachine
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/MachineCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Machine'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a Machine
+            tags:
+                - Machines
+    /api/v1alpha1/machines/{name}:
+        delete:
+            operationId: deleteMachine
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one Machine
+            tags:
+                - Machines
+        get:
+            operationId: getMachine
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Machine'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one Machine
+            tags:
+                - Machines
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        put:
+            description: Idempotently stores the latest resource state.
+            operationId: putMachine
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/MachineSpec'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Machine'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Machine'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one Machine
+            tags:
+                - Machines
     /healthz:
         get:
             operationId: getLiveness
@@ -734,4 +1053,5 @@ servers:
 tags:
     - name: System
     - name: MachineReports
+    - name: Machines
 x-stigmergy-file-purpose: Generated, self-contained OpenAPI document used for code generation, validation, Swagger UI, and /openapi.json.

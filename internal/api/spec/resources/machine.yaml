@@ -1,0 +1,24 @@
+# Machine is the stable inventory resource discovered from a MachineReport.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: Machine
+  plural: machines
+  spec-schema: MachineSpec
+  operations: [create, list, get, put, delete, delete-collection]
+
+MachineSpec:
+  type: object
+  additionalProperties: false
+  required:
+    - source_report
+    - product_uuid
+    - serial_number
+  properties:
+    source_report:
+      type: string
+      minLength: 1
+    product_uuid:
+      type: string
+    serial_number:
+      type: string

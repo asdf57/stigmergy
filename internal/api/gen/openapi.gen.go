@@ -16,6 +16,96 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+// Defines values for MachineApiVersion.
+const (
+	MachineApiVersionHomelabIov1alpha1 MachineApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the MachineApiVersion enum.
+func (e MachineApiVersion) Valid() bool {
+	switch e {
+	case MachineApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineKind.
+const (
+	MachineKindMachine MachineKind = "Machine"
+)
+
+// Valid indicates whether the value is a known member of the MachineKind enum.
+func (e MachineKind) Valid() bool {
+	switch e {
+	case MachineKindMachine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineCreateApiVersion.
+const (
+	MachineCreateApiVersionHomelabIov1alpha1 MachineCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the MachineCreateApiVersion enum.
+func (e MachineCreateApiVersion) Valid() bool {
+	switch e {
+	case MachineCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineCreateKind.
+const (
+	MachineCreateKindMachine MachineCreateKind = "Machine"
+)
+
+// Valid indicates whether the value is a known member of the MachineCreateKind enum.
+func (e MachineCreateKind) Valid() bool {
+	switch e {
+	case MachineCreateKindMachine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineListApiVersion.
+const (
+	MachineListApiVersionHomelabIov1alpha1 MachineListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the MachineListApiVersion enum.
+func (e MachineListApiVersion) Valid() bool {
+	switch e {
+	case MachineListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineListKind.
+const (
+	MachineListKindMachineList MachineListKind = "MachineList"
+)
+
+// Valid indicates whether the value is a known member of the MachineListKind enum.
+func (e MachineListKind) Valid() bool {
+	switch e {
+	case MachineListKindMachineList:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MachineReportApiVersion.
 const (
 	MachineReportApiVersionHomelabIov1alpha1 MachineReportApiVersion = "homelab.io/v1alpha1"
@@ -146,6 +236,48 @@ type Health struct {
 type ListMetadata struct {
 	ResourceVersion string `json:"resourceVersion"`
 }
+
+// Machine defines model for Machine.
+type Machine struct {
+	ApiVersion MachineApiVersion `json:"apiVersion"`
+	Kind       MachineKind       `json:"kind"`
+	Metadata   Metadata          `json:"metadata"`
+	Spec       MachineSpec       `json:"spec"`
+}
+
+// MachineApiVersion defines model for Machine.ApiVersion.
+type MachineApiVersion string
+
+// MachineKind defines model for Machine.Kind.
+type MachineKind string
+
+// MachineCreate defines model for MachineCreate.
+type MachineCreate struct {
+	ApiVersion MachineCreateApiVersion `json:"apiVersion"`
+	Kind       MachineCreateKind       `json:"kind"`
+	Metadata   Metadata                `json:"metadata"`
+	Spec       MachineSpec             `json:"spec"`
+}
+
+// MachineCreateApiVersion defines model for MachineCreate.ApiVersion.
+type MachineCreateApiVersion string
+
+// MachineCreateKind defines model for MachineCreate.Kind.
+type MachineCreateKind string
+
+// MachineList defines model for MachineList.
+type MachineList struct {
+	ApiVersion MachineListApiVersion `json:"apiVersion"`
+	Items      []Machine             `json:"items"`
+	Kind       MachineListKind       `json:"kind"`
+	Metadata   ListMetadata          `json:"metadata"`
+}
+
+// MachineListApiVersion defines model for MachineList.ApiVersion.
+type MachineListApiVersion string
+
+// MachineListKind defines model for MachineList.Kind.
+type MachineListKind string
 
 // MachineReport defines model for MachineReport.
 type MachineReport struct {
@@ -295,6 +427,13 @@ type MachineReportSystem struct {
 	SysVendor       string `json:"sys_vendor"`
 }
 
+// MachineSpec defines model for MachineSpec.
+type MachineSpec struct {
+	ProductUuid  string `json:"product_uuid"`
+	SerialNumber string `json:"serial_number"`
+	SourceReport string `json:"source_report"`
+}
+
 // Metadata defines model for Metadata.
 type Metadata struct {
 	Annotations       *map[string]string `json:"annotations,omitempty"`
@@ -313,54 +452,69 @@ type DeleteMachineReportParams struct {
 	IfMatch string `json:"If-Match"`
 }
 
+// DeleteMachineParams defines parameters for DeleteMachine.
+type DeleteMachineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // CreateMachineReportJSONRequestBody defines body for CreateMachineReport for application/json ContentType.
 type CreateMachineReportJSONRequestBody = MachineReportCreate
 
 // PutMachineReportJSONRequestBody defines body for PutMachineReport for application/json ContentType.
 type PutMachineReportJSONRequestBody = MachineReportSpec
 
+// CreateMachineJSONRequestBody defines body for CreateMachine for application/json ContentType.
+type CreateMachineJSONRequestBody = MachineCreate
+
+// PutMachineJSONRequestBody defines body for PutMachine for application/json ContentType.
+type PutMachineJSONRequestBody = MachineSpec
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"f377ETYblMH7mzAAHgdzfzNwZqx/Rg7/CQAA//8=",
+	"7Fzrbxu5Ef9XFux9aIGVZTvO4U5fDqnvcGcg6blJrihguAK1O5J45pJbkitbMfS/F3zs+21HipvokwXt",
+	"LDmP38z8OLvyIwp4FHMGTEk0e0QyWEOEzcefgYKCS04pBIpw9h5kQpW+gsOQ6G8wvRY8BqEISDRbYirB",
+	"R3Hhq0cUmkVC/XHJRYQVmiHC1PcXyEcRYSRKIjQ79ZHaxmAvwQoE2u18JOC/CRH63ptsmdtMki/+hECh",
+	"nY9+EYKLkWrBE+4JeAj6r1NAKkHYSisQgZR41XStYoVZIZevG1ORt1o22fwbYKrWIw2QCqtE9qvp5Jr2",
+	"fUukegcKh1jhkbsLkDwRAfwLhCSc9atRvaFJn3c4WBMGI1XBMSloEXAmNSzXPAKKFyeETzdnmMZrfIb8",
+	"erTvCAuLt6Uq+E3AyD31nYAlmqG/TPN8m7pkm2Ye3flIxhD0ytstP2jRqtcKtjldC3q45Ts8eSkAq6M/",
+	"P5s/dcIc0ptEQWRWyT4MMFzf6FbCQuBtR1iMPc8ITamAjPS1NanD2e8h5kK9APA6RQ4PYbvxPoBsV768",
+	"/mN01xQwGpDZZpdcGHRGhF3Z+8/qUKV8RQJM50Fsu1vGK87qvMJHEQ+BzhmOmpt5vN5Ku1qqePdykgd3",
+	"oAYIboCFXMxJ2N/5ctGSuvlmNTUrTvCd24fE07h4ZMqEoQAp55J8AtnoRRyTwFraRfJ8tOArHpFYtkiy",
+	"JFo4wWRVRlFtyyoqAhysYY4pWbEImOrXxd6gbZrfLQaI0yVN5NrcMECaC5gP8UgQJw3QaxVd4ojQbb/s",
+	"kuKxDiSMKILpfGgso/Wn3jBGJBC8nUhrrA/YaGAGD1E65vcg5hFmeAUpTIa7KBY8ACntUaJ7I0kWlLDV",
+	"gLBKBXGsN+yVHFFSck39UnkpYCj1f7XmpOoUo2ejXc2Zsu8LNuf4LwI8KxM1rKV4dXlfqBOVvKunuV+p",
+	"Tg0h7q+KL4UEf7U84v+CFjvvDyfHBdteNkX+B6h7Lu7e2Ex5WvdvLJB5OwKmy9YNIvHmQisWb74v6FWo",
+	"1gKW5GFOga3sQCPCD45Fnf8wakaU6lVdM9NqqFuumAKxxMETadFT6W4lKI0dOYSHAf0RB83tVSX9N6dt",
+	"NSLsrYvJWUPYpHIVsqVH9vUj11yMUGqY1dzqme7gF7zaG78PrsCNOZ7EydgziY2Eg8jzYp0jrSHafCFB",
+	"bCCcY1Uan4ZYwUSRqHFEIhUXbhY5XqsP9uafYUOaVZJbqSAat6a9pRr/onG51tkOhiagkp/7o1/SfhwM",
+	"7lrZZMZJa1faCSi2lax2QXBb/d2FBecUMDOOBUFw8zbp+WLU+NxHSmA2Jj99dH/PBuftnftrTM3S2FEy",
+	"Y2bOJp1tdgOnWH8wM6SNiOKCcDkP2wqTuSqAApYdApYcd11vG19rlopFOMdSgporvOqQacWOvdwBByvQ",
+	"paUTaFczWGMpiexRNJXq0CUVaYVUKtChbi7SrnDEQ0wJbqYcseBhEqjCSbhVpD1jnUCHrZnIXdJ5PUka",
+	"j2O5QJehctvhq0om5mCvQLsM5Aps6yAtQbICwArcquBqglINOBWY1EBRh0Ah4LXwVoJZC105UHWvVwJV",
+	"cnlHUXoCs+gFhNV47oYjjRLm+ddcZGPtTlJWfYpXurlud2n3RtOf9pwPM8YV1sIdB4v22Uq+f6BP4YSz",
+	"jyQCqXAUt7IgATj8nenkVyKBBlZkHh8/Y6mbdC0fsYRSdLvz0QoYCKNgY3du0anQoSleAH2mjzK2jh9S",
+	"YJy/fmX6sgLB0Az95wZPPp1Ofrz960+zm4n9fHL7eOqfvz7bpdf+9tN3TWSy4ZFtr6sd2nvkmlhFw+Nw",
+	"w7SX3L5IIANBYutv9Js99ntvrq+04kRRKHx7yZkSnHrXFDNwMlnZRacnZyenhmDHwHBM0Ay9Ml9ZOmM8",
+	"P8UxyQYK08gWgYnNpcJ7DfqTDpiBwVWIZu6liRKVkQYNMubMHQ3PT0/d8EC5iSOOY0oCs8r0T2k9bdl0",
+	"H9dueUnDuK7ssvcumNJLX6bY+ej1Z1TFvofRsbOnaT54OvAglbfEhGotdKFLogiLbeY/D1PqlZzopVjU",
+	"3lRmln2DKm62WanqQTETlYOFpD4M6vIJJVJ5WHmcWf/glfbQhrhutQYcgjA6/nuS3jQpJGR52Q+VFbxE",
+	"QugtufDU2u6lS39mRjUrdy8REtqFTwNDzGUDGux0tzphdSr8nYfb/SDBDZV35dqnq+OuBsaz/ajQFYky",
+	"1n75aE8FZdl/JlxBmME04iFZOrWKmG3Hl4/e8iDrmeXFLzHjjASYZtH13OmyG68Xh8GrBWjIQXqMKy/C",
+	"KlibpMq0dVsYlX48YAphqpvt1oMHIpWZG16cnx9wfyI9wjaYkpfZUWzeedirPVNpKxw7v7v/Tx81X9mN",
+	"pAGGXggcgTI5dlPFv045jwuvQro8ASoRDEJvsbVFHCttq465GZChmUtclNJBdLWcvNP4RNVK05VLt7Uq",
+	"dFFP0szxBQ5xcdCIaxMrkLuwmh5KAa68JU9YePhMdxzWCzhbUmJPABfnP+xfgxRQ2vEZol4wfdRkanC6",
+	"t5DGX0HVOcIhKOMX79K7bzypXxyqfwU1FtKVVmPahKNTrkm4+Vl7g9jHTEF3mThRddBehRDFXPubbq1L",
+	"ZLnbZd7CCk6QX0nW60QdnNC7tyMG0PmvuVAcDyvHw0q/SpecBYkQwAqpnMTm6cXxvNJ4XjEngZjiYCSb",
+	"aTu8DJ9aHueVz5pXdg2nhs0oDzGdPM4lP+tcsj/oA2aR+yUtX3T+eGzmx8njNz95bC4NrQ177JjxOGA8",
+	"DhiPA8aDDxhHsbx8qHgAjnccJB4HiZ2DxFau+q0OD/fLwL/gwPBrHRUezxXHIeFxSFgZErafM9bm3waZ",
+	"n2m30ZO3ZAPM/oxub0XJ/feiBh98XIPnfqqsQ4Ap2UDV9DUEd5kQzdVNbXY/HbEWmwNqp8HvAYfky1r8",
+	"5vrKC7CuODhYe6ACB7pX+wddYXtdBKwGRMli0zT/g6MhBvlYMPdgPQj2TfdNSiYSQdEMTZFu5k74MWUV",
+	"6W/F/Oybyni7fkWahR4mUpFVBGK1nSwJhUmciJhLMBE2r2lD6HsS6HKi3YmJPu7+HgPTpoc8SCJddLKZ",
+	"ZMBD8PL3u33PFAL3+cM9Xq1AeH9c+R5moTd1rxGf6IicoN3/AgAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

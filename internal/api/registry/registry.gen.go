@@ -3,8 +3,103 @@
 
 package registry
 
-import apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+import (
+	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	"github.com/asdf57/prov-controller-test/go/internal/resource"
+)
+
+// MachineReport is the concrete controller-facing resource for MachineReport.
+type MachineReport struct {
+	APIVersion string                   `json:"apiVersion"`
+	Kind       string                   `json:"kind"`
+	Metadata   resource.Metadata        `json:"metadata"`
+	Spec       apigen.MachineReportSpec `json:"spec"`
+	Status     map[string]any           `json:"status,omitempty"`
+}
+
+// NewMachineReport constructs a MachineReport with its generated type identity.
+func NewMachineReport(metadata resource.Metadata, spec apigen.MachineReportSpec) MachineReport {
+	return MachineReport{
+		APIVersion: MachineReportResource.APIVersion,
+		Kind:       MachineReportResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed MachineReport into the generic storage representation.
+func (value MachineReport) Encode() (resource.Resource, error) {
+	return encodeResource(MachineReportResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// MachineReportDefinition adds concrete MachineReport decoding to the shared API definition.
+type MachineReportDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed MachineReport.
+func (definition MachineReportDefinition) Decode(value resource.Resource) (MachineReport, error) {
+	spec, err := decodeResourceSpec[apigen.MachineReportSpec](definition.Definition, value)
+	if err != nil {
+		return MachineReport{}, err
+	}
+	return MachineReport{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+// Machine is the concrete controller-facing resource for Machine.
+type Machine struct {
+	APIVersion string             `json:"apiVersion"`
+	Kind       string             `json:"kind"`
+	Metadata   resource.Metadata  `json:"metadata"`
+	Spec       apigen.MachineSpec `json:"spec"`
+	Status     map[string]any     `json:"status,omitempty"`
+}
+
+// NewMachine constructs a Machine with its generated type identity.
+func NewMachine(metadata resource.Metadata, spec apigen.MachineSpec) Machine {
+	return Machine{
+		APIVersion: MachineResource.APIVersion,
+		Kind:       MachineResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Machine into the generic storage representation.
+func (value Machine) Encode() (resource.Resource, error) {
+	return encodeResource(MachineResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// MachineDefinition adds concrete Machine decoding to the shared API definition.
+type MachineDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed Machine.
+func (definition MachineDefinition) Decode(value resource.Resource) (Machine, error) {
+	spec, err := decodeResourceSpec[apigen.MachineSpec](definition.Definition, value)
+	if err != nil {
+		return Machine{}, err
+	}
+	return Machine{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports")}
+var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines")}
 
 var Definitions = []Definition{
-	NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports"),
+	MachineReportResource.Definition,
+	MachineResource.Definition,
 }
