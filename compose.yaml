@@ -40,5 +40,17 @@ services:
       - "0.0.0.0:8080:8080"
     init: true
 
+  # Development-only etcd browser. Start it with `make up-tools`, then open
+  # http://127.0.0.1:8002 and connect to etcd:2379 using etcd v3.
+  etcd-workbench:
+    image: docker.io/tzfun/etcd-workbench:1.1.4
+    profiles:
+      - tools
+    depends_on:
+      etcd:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8002:8002"
+
 volumes:
   etcd-data:

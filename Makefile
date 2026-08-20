@@ -2,7 +2,7 @@ BINARY := build/homelab-controller
 
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt test test-integration vet build run run-local up down logs clean
+.PHONY: generate fmt test test-integration vet build run run-local up up-tools down logs clean
 
 generate:
 	go generate ./...
@@ -32,8 +32,11 @@ run-local:
 up:
 	docker compose up --build --detach
 
+up-tools:
+	docker compose --profile tools up --build --detach
+
 down:
-	docker compose down
+	docker compose --profile tools down
 
 logs:
 	docker compose logs --follow
