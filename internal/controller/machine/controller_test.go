@@ -74,6 +74,7 @@ func TestMachineReportReconcilerCreatesTypedMachineOnce(t *testing.T) {
 			},
 			"cpu":        map[string]any{"cores": []any{}},
 			"interfaces": []any{},
+			"lldp_info":  []any{},
 		},
 	}
 	storage := newFakeStore(report)

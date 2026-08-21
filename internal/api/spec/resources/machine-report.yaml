@@ -17,6 +17,7 @@ MachineReportSpec:
     - system
     - cpu
     - interfaces
+    - lldp_info
   properties:
     observed_at:
       type: string
@@ -33,6 +34,11 @@ MachineReportSpec:
       type: array
       items:
         $ref: '#/MachineReportNetworkInterface'
+    lldp_info:
+      type: array
+      x-go-name: LLDPInfo
+      items:
+        $ref: '#/MachineReportLLDPInterfaceGroup'
 
 MachineReportStorageDevice:
   type: object
@@ -259,3 +265,137 @@ MachineReportNetworkAddress:
       enum:
         - ipv4
         - ipv6
+
+MachineReportLLDPInterfaceGroup:
+  type: object
+  additionalProperties: false
+  required:
+    - interface
+  properties:
+    interface:
+      type: array
+      items:
+        $ref: '#/MachineReportLLDPInterface'
+
+MachineReportLLDPInterface:
+  type: object
+  additionalProperties: false
+  required:
+    - name
+    - via
+    - rid
+    - age
+    - chassis
+    - port
+  properties:
+    name:
+      type: string
+    via:
+      type: string
+    rid:
+      type: string
+      x-go-name: RID
+    age:
+      type: string
+    chassis:
+      type: array
+      items:
+        $ref: '#/MachineReportLLDPChassis'
+    port:
+      type: array
+      x-go-name: Ports
+      items:
+        $ref: '#/MachineReportLLDPPort'
+
+MachineReportLLDPChassis:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - name
+    - descr
+    - mgmt-ip
+    - mgmt-iface
+    - capability
+  properties:
+    id:
+      type: array
+      x-go-name: IDs
+      items:
+        $ref: '#/MachineReportLLDPIdentifier'
+    name:
+      type: array
+      x-go-name: Names
+      items:
+        $ref: '#/MachineReportLLDPValue'
+    descr:
+      type: array
+      x-go-name: Descriptions
+      items:
+        $ref: '#/MachineReportLLDPValue'
+    mgmt-ip:
+      type: array
+      x-go-name: ManagementIPs
+      items:
+        $ref: '#/MachineReportLLDPValue'
+    mgmt-iface:
+      type: array
+      x-go-name: ManagementInterfaces
+      items:
+        $ref: '#/MachineReportLLDPValue'
+    capability:
+      type: array
+      x-go-name: Capabilities
+      items:
+        $ref: '#/MachineReportLLDPCapability'
+
+MachineReportLLDPPort:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - ttl
+  properties:
+    id:
+      type: array
+      x-go-name: IDs
+      items:
+        $ref: '#/MachineReportLLDPIdentifier'
+    ttl:
+      type: array
+      x-go-name: TTLs
+      items:
+        $ref: '#/MachineReportLLDPValue'
+
+MachineReportLLDPIdentifier:
+  type: object
+  additionalProperties: false
+  required:
+    - type
+    - value
+  properties:
+    type:
+      type: string
+    value:
+      type: string
+
+MachineReportLLDPValue:
+  type: object
+  additionalProperties: false
+  required:
+    - value
+  properties:
+    value:
+      type: string
+
+MachineReportLLDPCapability:
+  type: object
+  additionalProperties: false
+  required:
+    - type
+    - enabled
+  properties:
+    type:
+      type: string
+    enabled:
+      type: boolean

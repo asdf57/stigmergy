@@ -263,6 +263,133 @@ components:
                 - metadata
                 - spec
             type: object
+        MachineReportLLDPCapability:
+            additionalProperties: false
+            properties:
+                enabled:
+                    type: boolean
+                type:
+                    type: string
+            required:
+                - type
+                - enabled
+            type: object
+        MachineReportLLDPChassis:
+            additionalProperties: false
+            properties:
+                capability:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPCapability'
+                    type: array
+                    x-go-name: Capabilities
+                descr:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPValue'
+                    type: array
+                    x-go-name: Descriptions
+                id:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPIdentifier'
+                    type: array
+                    x-go-name: IDs
+                mgmt-iface:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPValue'
+                    type: array
+                    x-go-name: ManagementInterfaces
+                mgmt-ip:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPValue'
+                    type: array
+                    x-go-name: ManagementIPs
+                name:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPValue'
+                    type: array
+                    x-go-name: Names
+            required:
+                - id
+                - name
+                - descr
+                - mgmt-ip
+                - mgmt-iface
+                - capability
+            type: object
+        MachineReportLLDPIdentifier:
+            additionalProperties: false
+            properties:
+                type:
+                    type: string
+                value:
+                    type: string
+            required:
+                - type
+                - value
+            type: object
+        MachineReportLLDPInterface:
+            additionalProperties: false
+            properties:
+                age:
+                    type: string
+                chassis:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPChassis'
+                    type: array
+                name:
+                    type: string
+                port:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPPort'
+                    type: array
+                    x-go-name: Ports
+                rid:
+                    type: string
+                    x-go-name: RID
+                via:
+                    type: string
+            required:
+                - name
+                - via
+                - rid
+                - age
+                - chassis
+                - port
+            type: object
+        MachineReportLLDPInterfaceGroup:
+            additionalProperties: false
+            properties:
+                interface:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPInterface'
+                    type: array
+            required:
+                - interface
+            type: object
+        MachineReportLLDPPort:
+            additionalProperties: false
+            properties:
+                id:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPIdentifier'
+                    type: array
+                    x-go-name: IDs
+                ttl:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPValue'
+                    type: array
+                    x-go-name: TTLs
+            required:
+                - id
+                - ttl
+            type: object
+        MachineReportLLDPValue:
+            additionalProperties: false
+            properties:
+                value:
+                    type: string
+            required:
+                - value
+            type: object
         MachineReportList:
             additionalProperties: false
             properties:
@@ -343,6 +470,11 @@ components:
                     items:
                         $ref: '#/components/schemas/MachineReportNetworkInterface'
                     type: array
+                lldp_info:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPInterfaceGroup'
+                    type: array
+                    x-go-name: LLDPInfo
                 observed_at:
                     format: date-time
                     type: string
@@ -358,6 +490,7 @@ components:
                 - system
                 - cpu
                 - interfaces
+                - lldp_info
             type: object
         MachineReportStorageDevice:
             additionalProperties: false

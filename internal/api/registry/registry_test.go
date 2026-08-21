@@ -22,6 +22,7 @@ func TestGeneratedResourceDefinitionDecodesTypedSpec(t *testing.T) {
 				"cores":      []any{},
 			},
 			"interfaces": []any{},
+			"lldp_info":  []any{},
 		},
 	}
 

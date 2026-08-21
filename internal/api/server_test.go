@@ -218,6 +218,29 @@ func testMachineReportSpec() apigen.MachineReportSpec {
 			}},
 		},
 		Interfaces: []apigen.MachineReportNetworkInterface{},
+		LLDPInfo: []apigen.MachineReportLLDPInterfaceGroup{{
+			Interface: []apigen.MachineReportLLDPInterface{{
+				Name: "eno1",
+				Via:  "LLDP",
+				RID:  "1",
+				Age:  "0 day, 00:00:42",
+				Chassis: []apigen.MachineReportLLDPChassis{{
+					IDs:                  []apigen.MachineReportLLDPIdentifier{{Type: "mac", Value: "00:11:22:33:44:55"}},
+					Names:                []apigen.MachineReportLLDPValue{{Value: "switch-1"}},
+					Descriptions:         []apigen.MachineReportLLDPValue{{Value: "Lab switch"}},
+					ManagementIPs:        []apigen.MachineReportLLDPValue{{Value: "192.0.2.1"}},
+					ManagementInterfaces: []apigen.MachineReportLLDPValue{{Value: "1"}},
+					Capabilities: []apigen.MachineReportLLDPCapability{{
+						Type:    "Bridge",
+						Enabled: true,
+					}},
+				}},
+				Ports: []apigen.MachineReportLLDPPort{{
+					IDs:  []apigen.MachineReportLLDPIdentifier{{Type: "ifname", Value: "Ethernet1"}},
+					TTLs: []apigen.MachineReportLLDPValue{{Value: "120"}},
+				}},
+			}},
+		}},
 	}
 }
 
