@@ -23,10 +23,11 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 func swaggerHandler() http.Handler {
 	return v5emb.NewWithConfig(swgui.Config{
 		SettingsUI: map[string]string{
-			"deepLinking":            "true",
-			"displayRequestDuration": "true",
-			"persistAuthorization":   "true",
-			"validatorUrl":           "null",
+			"deepLinking":              "true",
+			"defaultModelsExpandDepth": "1",
+			"displayRequestDuration":   "true",
+			"persistAuthorization":     "true",
+			"validatorUrl":             "null",
 		},
 	})("Homelab Control Plane API", "/openapi.json", "/docs/")
 }
