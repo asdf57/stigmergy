@@ -104,6 +104,17 @@ components:
                 - metadata
                 - items
             type: object
+        MachineLocation:
+            additionalProperties: false
+            properties:
+                lldp_port:
+                    type: string
+                switch_mac:
+                    type: string
+            required:
+                - lldp_port
+                - switch_mac
+            type: object
         MachineReport:
             additionalProperties: false
             properties:
@@ -603,17 +614,36 @@ components:
         MachineSpec:
             additionalProperties: false
             properties:
-                product_uuid:
+                cpu:
+                    $ref: '#/components/schemas/MachineReportCPU'
+                interfaces:
+                    items:
+                        $ref: '#/components/schemas/MachineReportNetworkInterface'
+                    type: array
+                lldp_info:
+                    items:
+                        $ref: '#/components/schemas/MachineReportLLDPInterfaceGroup'
+                    type: array
+                    x-go-name: LLDPInfo
+                location:
+                    $ref: '#/components/schemas/MachineLocation'
+                observed_at:
+                    format: date-time
                     type: string
-                serial_number:
-                    type: string
-                source_report:
-                    minLength: 1
-                    type: string
+                storage:
+                    items:
+                        $ref: '#/components/schemas/MachineReportStorageDevice'
+                    type: array
+                system:
+                    $ref: '#/components/schemas/MachineReportSystem'
             required:
-                - source_report
-                - product_uuid
-                - serial_number
+                - location
+                - observed_at
+                - storage
+                - system
+                - cpu
+                - interfaces
+                - lldp_info
             type: object
         Metadata:
             additionalProperties: false

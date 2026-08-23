@@ -11,14 +11,45 @@ MachineSpec:
   type: object
   additionalProperties: false
   required:
-    - source_report
-    - product_uuid
-    - serial_number
+    - location
+    - observed_at
+    - storage
+    - system
+    - cpu
+    - interfaces
+    - lldp_info
   properties:
-    source_report:
+    location:
+      $ref: '#/components/schemas/MachineLocation'
+    observed_at:
       type: string
-      minLength: 1
-    product_uuid:
+      format: date-time
+    storage:
+      type: array
+      items:
+        $ref: '#/components/schemas/MachineReportStorageDevice'
+    system:
+      $ref: '#/components/schemas/MachineReportSystem'
+    cpu:
+      $ref: '#/components/schemas/MachineReportCPU'
+    interfaces:
+      type: array
+      items:
+        $ref: '#/components/schemas/MachineReportNetworkInterface'
+    lldp_info:
+      type: array
+      x-go-name: LLDPInfo
+      items:
+        $ref: '#/components/schemas/MachineReportLLDPInterfaceGroup'
+
+MachineLocation:
+  type: object
+  additionalProperties: false
+  required:
+    - lldp_port
+    - switch_mac
+  properties:
+    lldp_port:
       type: string
-    serial_number:
+    switch_mac:
       type: string

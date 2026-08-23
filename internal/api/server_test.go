@@ -138,6 +138,47 @@ func TestMachineReportSchemaValidation(t *testing.T) {
 	}
 }
 
+func TestCreateMachineWithCompleteReportProjection(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	report := testMachineReportSpec()
+	body, err := json.Marshal(apigen.MachineCreate{
+		ApiVersion: apigen.MachineCreateApiVersionHomelabIov1alpha1,
+		Kind:       apigen.MachineCreateKindMachine,
+		Metadata:   apigen.Metadata{Name: "lab-node"},
+		Spec: apigen.MachineSpec{
+			Location:   apigen.MachineLocation{LldpPort: "Ethernet1", SwitchMac: "00:11:22:33:44:55"},
+			ObservedAt: report.ObservedAt,
+			Storage:    report.Storage,
+			System:     report.System,
+			Cpu:        report.Cpu,
+			Interfaces: report.Interfaces,
+			LLDPInfo:   report.LLDPInfo,
+		},
+	})
+	if err != nil {
+		t.Fatalf("encode request: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/machines", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var created apigen.Machine
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if created.Spec.Cpu.ModelName != report.Cpu.ModelName || len(created.Spec.LLDPInfo) != len(report.LLDPInfo) {
+		t.Fatalf("Machine does not contain the complete report projection: %#v", created.Spec)
+	}
+}
+
 func TestPutMachineReportCreatesAndReplaces(t *testing.T) {
 	t.Parallel()
 
@@ -279,6 +320,9 @@ func TestOpenAPIAndSwaggerUI(t *testing.T) {
 	}
 	if !strings.Contains(docsResponse.Body.String(), "/docs/swagger-ui.css") {
 		t.Fatal("Swagger UI page does not reference embedded assets")
+	}
+	if !strings.Contains(docsResponse.Body.String(), "defaultModelsExpandDepth: 1") {
+		t.Fatal("Swagger UI page does not expose component schemas")
 	}
 
 	assetRequest := httptest.NewRequest(http.MethodGet, "/docs/swagger-ui.css", nil)

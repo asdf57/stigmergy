@@ -42,9 +42,10 @@ func TestGeneratedResourceEncodesTypedSpec(t *testing.T) {
 	typed := NewMachine(
 		resource.Metadata{Name: "lab-node"},
 		apigen.MachineSpec{
-			SourceReport: "lab-node",
-			ProductUuid:  "product-uuid",
-			SerialNumber: "serial-number",
+			Location: apigen.MachineLocation{
+				LldpPort:  "Ethernet1",
+				SwitchMac: "00:11:22:33:44:55",
+			},
 		},
 	)
 
@@ -55,8 +56,12 @@ func TestGeneratedResourceEncodesTypedSpec(t *testing.T) {
 	if stored.APIVersion != MachineResource.APIVersion || stored.Kind != MachineResource.Kind {
 		t.Fatalf("Encode() identity = %s %s, want %s %s", stored.APIVersion, stored.Kind, MachineResource.APIVersion, MachineResource.Kind)
 	}
-	if stored.Spec["source_report"] != "lab-node" {
-		t.Fatalf("Encode() source_report = %#v, want lab-node", stored.Spec["source_report"])
+	location, ok := stored.Spec["location"].(map[string]any)
+	if !ok {
+		t.Fatalf("Encode() location = %#v, want object", stored.Spec["location"])
+	}
+	if location["lldp_port"] != "Ethernet1" || location["switch_mac"] != "00:11:22:33:44:55" {
+		t.Fatalf("Encode() location = %#v, want LLDP port and switch MAC", location)
 	}
 	if _, exists := stored.Spec["SourceReport"]; exists {
 		t.Fatal("Encode() used a Go field name instead of its generated JSON field name")
@@ -67,7 +72,7 @@ func TestGeneratedResourceLiteralDefaultsIdentityWhenEncoded(t *testing.T) {
 	typed := Machine{
 		Metadata: resource.Metadata{Name: "lab-node"},
 		Spec: apigen.MachineSpec{
-			SourceReport: "lab-node",
+			Location: apigen.MachineLocation{},
 		},
 	}
 
@@ -83,7 +88,7 @@ func TestGeneratedResourceLiteralDefaultsIdentityWhenEncoded(t *testing.T) {
 func TestGeneratedResourceRoundTrip(t *testing.T) {
 	original := NewMachine(
 		resource.Metadata{Name: "lab-node"},
-		apigen.MachineSpec{SourceReport: "lab-node"},
+		apigen.MachineSpec{Location: apigen.MachineLocation{}},
 	)
 	stored, err := original.Encode()
 	if err != nil {
@@ -97,8 +102,8 @@ func TestGeneratedResourceRoundTrip(t *testing.T) {
 	if decoded.APIVersion != original.APIVersion || decoded.Kind != original.Kind {
 		t.Fatalf("Decode() identity = %s %s, want %s %s", decoded.APIVersion, decoded.Kind, original.APIVersion, original.Kind)
 	}
-	if decoded.Spec.SourceReport != original.Spec.SourceReport {
-		t.Fatalf("Decode() source report = %q, want %q", decoded.Spec.SourceReport, original.Spec.SourceReport)
+	if decoded.Spec.Location != original.Spec.Location {
+		t.Fatalf("Decode() location = %#v, want %#v", decoded.Spec.Location, original.Spec.Location)
 	}
 }
 
