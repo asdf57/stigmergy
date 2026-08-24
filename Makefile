@@ -2,7 +2,7 @@ BINARY := build/homelab-controller
 
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt test test-integration vet build run run-local up up-tools down logs clean
+.PHONY: generate fmt test test-integration vet build run run-local up up-tools down logs openbao-root-token clean
 
 generate:
 	go generate ./...
@@ -40,6 +40,9 @@ down:
 
 logs:
 	docker compose logs --follow
+
+openbao-root-token:
+	docker compose run --rm --no-deps --entrypoint /bin/sh openbao-bootstrap -c 'cat /run/openbao-init/root-token'
 
 clean:
 	rm -rf build

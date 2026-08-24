@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 /*
@@ -90,6 +91,19 @@ func (q *Queue) Add(workItem WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return q.addLocked(workItem)
+}
+
+func (q *Queue) AddAfter(ctx context.Context, workItem WorkItem, delay time.Duration) {
+	go func() {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			_ = q.Add(workItem)
+		}
+	}()
 }
 
 func (q *Queue) Pop(ctx context.Context) (WorkItem, bool) {

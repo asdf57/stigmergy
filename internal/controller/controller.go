@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/asdf57/prov-controller-test/go/internal/utils"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -32,12 +33,14 @@ type Reconciler interface {
 type Controller struct {
 	workqueue  *utils.Queue
 	reconciler Reconciler
+	retryDelay time.Duration
 }
 
 func NewController(reconciler Reconciler) *Controller {
 	return &Controller{
 		workqueue:  utils.NewQueue(),
 		reconciler: reconciler,
+		retryDelay: time.Second,
 	}
 }
 
@@ -51,11 +54,11 @@ func (c *Controller) Run(ctx context.Context) {
 
 		request := item.(Request)
 
-		if err := c.reconciler.Reconcile(ctx, request); err != nil {
-			_ = c.workqueue.Add(item)
-		}
-
+		err := c.reconciler.Reconcile(ctx, request)
 		c.workqueue.Done(item)
+		if err != nil {
+			c.workqueue.AddAfter(ctx, item, c.retryDelay)
+		}
 	}
 }
 
