@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
 	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
 	"github.com/asdf57/prov-controller-test/go/internal/controller"
 	"github.com/asdf57/prov-controller-test/go/internal/resource"
@@ -13,12 +14,14 @@ import (
 )
 
 type fakeStore struct {
-	resources    map[string]resource.Resource
-	creates      []resource.Resource
-	updates      []resource.Resource
-	deletes      []resource.Resource
-	createErr    error
-	beforeDelete func()
+	resources     map[string]resource.Resource
+	creates       []resource.Resource
+	updates       []resource.Resource
+	statusUpdates []resource.Resource
+	deletes       []resource.Resource
+	createErr     error
+	statusErr     error
+	beforeDelete  func()
 }
 
 func newFakeStore(resources ...resource.Resource) *fakeStore {
@@ -79,6 +82,70 @@ func (f *fakeStore) Update(_ context.Context, value resource.Resource, expectedR
 	return value, nil
 }
 
+func (f *fakeStore) UpdateStatus(_ context.Context, kind, name string, status map[string]any, expectedRevision int64) (resource.Resource, error) {
+	if f.statusErr != nil {
+		return resource.Resource{}, f.statusErr
+	}
+	key := kind + "/" + name
+	existing, exists := f.resources[key]
+	if !exists {
+		return resource.Resource{}, store.ErrNotFound
+	}
+	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
+		return resource.Resource{}, store.ErrConflict
+	}
+	existing.Status = status
+	existing.Metadata.ResourceVersion = strconv.FormatInt(expectedRevision+1, 10)
+	f.resources[key] = existing
+	f.statusUpdates = append(f.statusUpdates, existing)
+	return existing, nil
+}
+
+func TestMachineReportUpdatesPredeclaredMachineByLocation(t *testing.T) {
+	report := testReportResource()
+	machine := resource.Resource{
+		APIVersion: registry.MachineResource.APIVersion,
+		Kind:       registry.MachineResource.Kind,
+		Metadata: resource.Metadata{
+			Name:            "server-01",
+			UID:             "machine-uid",
+			ResourceVersion: "4",
+			Generation:      1,
+			Labels:          map[string]string{"homelab.io/role": "compute"},
+		},
+		Spec: map[string]any{"location": map[string]any{
+			"lldp_port":  "Ethernet1",
+			"switch_mac": "00:11:22:33:44:55",
+		}},
+		Status: map[string]any{"phase": "Pending"},
+	}
+	storage := newFakeStore(report, machine)
+	reconciler := NewReconciler(storage)
+
+	if err := reconciler.Reconcile(context.Background(), controller.Request{Kind: report.Kind, Name: report.Metadata.Name}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if len(storage.creates) != 0 {
+		t.Fatalf("Create() calls = %d, want 0", len(storage.creates))
+	}
+	if len(storage.updates) != 0 {
+		t.Fatalf("Update() calls = %d, want 0 spec updates", len(storage.updates))
+	}
+	if len(storage.statusUpdates) != 1 || storage.statusUpdates[0].Metadata.Name != "server-01" {
+		t.Fatalf("status updates = %#v, want server-01", storage.statusUpdates)
+	}
+	updated := storage.resources[registry.MachineResource.Kind+"/server-01"]
+	if updated.Metadata.Generation != 1 || updated.Metadata.Labels["homelab.io/role"] != "compute" {
+		t.Fatalf("status update changed declared Machine metadata: %#v", updated.Metadata)
+	}
+	if len(updated.Spec) != 1 {
+		t.Fatalf("status update changed Machine spec: %#v", updated.Spec)
+	}
+	if updated.Status["phase"] != "Pending" {
+		t.Fatalf("inventory update did not preserve other status fields: %#v", updated.Status)
+	}
+}
+
 func (f *fakeStore) Delete(_ context.Context, kind, name string, expectedRevision int64) error {
 	if f.beforeDelete != nil {
 		beforeDelete := f.beforeDelete
@@ -133,7 +200,7 @@ func TestMachineReportReconcilerCreatesTypedMachineOnce(t *testing.T) {
 		},
 	}
 	storage := newFakeStore(report)
-	reconciler := NewMachineReportReconciler(storage)
+	reconciler := NewReconciler(storage)
 	request := controller.Request{Kind: report.Kind, Name: report.Metadata.Name}
 
 	if err := reconciler.Reconcile(context.Background(), request); err != nil {
@@ -169,23 +236,18 @@ func TestMachineReportReconcilerCreatesTypedMachineOnce(t *testing.T) {
 	if location["switch_mac"] != "00:11:22:33:44:55" {
 		t.Fatalf("created location.switch_mac = %#v, want 00:11:22:33:44:55", location["switch_mac"])
 	}
-	if created.Spec["observed_at"] != "2026-08-18T12:00:00Z" {
-		t.Fatalf("created observed_at = %#v, want report timestamp", created.Spec["observed_at"])
+	if len(created.Spec) != 1 {
+		t.Fatalf("created Machine spec = %#v, want location only", created.Spec)
 	}
-	if _, ok := created.Spec["storage"]; !ok {
-		t.Fatal("created Machine does not contain storage report data")
+	if created.Metadata.Name != machineNameForLocation(apigen.MachineLocation{LldpPort: "Ethernet1", SwitchMac: "00:11:22:33:44:55"}) {
+		t.Fatalf("created Machine name = %q, want deterministic location name", created.Metadata.Name)
 	}
-	if _, ok := created.Spec["system"]; !ok {
-		t.Fatal("created Machine does not contain system report data")
+	if len(storage.statusUpdates) != 1 {
+		t.Fatalf("UpdateStatus() calls = %d, want 1", len(storage.statusUpdates))
 	}
-	if _, ok := created.Spec["cpu"]; !ok {
-		t.Fatal("created Machine does not contain CPU report data")
-	}
-	if _, ok := created.Spec["interfaces"]; !ok {
-		t.Fatal("created Machine does not contain interface report data")
-	}
-	if _, ok := created.Spec["lldp_info"]; !ok {
-		t.Fatal("created Machine does not contain LLDP report data")
+	inventory := storage.statusUpdates[0].Status["inventory"].(map[string]any)
+	if inventory["observed_at"] != "2026-08-18T12:00:00Z" {
+		t.Fatalf("created Machine status.inventory.observed_at = %#v, want report timestamp", inventory["observed_at"])
 	}
 
 	report.Spec["observed_at"] = "2026-08-19T12:00:00Z"
@@ -195,13 +257,17 @@ func TestMachineReportReconcilerCreatesTypedMachineOnce(t *testing.T) {
 	if err := reconciler.Reconcile(context.Background(), request); err != nil {
 		t.Fatalf("updated Reconcile() error = %v", err)
 	}
-	if len(storage.updates) != 1 {
-		t.Fatalf("Update() calls = %d, want 1", len(storage.updates))
+	if len(storage.updates) != 0 {
+		t.Fatalf("Update() calls = %d, want 0 spec updates", len(storage.updates))
+	}
+	if len(storage.statusUpdates) != 2 {
+		t.Fatalf("UpdateStatus() calls = %d, want 2", len(storage.statusUpdates))
 	}
 	if len(storage.deletes) != 2 {
 		t.Fatalf("consumed reports = %d, want 2", len(storage.deletes))
 	}
-	updatedSystem := storage.updates[0].Spec["system"].(map[string]any)
+	updatedInventory := storage.statusUpdates[1].Status["inventory"].(map[string]any)
+	updatedSystem := updatedInventory["system"].(map[string]any)
 	if updatedSystem["product_name"] != "updated-model" {
 		t.Fatalf("updated system.product_name = %#v, want updated-model", updatedSystem["product_name"])
 	}
@@ -211,7 +277,7 @@ func TestMachineReportIsNotConsumedWhenMachineWriteFails(t *testing.T) {
 	report := testReportResource()
 	storage := newFakeStore(report)
 	storage.createErr = errors.New("machine write failed")
-	reconciler := NewMachineReportReconciler(storage)
+	reconciler := NewReconciler(storage)
 
 	err := reconciler.Reconcile(context.Background(), controller.Request{Kind: report.Kind, Name: report.Metadata.Name})
 	if err == nil {
@@ -225,6 +291,24 @@ func TestMachineReportIsNotConsumedWhenMachineWriteFails(t *testing.T) {
 	}
 }
 
+func TestMachineReportIsNotConsumedWhenStatusWriteFails(t *testing.T) {
+	report := testReportResource()
+	storage := newFakeStore(report)
+	storage.statusErr = errors.New("status write failed")
+	reconciler := NewReconciler(storage)
+
+	err := reconciler.Reconcile(context.Background(), controller.Request{Kind: report.Kind, Name: report.Metadata.Name})
+	if err == nil {
+		t.Fatal("Reconcile() error = nil, want status write failure")
+	}
+	if len(storage.deletes) != 0 {
+		t.Fatalf("consumed reports = %d, want 0", len(storage.deletes))
+	}
+	if len(storage.creates) != 1 {
+		t.Fatalf("Create() calls = %d, want Machine creation to remain retryable", len(storage.creates))
+	}
+}
+
 func TestMachineReportDoesNotConsumeNewerRevision(t *testing.T) {
 	report := testReportResource()
 	storage := newFakeStore(report)
@@ -234,7 +318,7 @@ func TestMachineReportDoesNotConsumeNewerRevision(t *testing.T) {
 		newer.Metadata.ResourceVersion = "11"
 		storage.resources[key] = newer
 	}
-	reconciler := NewMachineReportReconciler(storage)
+	reconciler := NewReconciler(storage)
 	request := controller.Request{Kind: report.Kind, Name: report.Metadata.Name}
 
 	if err := reconciler.Reconcile(context.Background(), request); !errors.Is(err, store.ErrConflict) {
@@ -255,7 +339,7 @@ func TestStaleMachineReportIsConsumedWithoutRegressingMachine(t *testing.T) {
 	newer := testReportResource()
 	newer.Spec["observed_at"] = "2026-08-19T12:00:00Z"
 	storage := newFakeStore(newer)
-	reconciler := NewMachineReportReconciler(storage)
+	reconciler := NewReconciler(storage)
 	request := controller.Request{Kind: newer.Kind, Name: newer.Metadata.Name}
 
 	if err := reconciler.Reconcile(context.Background(), request); err != nil {
@@ -268,15 +352,17 @@ func TestStaleMachineReportIsConsumedWithoutRegressingMachine(t *testing.T) {
 		t.Fatalf("stale Reconcile() error = %v", err)
 	}
 
-	if len(storage.updates) != 0 {
-		t.Fatalf("Update() calls = %d, want 0 for stale report", len(storage.updates))
+	if len(storage.statusUpdates) != 1 {
+		t.Fatalf("UpdateStatus() calls = %d, want 1 for only the newer report", len(storage.statusUpdates))
 	}
 	if len(storage.deletes) != 2 {
 		t.Fatalf("consumed reports = %d, want 2", len(storage.deletes))
 	}
-	machine := storage.resources[registry.MachineResource.Kind+"/"+newer.Metadata.Name]
-	if machine.Spec["observed_at"] != "2026-08-19T12:00:00Z" {
-		t.Fatalf("Machine observed_at = %#v, want newer timestamp", machine.Spec["observed_at"])
+	location := apigen.MachineLocation{LldpPort: "Ethernet1", SwitchMac: "00:11:22:33:44:55"}
+	machine := storage.resources[registry.MachineResource.Kind+"/"+machineNameForLocation(location)]
+	inventory := machine.Status["inventory"].(map[string]any)
+	if inventory["observed_at"] != "2026-08-19T12:00:00Z" {
+		t.Fatalf("Machine status.inventory.observed_at = %#v, want newer timestamp", inventory["observed_at"])
 	}
 }
 
@@ -295,7 +381,16 @@ func testReportResource() resource.Resource {
 			"system":      map[string]any{},
 			"cpu":         map[string]any{"cores": []any{}},
 			"interfaces":  []any{},
-			"lldp_info":   []any{},
+			"lldp_info": []any{map[string]any{
+				"interface": []any{map[string]any{
+					"chassis": []any{map[string]any{
+						"id": []any{map[string]any{"type": "mac", "value": "00:11:22:33:44:55"}},
+					}},
+					"port": []any{map[string]any{
+						"id": []any{map[string]any{"type": "ifname", "value": "Ethernet1"}},
+					}},
+				}},
+			}},
 		},
 	}
 }
