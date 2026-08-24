@@ -17,6 +17,7 @@ type Store interface {
 	Get(context.Context, string, string) (resource.Resource, error)
 	List(context.Context, string) (resource.List, error)
 	Update(context.Context, resource.Resource, int64) (resource.Resource, error)
+	UpdateStatus(context.Context, string, string, map[string]any, int64) (resource.Resource, error)
 	Delete(context.Context, string, string, int64) error
 	DeleteCollection(context.Context, string) (int64, error)
 	Ready(context.Context) error

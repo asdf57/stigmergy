@@ -24,12 +24,14 @@ var (
 )
 
 type resourceMetadata struct {
-	APIVersion string   `yaml:"api-version"`
-	PathPrefix string   `yaml:"path-prefix"`
-	Kind       string   `yaml:"kind"`
-	Plural     string   `yaml:"plural"`
-	SpecSchema string   `yaml:"spec-schema"`
-	Operations []string `yaml:"operations"`
+	APIVersion   string   `yaml:"api-version"`
+	PathPrefix   string   `yaml:"path-prefix"`
+	Kind         string   `yaml:"kind"`
+	Plural       string   `yaml:"plural"`
+	SpecSchema   string   `yaml:"spec-schema"`
+	StatusSchema string   `yaml:"status-schema"`
+	Operations   []string `yaml:"operations"`
+	Finalizers   []string `yaml:"finalizers"`
 }
 
 type resourceModule struct {
@@ -128,6 +130,19 @@ func readModules(directory string) []resourceModule {
 		}
 		modules = append(modules, resourceModule{Metadata: metadata, Schemas: document})
 	}
+	allSchemas := make(map[string]struct{})
+	for _, module := range modules {
+		for name := range module.Schemas {
+			allSchemas[name] = struct{}{}
+		}
+	}
+	for index, module := range modules {
+		if module.Metadata.StatusSchema != "" {
+			if _, found := allSchemas[module.Metadata.StatusSchema]; !found {
+				fail("%s: status schema %q is not defined", paths[index], module.Metadata.StatusSchema)
+			}
+		}
+	}
 	return modules
 }
 
@@ -147,7 +162,7 @@ func validateMetadata(path string, metadata resourceMetadata) {
 	if len(metadata.Operations) == 0 {
 		fail("%s: at least one operation is required", path)
 	}
-	allowed := map[string]bool{"create": true, "list": true, "get": true, "put": true, "delete": true, "delete-collection": true}
+	allowed := map[string]bool{"create": true, "list": true, "get": true, "put": true, "patch": true, "delete": true, "delete-collection": true}
 	seen := make(map[string]bool)
 	for _, operation := range metadata.Operations {
 		if !allowed[operation] {
@@ -157,6 +172,16 @@ func validateMetadata(path string, metadata resourceMetadata) {
 			fail("%s: duplicate operation %q", path, operation)
 		}
 		seen[operation] = true
+	}
+	seenFinalizers := make(map[string]bool)
+	for _, finalizer := range metadata.Finalizers {
+		if strings.TrimSpace(finalizer) == "" {
+			fail("%s: finalizers cannot contain an empty value", path)
+		}
+		if seenFinalizers[finalizer] {
+			fail("%s: duplicate finalizer %q", path, finalizer)
+		}
+		seenFinalizers[finalizer] = true
 	}
 }
 
@@ -174,7 +199,7 @@ func addResource(root map[string]any, module resourceModule) {
 
 	createName := metadata.Kind + "Create"
 	listName := metadata.Kind + "List"
-	schemas[createName] = envelopeSchema(metadata, metadata.SpecSchema, false)
+	schemas[createName] = envelopeSchema(metadata, metadata.SpecSchema, true)
 	schemas[metadata.Kind] = envelopeSchema(metadata, metadata.SpecSchema, false)
 	schemas[listName] = listSchema(metadata)
 
@@ -200,6 +225,9 @@ func addResource(root map[string]any, module resourceModule) {
 	if operations["put"] {
 		item["put"] = putOperation(metadata)
 	}
+	if operations["patch"] {
+		item["patch"] = patchOperation(metadata)
+	}
 	if operations["delete"] {
 		item["delete"] = deleteOperation(metadata)
 	}
@@ -214,17 +242,23 @@ func addResource(root map[string]any, module resourceModule) {
 	}
 }
 
-func envelopeSchema(metadata resourceMetadata, specSchema string, _ bool) map[string]any {
+func envelopeSchema(metadata resourceMetadata, specSchema string, create bool) map[string]any {
+	properties := map[string]any{
+		"apiVersion": map[string]any{"type": "string", "const": metadata.APIVersion},
+		"kind":       map[string]any{"type": "string", "const": metadata.Kind},
+		"metadata":   schemaRef("Metadata"),
+		"spec":       schemaRef(specSchema),
+	}
+	if !create && metadata.StatusSchema != "" {
+		status := schemaRef(metadata.StatusSchema)
+		status["readOnly"] = true
+		properties["status"] = status
+	}
 	return map[string]any{
 		"type":                 "object",
 		"additionalProperties": false,
 		"required":             []any{"apiVersion", "kind", "metadata", "spec"},
-		"properties": map[string]any{
-			"apiVersion": map[string]any{"type": "string", "const": metadata.APIVersion},
-			"kind":       map[string]any{"type": "string", "const": metadata.Kind},
-			"metadata":   schemaRef("Metadata"),
-			"spec":       schemaRef(specSchema),
-		},
+		"properties":           properties,
 	}
 }
 
@@ -268,7 +302,7 @@ func createOperation(metadata resourceMetadata) map[string]any {
 		"tags":        []any{metadata.Kind + "s"},
 		"summary":     "Create a " + metadata.Kind,
 		"operationId": "create" + metadata.Kind,
-		"requestBody": map[string]any{"required": true, "content": jsonContent(schemaRef(metadata.Kind + "Create"))},
+		"requestBody": map[string]any{"required": true, "content": resourceWriteContent(schemaRef(metadata.Kind + "Create"))},
 		"responses": map[string]any{
 			"201": resourceResponse(metadata.Kind, true),
 			"400": errorResponse("Request does not match the resource schema"),
@@ -299,13 +333,43 @@ func putOperation(metadata resourceMetadata) map[string]any {
 		"summary":     "Create or replace one " + metadata.Kind,
 		"description": "Idempotently stores the latest resource state.",
 		"operationId": "put" + metadata.Kind,
-		"requestBody": map[string]any{"required": true, "content": jsonContent(schemaRef(metadata.SpecSchema))},
+		"requestBody": map[string]any{"required": true, "content": resourceWriteContent(schemaRef(metadata.SpecSchema))},
 		"responses": map[string]any{
 			"200": resourceResponse(metadata.Kind, false),
 			"201": resourceResponse(metadata.Kind, true),
 			"400": errorResponse("Request does not match the resource schema"),
 			"409": errorResponse("Concurrent resource update"),
 			"422": errorResponse("Resource is invalid"),
+			"500": errorResponse("Resource store request failed"),
+		},
+	}
+}
+
+func patchOperation(metadata resourceMetadata) map[string]any {
+	return map[string]any{
+		"tags":        []any{metadata.Kind + "s"},
+		"summary":     "Merge-patch one " + metadata.Kind,
+		"description": "Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.",
+		"operationId": "patch" + metadata.Kind,
+		"parameters":  []any{ifMatchParameter()},
+		"requestBody": map[string]any{
+			"required": true,
+			"content": map[string]any{
+				"application/merge-patch+json": map[string]any{
+					"schema": map[string]any{"type": "object", "additionalProperties": true},
+				},
+				"application/merge-patch+yaml": map[string]any{
+					"schema": map[string]any{"type": "object", "additionalProperties": true},
+				},
+			},
+		},
+		"responses": map[string]any{
+			"200": resourceResponse(metadata.Kind, false),
+			"400": errorResponse("Request does not contain a valid merge patch"),
+			"404": errorResponse("Resource not found"),
+			"409": errorResponse("Resource version conflict"),
+			"422": errorResponse("Merged resource spec is invalid"),
+			"428": errorResponse("If-Match is required"),
 			"500": errorResponse("Resource store request failed"),
 		},
 	}
@@ -318,6 +382,7 @@ func deleteOperation(metadata resourceMetadata) map[string]any {
 		"operationId": "delete" + metadata.Kind,
 		"parameters":  []any{ifMatchParameter()},
 		"responses": map[string]any{
+			"202": map[string]any{"description": "Deletion accepted and awaiting finalizers"},
 			"204": map[string]any{"description": "Resource deleted"},
 			"400": errorResponse("Resource name is invalid"),
 			"404": errorResponse("Resource not found"),
@@ -391,6 +456,14 @@ func schemaRef(name string) map[string]any {
 
 func jsonContent(schema map[string]any) map[string]any {
 	return map[string]any{"application/json": map[string]any{"schema": schema}}
+}
+
+func resourceWriteContent(schema map[string]any) map[string]any {
+	return map[string]any{
+		"application/json":   map[string]any{"schema": schema},
+		"application/yaml":   map[string]any{"schema": schema},
+		"application/x-yaml": map[string]any{"schema": schema},
+	}
 }
 
 func operationSet(operations []string) map[string]bool {
@@ -503,7 +576,7 @@ func writeRegistry(path, modelsImport, resourceImport string, modules []resource
 		metadata := module.Metadata
 		fmt.Fprintf(
 			&source,
-			"var %sResource = %sDefinition{Definition: NewDefinition[apigen.%s](%q, %q, %q, %q)}\n",
+			"var %sResource = %sDefinition{Definition: NewDefinition[apigen.%s](%q, %q, %q, %q, %q, %#v)}\n",
 			metadata.Kind,
 			metadata.Kind,
 			metadata.SpecSchema,
@@ -511,6 +584,8 @@ func writeRegistry(path, modelsImport, resourceImport string, modules []resource
 			metadata.PathPrefix,
 			metadata.Kind,
 			metadata.Plural,
+			metadata.StatusSchema,
+			metadata.Finalizers,
 		)
 	}
 	source.WriteString("\n")

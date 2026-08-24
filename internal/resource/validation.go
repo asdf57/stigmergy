@@ -32,8 +32,16 @@ func Validate(resource Resource) error {
 	if resource.Spec == nil {
 		problems = append(problems, errors.New("spec must be a JSON object"))
 	}
-	if len(resource.Metadata.Finalizers) != 0 {
-		problems = append(problems, errors.New("finalizers are not supported until finalization reconciliation is implemented"))
+	seenFinalizers := make(map[string]struct{}, len(resource.Metadata.Finalizers))
+	for _, finalizer := range resource.Metadata.Finalizers {
+		if strings.TrimSpace(finalizer) == "" {
+			problems = append(problems, errors.New("metadata.finalizers cannot contain an empty value"))
+			continue
+		}
+		if _, exists := seenFinalizers[finalizer]; exists {
+			problems = append(problems, fmt.Errorf("metadata.finalizers contains duplicate %q", finalizer))
+		}
+		seenFinalizers[finalizer] = struct{}{}
 	}
 	if err := validateMap("metadata.labels", resource.Metadata.Labels); err != nil {
 		problems = append(problems, err)
@@ -55,6 +63,9 @@ func ValidateCreate(resource Resource) error {
 	}
 	if resource.Metadata.DeletionTimestamp != nil {
 		problems = append(problems, errors.New("deletionTimestamp is server-owned"))
+	}
+	if len(resource.Metadata.Finalizers) != 0 {
+		problems = append(problems, errors.New("finalizers are controller-owned"))
 	}
 	if len(resource.Status) != 0 {
 		problems = append(problems, errors.New("status cannot be set during creation"))

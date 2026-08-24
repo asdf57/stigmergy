@@ -3,9 +3,16 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"mime"
 	"net/http"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
@@ -29,6 +36,50 @@ func (s *Server) handleValidationError(w http.ResponseWriter, message string, st
 func (s *Server) limitRequestBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) normalizeYAML(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		targetMediaType, supported := map[string]string{
+			"application/yaml":             "application/json",
+			"application/x-yaml":           "application/json",
+			"application/merge-patch+yaml": "application/merge-patch+json",
+		}[mediaType]
+		if !supported {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		decoder := yaml.NewDecoder(r.Body)
+		var document any
+		if err := decoder.Decode(&document); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid", "decode YAML request body: "+err.Error())
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			if err == nil {
+				err = errors.New("multiple YAML documents are not supported")
+			}
+			writeError(w, http.StatusBadRequest, "Invalid", "decode YAML request body: "+err.Error())
+			return
+		}
+		encoded, err := json.Marshal(document)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid", "convert YAML request body: "+err.Error())
+			return
+		}
+
+		r.Body = io.NopCloser(bytes.NewReader(encoded))
+		r.ContentLength = int64(len(encoded))
+		r.Header.Set("Content-Type", targetMediaType)
 		next.ServeHTTP(w, r)
 	})
 }

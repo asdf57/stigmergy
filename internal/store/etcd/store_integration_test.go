@@ -46,8 +46,16 @@ func TestResourceLifecycle(t *testing.T) {
 		t.Fatalf("server metadata was not populated: %#v", created.Metadata)
 	}
 
-	revision := mustRevision(t, created.Metadata.ResourceVersion)
-	first := created
+	statusUpdated, err := store.UpdateStatus(ctx, created.Kind, created.Metadata.Name, map[string]any{"ready": true}, mustRevision(t, created.Metadata.ResourceVersion))
+	if err != nil {
+		t.Fatalf("UpdateStatus() error = %v", err)
+	}
+	if statusUpdated.Metadata.Generation != 1 || statusUpdated.Status["ready"] != true {
+		t.Fatalf("status update changed generation or lost status: %#v", statusUpdated)
+	}
+
+	revision := mustRevision(t, statusUpdated.Metadata.ResourceVersion)
+	first := statusUpdated
 	first.Spec["hostname"] = "updated.example"
 	updated, err := store.Update(ctx, first, revision)
 	if err != nil {
@@ -55,6 +63,9 @@ func TestResourceLifecycle(t *testing.T) {
 	}
 	if updated.Metadata.Generation != 2 {
 		t.Fatalf("generation = %d, want 2", updated.Metadata.Generation)
+	}
+	if updated.Status["ready"] != true {
+		t.Fatalf("normal update did not preserve status: %#v", updated.Status)
 	}
 
 	stale := created
@@ -68,6 +79,36 @@ func TestResourceLifecycle(t *testing.T) {
 	}
 	if _, err := store.Get(ctx, updated.Kind, updated.Metadata.Name); !errors.Is(err, storage.ErrNotFound) {
 		t.Fatalf("Get() after delete error = %v, want not found", err)
+	}
+
+	finalizable, err := store.Create(ctx, resource.Resource{
+		APIVersion: resource.APIVersion,
+		Kind:       "FinalizableResource",
+		Metadata: resource.Metadata{
+			Name:       "external-owner",
+			Finalizers: []string{"homelab.io/external-cleanup"},
+		},
+		Spec: map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("create finalizable resource: %v", err)
+	}
+	if err := store.Delete(ctx, finalizable.Kind, finalizable.Metadata.Name, mustRevision(t, finalizable.Metadata.ResourceVersion)); err != nil {
+		t.Fatalf("begin graceful deletion: %v", err)
+	}
+	terminating, err := store.Get(ctx, finalizable.Kind, finalizable.Metadata.Name)
+	if err != nil {
+		t.Fatalf("get terminating resource: %v", err)
+	}
+	if terminating.Metadata.DeletionTimestamp == nil || len(terminating.Metadata.Finalizers) != 1 {
+		t.Fatalf("terminating metadata = %#v", terminating.Metadata)
+	}
+	terminating.Metadata.Finalizers = nil
+	if _, err := store.Update(ctx, terminating, mustRevision(t, terminating.Metadata.ResourceVersion)); err != nil {
+		t.Fatalf("remove finalizer: %v", err)
+	}
+	if _, err := store.Get(ctx, finalizable.Kind, finalizable.Metadata.Name); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("Get() after finalization error = %v, want not found", err)
 	}
 
 	firstBulk, err := store.Create(ctx, resource.Resource{

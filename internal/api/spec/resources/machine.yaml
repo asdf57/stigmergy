@@ -1,46 +1,21 @@
-# Machine is the stable inventory resource discovered from a MachineReport.
+# Machine is the stable resource for the hardware attached at an LLDP location.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
   kind: Machine
   plural: machines
   spec-schema: MachineSpec
-  operations: [create, list, get, put, delete, delete-collection]
+  status-schema: MachineStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
 
 MachineSpec:
   type: object
   additionalProperties: false
   required:
     - location
-    - observed_at
-    - storage
-    - system
-    - cpu
-    - interfaces
-    - lldp_info
   properties:
     location:
       $ref: '#/components/schemas/MachineLocation'
-    observed_at:
-      type: string
-      format: date-time
-    storage:
-      type: array
-      items:
-        $ref: '#/components/schemas/MachineReportStorageDevice'
-    system:
-      $ref: '#/components/schemas/MachineReportSystem'
-    cpu:
-      $ref: '#/components/schemas/MachineReportCPU'
-    interfaces:
-      type: array
-      items:
-        $ref: '#/components/schemas/MachineReportNetworkInterface'
-    lldp_info:
-      type: array
-      x-go-name: LLDPInfo
-      items:
-        $ref: '#/components/schemas/MachineReportLLDPInterfaceGroup'
 
 MachineLocation:
   type: object
@@ -53,3 +28,43 @@ MachineLocation:
       type: string
     switch_mac:
       type: string
+
+MachineStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    inventory:
+      $ref: '#/components/schemas/MachineReportSpec'
+    phase: {type: string}
+    serverRef:
+      $ref: '#/components/schemas/ResourceReference'
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/MachineCondition'
+
+ResourceReference:
+  type: object
+  additionalProperties: false
+  required: [name, uid]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+MachineCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    lastTransitionTime: {type: string, format: date-time}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

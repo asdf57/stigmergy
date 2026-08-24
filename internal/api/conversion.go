@@ -30,6 +30,7 @@ type resourceEnvelope struct {
 	Kind       string          `json:"kind"`
 	Metadata   apigen.Metadata `json:"metadata"`
 	Spec       any             `json:"spec"`
+	Status     map[string]any  `json:"status,omitempty"`
 }
 
 type resourceListEnvelope struct {
@@ -59,11 +60,26 @@ func (s *Server) apiResource(definition registry.Definition, value resource.Reso
 	if err != nil {
 		return resourceEnvelope{}, err
 	}
+	if len(value.Status) != 0 && definition.StatusSchema != "" {
+		statusSchemaRef, found := s.openAPI.Components.Schemas[definition.StatusSchema]
+		if !found || statusSchemaRef.Value == nil {
+			return resourceEnvelope{}, fmt.Errorf("schema %s is not registered", definition.StatusSchema)
+		}
+		if err := s.openAPI.ValidateSchemaJSON(
+			statusSchemaRef.Value,
+			value.Status,
+			openapi3.EnableFormatValidation(),
+			openapi3.MultiErrors(),
+		); err != nil {
+			return resourceEnvelope{}, fmt.Errorf("stored %s status failed validation: %w", definition.Kind, err)
+		}
+	}
 	return resourceEnvelope{
 		APIVersion: definition.APIVersion,
 		Kind:       definition.Kind,
 		Metadata:   apiMetadata(value.Metadata),
 		Spec:       typedSpec,
+		Status:     value.Status,
 	}, nil
 }
 
@@ -91,8 +107,57 @@ func resourceSpecMap(value any) (map[string]any, error) {
 	return result, nil
 }
 
+func (s *Server) validateResourceSpec(definition registry.Definition, spec map[string]any) (map[string]any, error) {
+	schemaRef, found := s.openAPI.Components.Schemas[definition.SpecSchema]
+	if !found || schemaRef.Value == nil {
+		return nil, fmt.Errorf("schema %s is not registered", definition.SpecSchema)
+	}
+	if err := s.openAPI.ValidateSchemaJSON(
+		schemaRef.Value,
+		spec,
+		openapi3.EnableFormatValidation(),
+		openapi3.MultiErrors(),
+	); err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(spec)
+	if err != nil {
+		return nil, fmt.Errorf("encode merged resource spec: %w", err)
+	}
+	typedSpec, err := definition.DecodeSpec(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return resourceSpecMap(typedSpec)
+}
+
+func applyJSONMergePatch(target, patch map[string]any) map[string]any {
+	merged := make(map[string]any, len(target)+len(patch))
+	for key, value := range target {
+		merged[key] = value
+	}
+	for key, patchValue := range patch {
+		if patchValue == nil {
+			delete(merged, key)
+			continue
+		}
+		patchObject, patchIsObject := patchValue.(map[string]any)
+		if !patchIsObject {
+			// RFC 7396 replaces scalars and arrays atomically.
+			merged[key] = patchValue
+			continue
+		}
+		targetObject, _ := merged[key].(map[string]any)
+		merged[key] = applyJSONMergePatch(targetObject, patchObject)
+	}
+	return merged
+}
+
 func domainMetadata(value apigen.Metadata) resource.Metadata {
 	result := resource.Metadata{Name: value.Name, DeletionTimestamp: value.DeletionTimestamp}
+	if value.Finalizers != nil {
+		result.Finalizers = *value.Finalizers
+	}
 	if value.Uid != nil {
 		result.UID = *value.Uid
 	}
@@ -116,6 +181,9 @@ func domainMetadata(value apigen.Metadata) resource.Metadata {
 
 func apiMetadata(value resource.Metadata) apigen.Metadata {
 	result := apigen.Metadata{Name: value.Name, DeletionTimestamp: value.DeletionTimestamp}
+	if value.Finalizers != nil {
+		result.Finalizers = &value.Finalizers
+	}
 	if value.UID != "" {
 		result.Uid = &value.UID
 	}

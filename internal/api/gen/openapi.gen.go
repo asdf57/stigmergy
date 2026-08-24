@@ -16,6 +16,375 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+// Defines values for GitRepositoryApiVersion.
+const (
+	GitRepositoryApiVersionHomelabIov1alpha1 GitRepositoryApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryApiVersion enum.
+func (e GitRepositoryApiVersion) Valid() bool {
+	switch e {
+	case GitRepositoryApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitRepositoryKind.
+const (
+	GitRepositoryKindGitRepository GitRepositoryKind = "GitRepository"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryKind enum.
+func (e GitRepositoryKind) Valid() bool {
+	switch e {
+	case GitRepositoryKindGitRepository:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitRepositoryCreateApiVersion.
+const (
+	GitRepositoryCreateApiVersionHomelabIov1alpha1 GitRepositoryCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryCreateApiVersion enum.
+func (e GitRepositoryCreateApiVersion) Valid() bool {
+	switch e {
+	case GitRepositoryCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitRepositoryCreateKind.
+const (
+	GitRepositoryCreateKindGitRepository GitRepositoryCreateKind = "GitRepository"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryCreateKind enum.
+func (e GitRepositoryCreateKind) Valid() bool {
+	switch e {
+	case GitRepositoryCreateKindGitRepository:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitRepositoryListApiVersion.
+const (
+	GitRepositoryListApiVersionHomelabIov1alpha1 GitRepositoryListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryListApiVersion enum.
+func (e GitRepositoryListApiVersion) Valid() bool {
+	switch e {
+	case GitRepositoryListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GitRepositoryListKind.
+const (
+	GitRepositoryListKindGitRepositoryList GitRepositoryListKind = "GitRepositoryList"
+)
+
+// Valid indicates whether the value is a known member of the GitRepositoryListKind enum.
+func (e GitRepositoryListKind) Valid() bool {
+	switch e {
+	case GitRepositoryListKindGitRepositoryList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupApiVersion.
+const (
+	InventoryCaptureGroupApiVersionHomelabIov1alpha1 InventoryCaptureGroupApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupApiVersion enum.
+func (e InventoryCaptureGroupApiVersion) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupKind.
+const (
+	InventoryCaptureGroupKindInventoryCaptureGroup InventoryCaptureGroupKind = "InventoryCaptureGroup"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupKind enum.
+func (e InventoryCaptureGroupKind) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupKindInventoryCaptureGroup:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupConditionStatus.
+const (
+	InventoryCaptureGroupConditionStatusFalse   InventoryCaptureGroupConditionStatus = "False"
+	InventoryCaptureGroupConditionStatusTrue    InventoryCaptureGroupConditionStatus = "True"
+	InventoryCaptureGroupConditionStatusUnknown InventoryCaptureGroupConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupConditionStatus enum.
+func (e InventoryCaptureGroupConditionStatus) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupConditionStatusFalse:
+		return true
+	case InventoryCaptureGroupConditionStatusTrue:
+		return true
+	case InventoryCaptureGroupConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupCreateApiVersion.
+const (
+	InventoryCaptureGroupCreateApiVersionHomelabIov1alpha1 InventoryCaptureGroupCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupCreateApiVersion enum.
+func (e InventoryCaptureGroupCreateApiVersion) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupCreateKind.
+const (
+	InventoryCaptureGroupCreateKindInventoryCaptureGroup InventoryCaptureGroupCreateKind = "InventoryCaptureGroup"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupCreateKind enum.
+func (e InventoryCaptureGroupCreateKind) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupCreateKindInventoryCaptureGroup:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupListApiVersion.
+const (
+	InventoryCaptureGroupListApiVersionHomelabIov1alpha1 InventoryCaptureGroupListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupListApiVersion enum.
+func (e InventoryCaptureGroupListApiVersion) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupListKind.
+const (
+	InventoryCaptureGroupListKindInventoryCaptureGroupList InventoryCaptureGroupListKind = "InventoryCaptureGroupList"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupListKind enum.
+func (e InventoryCaptureGroupListKind) Valid() bool {
+	switch e {
+	case InventoryCaptureGroupListKindInventoryCaptureGroupList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryCaptureGroupMatchExpressionOperator.
+const (
+	DoesNotExist InventoryCaptureGroupMatchExpressionOperator = "DoesNotExist"
+	Exists       InventoryCaptureGroupMatchExpressionOperator = "Exists"
+	In           InventoryCaptureGroupMatchExpressionOperator = "In"
+	NotIn        InventoryCaptureGroupMatchExpressionOperator = "NotIn"
+)
+
+// Valid indicates whether the value is a known member of the InventoryCaptureGroupMatchExpressionOperator enum.
+func (e InventoryCaptureGroupMatchExpressionOperator) Valid() bool {
+	switch e {
+	case DoesNotExist:
+		return true
+	case Exists:
+		return true
+	case In:
+		return true
+	case NotIn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationApiVersion.
+const (
+	InventoryPublicationApiVersionHomelabIov1alpha1 InventoryPublicationApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationApiVersion enum.
+func (e InventoryPublicationApiVersion) Valid() bool {
+	switch e {
+	case InventoryPublicationApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationKind.
+const (
+	InventoryPublicationKindInventoryPublication InventoryPublicationKind = "InventoryPublication"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationKind enum.
+func (e InventoryPublicationKind) Valid() bool {
+	switch e {
+	case InventoryPublicationKindInventoryPublication:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationConditionStatus.
+const (
+	InventoryPublicationConditionStatusFalse   InventoryPublicationConditionStatus = "False"
+	InventoryPublicationConditionStatusTrue    InventoryPublicationConditionStatus = "True"
+	InventoryPublicationConditionStatusUnknown InventoryPublicationConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationConditionStatus enum.
+func (e InventoryPublicationConditionStatus) Valid() bool {
+	switch e {
+	case InventoryPublicationConditionStatusFalse:
+		return true
+	case InventoryPublicationConditionStatusTrue:
+		return true
+	case InventoryPublicationConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationCreateApiVersion.
+const (
+	InventoryPublicationCreateApiVersionHomelabIov1alpha1 InventoryPublicationCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationCreateApiVersion enum.
+func (e InventoryPublicationCreateApiVersion) Valid() bool {
+	switch e {
+	case InventoryPublicationCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationCreateKind.
+const (
+	InventoryPublicationCreateKindInventoryPublication InventoryPublicationCreateKind = "InventoryPublication"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationCreateKind enum.
+func (e InventoryPublicationCreateKind) Valid() bool {
+	switch e {
+	case InventoryPublicationCreateKindInventoryPublication:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationListApiVersion.
+const (
+	InventoryPublicationListApiVersionHomelabIov1alpha1 InventoryPublicationListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationListApiVersion enum.
+func (e InventoryPublicationListApiVersion) Valid() bool {
+	switch e {
+	case InventoryPublicationListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationListKind.
+const (
+	InventoryPublicationListKindInventoryPublicationList InventoryPublicationListKind = "InventoryPublicationList"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationListKind enum.
+func (e InventoryPublicationListKind) Valid() bool {
+	switch e {
+	case InventoryPublicationListKindInventoryPublicationList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationPolicyMode.
+const (
+	OnChange InventoryPublicationPolicyMode = "OnChange"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationPolicyMode enum.
+func (e InventoryPublicationPolicyMode) Valid() bool {
+	switch e {
+	case OnChange:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InventoryPublicationSpecFormat.
+const (
+	AnsibleJson InventoryPublicationSpecFormat = "ansible-json"
+	AnsibleYaml InventoryPublicationSpecFormat = "ansible-yaml"
+)
+
+// Valid indicates whether the value is a known member of the InventoryPublicationSpecFormat enum.
+func (e InventoryPublicationSpecFormat) Valid() bool {
+	switch e {
+	case AnsibleJson:
+		return true
+	case AnsibleYaml:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MachineApiVersion.
 const (
 	MachineApiVersionHomelabIov1alpha1 MachineApiVersion = "homelab.io/v1alpha1"
@@ -40,6 +409,27 @@ const (
 func (e MachineKind) Valid() bool {
 	switch e {
 	case MachineKindMachine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineConditionStatus.
+const (
+	MachineConditionStatusFalse   MachineConditionStatus = "False"
+	MachineConditionStatusTrue    MachineConditionStatus = "True"
+	MachineConditionStatusUnknown MachineConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the MachineConditionStatus enum.
+func (e MachineConditionStatus) Valid() bool {
+	switch e {
+	case MachineConditionStatusFalse:
+		return true
+	case MachineConditionStatusTrue:
+		return true
+	case MachineConditionStatusUnknown:
 		return true
 	default:
 		return false
@@ -198,16 +588,490 @@ func (e MachineReportListKind) Valid() bool {
 
 // Defines values for MachineReportNetworkAddressFamily.
 const (
-	Ipv4 MachineReportNetworkAddressFamily = "ipv4"
-	Ipv6 MachineReportNetworkAddressFamily = "ipv6"
+	MachineReportNetworkAddressFamilyIpv4 MachineReportNetworkAddressFamily = "ipv4"
+	MachineReportNetworkAddressFamilyIpv6 MachineReportNetworkAddressFamily = "ipv6"
 )
 
 // Valid indicates whether the value is a known member of the MachineReportNetworkAddressFamily enum.
 func (e MachineReportNetworkAddressFamily) Valid() bool {
 	switch e {
-	case Ipv4:
+	case MachineReportNetworkAddressFamilyIpv4:
 		return true
-	case Ipv6:
+	case MachineReportNetworkAddressFamilyIpv6:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantApiVersion.
+const (
+	SSHAccessGrantApiVersionHomelabIov1alpha1 SSHAccessGrantApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantApiVersion enum.
+func (e SSHAccessGrantApiVersion) Valid() bool {
+	switch e {
+	case SSHAccessGrantApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantKind.
+const (
+	SSHAccessGrantKindSSHAccessGrant SSHAccessGrantKind = "SSHAccessGrant"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantKind enum.
+func (e SSHAccessGrantKind) Valid() bool {
+	switch e {
+	case SSHAccessGrantKindSSHAccessGrant:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantConditionStatus.
+const (
+	SSHAccessGrantConditionStatusFalse   SSHAccessGrantConditionStatus = "False"
+	SSHAccessGrantConditionStatusTrue    SSHAccessGrantConditionStatus = "True"
+	SSHAccessGrantConditionStatusUnknown SSHAccessGrantConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantConditionStatus enum.
+func (e SSHAccessGrantConditionStatus) Valid() bool {
+	switch e {
+	case SSHAccessGrantConditionStatusFalse:
+		return true
+	case SSHAccessGrantConditionStatusTrue:
+		return true
+	case SSHAccessGrantConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantCreateApiVersion.
+const (
+	SSHAccessGrantCreateApiVersionHomelabIov1alpha1 SSHAccessGrantCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantCreateApiVersion enum.
+func (e SSHAccessGrantCreateApiVersion) Valid() bool {
+	switch e {
+	case SSHAccessGrantCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantCreateKind.
+const (
+	SSHAccessGrantCreateKindSSHAccessGrant SSHAccessGrantCreateKind = "SSHAccessGrant"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantCreateKind enum.
+func (e SSHAccessGrantCreateKind) Valid() bool {
+	switch e {
+	case SSHAccessGrantCreateKindSSHAccessGrant:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantGeneratedKeyPairAlgorithm.
+const (
+	Ed25519 SSHAccessGrantGeneratedKeyPairAlgorithm = "ed25519"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantGeneratedKeyPairAlgorithm enum.
+func (e SSHAccessGrantGeneratedKeyPairAlgorithm) Valid() bool {
+	switch e {
+	case Ed25519:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantListApiVersion.
+const (
+	SSHAccessGrantListApiVersionHomelabIov1alpha1 SSHAccessGrantListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantListApiVersion enum.
+func (e SSHAccessGrantListApiVersion) Valid() bool {
+	switch e {
+	case SSHAccessGrantListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantListKind.
+const (
+	SSHAccessGrantListKindSSHAccessGrantList SSHAccessGrantListKind = "SSHAccessGrantList"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantListKind enum.
+func (e SSHAccessGrantListKind) Valid() bool {
+	switch e {
+	case SSHAccessGrantListKindSSHAccessGrantList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHAccessGrantStatusPhase.
+const (
+	Conflict SSHAccessGrantStatusPhase = "Conflict"
+	Failed   SSHAccessGrantStatusPhase = "Failed"
+	Pending  SSHAccessGrantStatusPhase = "Pending"
+	Ready    SSHAccessGrantStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the SSHAccessGrantStatusPhase enum.
+func (e SSHAccessGrantStatusPhase) Valid() bool {
+	switch e {
+	case Conflict:
+		return true
+	case Failed:
+		return true
+	case Pending:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreApiVersion.
+const (
+	SecretStoreApiVersionHomelabIov1alpha1 SecretStoreApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreApiVersion enum.
+func (e SecretStoreApiVersion) Valid() bool {
+	switch e {
+	case SecretStoreApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreKind.
+const (
+	SecretStoreKindSecretStore SecretStoreKind = "SecretStore"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreKind enum.
+func (e SecretStoreKind) Valid() bool {
+	switch e {
+	case SecretStoreKindSecretStore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreCreateApiVersion.
+const (
+	SecretStoreCreateApiVersionHomelabIov1alpha1 SecretStoreCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreCreateApiVersion enum.
+func (e SecretStoreCreateApiVersion) Valid() bool {
+	switch e {
+	case SecretStoreCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreCreateKind.
+const (
+	SecretStoreCreateKindSecretStore SecretStoreCreateKind = "SecretStore"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreCreateKind enum.
+func (e SecretStoreCreateKind) Valid() bool {
+	switch e {
+	case SecretStoreCreateKindSecretStore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreListApiVersion.
+const (
+	SecretStoreListApiVersionHomelabIov1alpha1 SecretStoreListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreListApiVersion enum.
+func (e SecretStoreListApiVersion) Valid() bool {
+	switch e {
+	case SecretStoreListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretStoreListKind.
+const (
+	SecretStoreListKindSecretStoreList SecretStoreListKind = "SecretStoreList"
+)
+
+// Valid indicates whether the value is a known member of the SecretStoreListKind enum.
+func (e SecretStoreListKind) Valid() bool {
+	switch e {
+	case SecretStoreListKindSecretStoreList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerApiVersion.
+const (
+	ServerApiVersionHomelabIov1alpha1 ServerApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ServerApiVersion enum.
+func (e ServerApiVersion) Valid() bool {
+	switch e {
+	case ServerApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerKind.
+const (
+	ServerKindServer ServerKind = "Server"
+)
+
+// Valid indicates whether the value is a known member of the ServerKind enum.
+func (e ServerKind) Valid() bool {
+	switch e {
+	case ServerKindServer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerChecksumAlgorithm.
+const (
+	Sha256 ServerChecksumAlgorithm = "sha256"
+	Sha512 ServerChecksumAlgorithm = "sha512"
+)
+
+// Valid indicates whether the value is a known member of the ServerChecksumAlgorithm enum.
+func (e ServerChecksumAlgorithm) Valid() bool {
+	switch e {
+	case Sha256:
+		return true
+	case Sha512:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerConditionStatus.
+const (
+	ServerConditionStatusFalse   ServerConditionStatus = "False"
+	ServerConditionStatusTrue    ServerConditionStatus = "True"
+	ServerConditionStatusUnknown ServerConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the ServerConditionStatus enum.
+func (e ServerConditionStatus) Valid() bool {
+	switch e {
+	case ServerConditionStatusFalse:
+		return true
+	case ServerConditionStatusTrue:
+		return true
+	case ServerConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerCreateApiVersion.
+const (
+	ServerCreateApiVersionHomelabIov1alpha1 ServerCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ServerCreateApiVersion enum.
+func (e ServerCreateApiVersion) Valid() bool {
+	switch e {
+	case ServerCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerCreateKind.
+const (
+	ServerCreateKindServer ServerCreateKind = "Server"
+)
+
+// Valid indicates whether the value is a known member of the ServerCreateKind enum.
+func (e ServerCreateKind) Valid() bool {
+	switch e {
+	case ServerCreateKindServer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerKubernetesFeatureRole.
+const (
+	ControlPlane ServerKubernetesFeatureRole = "control-plane"
+	Worker       ServerKubernetesFeatureRole = "worker"
+)
+
+// Valid indicates whether the value is a known member of the ServerKubernetesFeatureRole enum.
+func (e ServerKubernetesFeatureRole) Valid() bool {
+	switch e {
+	case ControlPlane:
+		return true
+	case Worker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerListApiVersion.
+const (
+	ServerListApiVersionHomelabIov1alpha1 ServerListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ServerListApiVersion enum.
+func (e ServerListApiVersion) Valid() bool {
+	switch e {
+	case ServerListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerListKind.
+const (
+	ServerListKindServerList ServerListKind = "ServerList"
+)
+
+// Valid indicates whether the value is a known member of the ServerListKind enum.
+func (e ServerListKind) Valid() bool {
+	switch e {
+	case ServerListKindServerList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerManagementAddressSelectorFamily.
+const (
+	ServerManagementAddressSelectorFamilyIpv4 ServerManagementAddressSelectorFamily = "ipv4"
+	ServerManagementAddressSelectorFamilyIpv6 ServerManagementAddressSelectorFamily = "ipv6"
+)
+
+// Valid indicates whether the value is a known member of the ServerManagementAddressSelectorFamily enum.
+func (e ServerManagementAddressSelectorFamily) Valid() bool {
+	switch e {
+	case ServerManagementAddressSelectorFamilyIpv4:
+		return true
+	case ServerManagementAddressSelectorFamilyIpv6:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerManagementAddressStatusFamily.
+const (
+	ServerManagementAddressStatusFamilyIpv4 ServerManagementAddressStatusFamily = "ipv4"
+	ServerManagementAddressStatusFamilyIpv6 ServerManagementAddressStatusFamily = "ipv6"
+)
+
+// Valid indicates whether the value is a known member of the ServerManagementAddressStatusFamily enum.
+func (e ServerManagementAddressStatusFamily) Valid() bool {
+	switch e {
+	case ServerManagementAddressStatusFamilyIpv4:
+		return true
+	case ServerManagementAddressStatusFamilyIpv6:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerManagementInterfaceSelectorAttachedAtMachineLocation.
+const (
+	ServerManagementInterfaceSelectorAttachedAtMachineLocationTrue ServerManagementInterfaceSelectorAttachedAtMachineLocation = true
+)
+
+// Valid indicates whether the value is a known member of the ServerManagementInterfaceSelectorAttachedAtMachineLocation enum.
+func (e ServerManagementInterfaceSelectorAttachedAtMachineLocation) Valid() bool {
+	switch e {
+	case ServerManagementInterfaceSelectorAttachedAtMachineLocationTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerOperatingSystemArchitecture.
+const (
+	Amd64 ServerOperatingSystemArchitecture = "amd64"
+	Arm64 ServerOperatingSystemArchitecture = "arm64"
+)
+
+// Valid indicates whether the value is a known member of the ServerOperatingSystemArchitecture enum.
+func (e ServerOperatingSystemArchitecture) Valid() bool {
+	switch e {
+	case Amd64:
+		return true
+	case Arm64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerOperatingSystemBootMode.
+const (
+	Bios ServerOperatingSystemBootMode = "bios"
+	Uefi ServerOperatingSystemBootMode = "uefi"
+)
+
+// Valid indicates whether the value is a known member of the ServerOperatingSystemBootMode enum.
+func (e ServerOperatingSystemBootMode) Valid() bool {
+	switch e {
+	case Bios:
+		return true
+	case Uefi:
 		return true
 	default:
 		return false
@@ -227,9 +1091,298 @@ type Error struct {
 	} `json:"error"`
 }
 
+// GitRepository defines model for GitRepository.
+type GitRepository struct {
+	ApiVersion GitRepositoryApiVersion `json:"apiVersion"`
+	Kind       GitRepositoryKind       `json:"kind"`
+	Metadata   Metadata                `json:"metadata"`
+	Spec       GitRepositorySpec       `json:"spec"`
+}
+
+// GitRepositoryApiVersion defines model for GitRepository.ApiVersion.
+type GitRepositoryApiVersion string
+
+// GitRepositoryKind defines model for GitRepository.Kind.
+type GitRepositoryKind string
+
+// GitRepositoryAuthentication defines model for GitRepositoryAuthentication.
+type GitRepositoryAuthentication struct {
+	PasswordEnvironmentVariable string  `json:"passwordEnvironmentVariable"`
+	Username                    *string `json:"username,omitempty"`
+}
+
+// GitRepositoryCommitSpec defines model for GitRepositoryCommitSpec.
+type GitRepositoryCommitSpec struct {
+	AuthorEmail     *string `json:"authorEmail,omitempty"`
+	AuthorName      *string `json:"authorName,omitempty"`
+	MessageTemplate *string `json:"messageTemplate,omitempty"`
+}
+
+// GitRepositoryCreate defines model for GitRepositoryCreate.
+type GitRepositoryCreate struct {
+	ApiVersion GitRepositoryCreateApiVersion `json:"apiVersion"`
+	Kind       GitRepositoryCreateKind       `json:"kind"`
+	Metadata   Metadata                      `json:"metadata"`
+	Spec       GitRepositorySpec             `json:"spec"`
+}
+
+// GitRepositoryCreateApiVersion defines model for GitRepositoryCreate.ApiVersion.
+type GitRepositoryCreateApiVersion string
+
+// GitRepositoryCreateKind defines model for GitRepositoryCreate.Kind.
+type GitRepositoryCreateKind string
+
+// GitRepositoryList defines model for GitRepositoryList.
+type GitRepositoryList struct {
+	ApiVersion GitRepositoryListApiVersion `json:"apiVersion"`
+	Items      []GitRepository             `json:"items"`
+	Kind       GitRepositoryListKind       `json:"kind"`
+	Metadata   ListMetadata                `json:"metadata"`
+}
+
+// GitRepositoryListApiVersion defines model for GitRepositoryList.ApiVersion.
+type GitRepositoryListApiVersion string
+
+// GitRepositoryListKind defines model for GitRepositoryList.Kind.
+type GitRepositoryListKind string
+
+// GitRepositorySpec defines model for GitRepositorySpec.
+type GitRepositorySpec struct {
+	Authentication *GitRepositoryAuthentication `json:"authentication,omitempty"`
+	Branch         string                       `json:"branch"`
+	Commit         *GitRepositoryCommitSpec     `json:"commit,omitempty"`
+	Url            string                       `json:"url"`
+}
+
 // Health defines model for Health.
 type Health struct {
 	Status string `json:"status"`
+}
+
+// InventoryCaptureAnsibleGroup defines model for InventoryCaptureAnsibleGroup.
+type InventoryCaptureAnsibleGroup struct {
+	Hosts map[string]InventoryCaptureAnsibleHost `json:"hosts"`
+}
+
+// InventoryCaptureAnsibleHost defines model for InventoryCaptureAnsibleHost.
+type InventoryCaptureAnsibleHost struct {
+	AnsibleHost string  `json:"ansible_host"`
+	Fqdn        *string `json:"fqdn,omitempty"`
+}
+
+// InventoryCaptureGroup defines model for InventoryCaptureGroup.
+type InventoryCaptureGroup struct {
+	ApiVersion InventoryCaptureGroupApiVersion `json:"apiVersion"`
+	Kind       InventoryCaptureGroupKind       `json:"kind"`
+	Metadata   Metadata                        `json:"metadata"`
+	Spec       InventoryCaptureGroupSpec       `json:"spec"`
+	Status     *InventoryCaptureGroupStatus    `json:"status,omitempty"`
+}
+
+// InventoryCaptureGroupApiVersion defines model for InventoryCaptureGroup.ApiVersion.
+type InventoryCaptureGroupApiVersion string
+
+// InventoryCaptureGroupKind defines model for InventoryCaptureGroup.Kind.
+type InventoryCaptureGroupKind string
+
+// InventoryCaptureGroupCondition defines model for InventoryCaptureGroupCondition.
+type InventoryCaptureGroupCondition struct {
+	Message            *string                              `json:"message,omitempty"`
+	ObservedGeneration *int64                               `json:"observedGeneration,omitempty"`
+	Reason             string                               `json:"reason"`
+	Status             InventoryCaptureGroupConditionStatus `json:"status"`
+	Type               string                               `json:"type"`
+}
+
+// InventoryCaptureGroupConditionStatus defines model for InventoryCaptureGroupCondition.Status.
+type InventoryCaptureGroupConditionStatus string
+
+// InventoryCaptureGroupCreate defines model for InventoryCaptureGroupCreate.
+type InventoryCaptureGroupCreate struct {
+	ApiVersion InventoryCaptureGroupCreateApiVersion `json:"apiVersion"`
+	Kind       InventoryCaptureGroupCreateKind       `json:"kind"`
+	Metadata   Metadata                              `json:"metadata"`
+	Spec       InventoryCaptureGroupSpec             `json:"spec"`
+}
+
+// InventoryCaptureGroupCreateApiVersion defines model for InventoryCaptureGroupCreate.ApiVersion.
+type InventoryCaptureGroupCreateApiVersion string
+
+// InventoryCaptureGroupCreateKind defines model for InventoryCaptureGroupCreate.Kind.
+type InventoryCaptureGroupCreateKind string
+
+// InventoryCaptureGroupKindSelector defines model for InventoryCaptureGroupKindSelector.
+type InventoryCaptureGroupKindSelector struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+}
+
+// InventoryCaptureGroupList defines model for InventoryCaptureGroupList.
+type InventoryCaptureGroupList struct {
+	ApiVersion InventoryCaptureGroupListApiVersion `json:"apiVersion"`
+	Items      []InventoryCaptureGroup             `json:"items"`
+	Kind       InventoryCaptureGroupListKind       `json:"kind"`
+	Metadata   ListMetadata                        `json:"metadata"`
+}
+
+// InventoryCaptureGroupListApiVersion defines model for InventoryCaptureGroupList.ApiVersion.
+type InventoryCaptureGroupListApiVersion string
+
+// InventoryCaptureGroupListKind defines model for InventoryCaptureGroupList.Kind.
+type InventoryCaptureGroupListKind string
+
+// InventoryCaptureGroupMatchExpression defines model for InventoryCaptureGroupMatchExpression.
+type InventoryCaptureGroupMatchExpression struct {
+	Key      string                                       `json:"key"`
+	Operator InventoryCaptureGroupMatchExpressionOperator `json:"operator"`
+	Values   *[]string                                    `json:"values,omitempty"`
+}
+
+// InventoryCaptureGroupMatchExpressionOperator defines model for InventoryCaptureGroupMatchExpression.Operator.
+type InventoryCaptureGroupMatchExpressionOperator string
+
+// InventoryCaptureGroupSelector defines model for InventoryCaptureGroupSelector.
+type InventoryCaptureGroupSelector struct {
+	MatchExpressions *[]InventoryCaptureGroupMatchExpression `json:"matchExpressions,omitempty"`
+	MatchKinds       *[]InventoryCaptureGroupKindSelector    `json:"matchKinds,omitempty"`
+	MatchLabels      *map[string]string                      `json:"matchLabels,omitempty"`
+}
+
+// InventoryCaptureGroupSpec defines model for InventoryCaptureGroupSpec.
+type InventoryCaptureGroupSpec struct {
+	Selector InventoryCaptureGroupSelector `json:"selector"`
+}
+
+// InventoryCaptureGroupStatus defines model for InventoryCaptureGroupStatus.
+type InventoryCaptureGroupStatus struct {
+	CapturedResources *int `json:"capturedResources,omitempty"`
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	CapturedServers  *int                                     `json:"capturedServers,omitempty"`
+	Conditions       *[]InventoryCaptureGroupCondition        `json:"conditions,omitempty"`
+	Inventory        *map[string]InventoryCaptureAnsibleGroup `json:"inventory,omitempty"`
+	MatchedResources *int                                     `json:"matchedResources,omitempty"`
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	MatchedServers     *int                               `json:"matchedServers,omitempty"`
+	ObservedGeneration *int64                             `json:"observedGeneration,omitempty"`
+	OmittedResources   *[]InventoryCaptureOmittedResource `json:"omittedResources,omitempty"`
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	OmittedServers *[]InventoryCaptureOmittedResource `json:"omittedServers,omitempty"`
+	Phase          *string                            `json:"phase,omitempty"`
+}
+
+// InventoryCaptureOmittedResource defines model for InventoryCaptureOmittedResource.
+type InventoryCaptureOmittedResource struct {
+	ApiVersion *string `json:"apiVersion,omitempty"`
+	Kind       *string `json:"kind,omitempty"`
+	Message    *string `json:"message,omitempty"`
+	Name       string  `json:"name"`
+	Reason     string  `json:"reason"`
+}
+
+// InventoryPublication defines model for InventoryPublication.
+type InventoryPublication struct {
+	ApiVersion InventoryPublicationApiVersion `json:"apiVersion"`
+	Kind       InventoryPublicationKind       `json:"kind"`
+	Metadata   Metadata                       `json:"metadata"`
+	Spec       InventoryPublicationSpec       `json:"spec"`
+	Status     *InventoryPublicationStatus    `json:"status,omitempty"`
+}
+
+// InventoryPublicationApiVersion defines model for InventoryPublication.ApiVersion.
+type InventoryPublicationApiVersion string
+
+// InventoryPublicationKind defines model for InventoryPublication.Kind.
+type InventoryPublicationKind string
+
+// InventoryPublicationCaptureGroupReference defines model for InventoryPublicationCaptureGroupReference.
+type InventoryPublicationCaptureGroupReference struct {
+	Name string `json:"name"`
+}
+
+// InventoryPublicationCondition defines model for InventoryPublicationCondition.
+type InventoryPublicationCondition struct {
+	Message            *string                             `json:"message,omitempty"`
+	ObservedGeneration *int64                              `json:"observedGeneration,omitempty"`
+	Reason             string                              `json:"reason"`
+	Status             InventoryPublicationConditionStatus `json:"status"`
+	Type               string                              `json:"type"`
+}
+
+// InventoryPublicationConditionStatus defines model for InventoryPublicationCondition.Status.
+type InventoryPublicationConditionStatus string
+
+// InventoryPublicationCreate defines model for InventoryPublicationCreate.
+type InventoryPublicationCreate struct {
+	ApiVersion InventoryPublicationCreateApiVersion `json:"apiVersion"`
+	Kind       InventoryPublicationCreateKind       `json:"kind"`
+	Metadata   Metadata                             `json:"metadata"`
+	Spec       InventoryPublicationSpec             `json:"spec"`
+}
+
+// InventoryPublicationCreateApiVersion defines model for InventoryPublicationCreate.ApiVersion.
+type InventoryPublicationCreateApiVersion string
+
+// InventoryPublicationCreateKind defines model for InventoryPublicationCreate.Kind.
+type InventoryPublicationCreateKind string
+
+// InventoryPublicationDestinationReference defines model for InventoryPublicationDestinationReference.
+type InventoryPublicationDestinationReference struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+}
+
+// InventoryPublicationDestinationStatus defines model for InventoryPublicationDestinationStatus.
+type InventoryPublicationDestinationStatus struct {
+	ObservedRepositoryGeneration int64   `json:"observedRepositoryGeneration"`
+	RepositoryUID                string  `json:"repositoryUID"`
+	Revision                     string  `json:"revision"`
+	Url                          *string `json:"url,omitempty"`
+}
+
+// InventoryPublicationList defines model for InventoryPublicationList.
+type InventoryPublicationList struct {
+	ApiVersion InventoryPublicationListApiVersion `json:"apiVersion"`
+	Items      []InventoryPublication             `json:"items"`
+	Kind       InventoryPublicationListKind       `json:"kind"`
+	Metadata   ListMetadata                       `json:"metadata"`
+}
+
+// InventoryPublicationListApiVersion defines model for InventoryPublicationList.ApiVersion.
+type InventoryPublicationListApiVersion string
+
+// InventoryPublicationListKind defines model for InventoryPublicationList.Kind.
+type InventoryPublicationListKind string
+
+// InventoryPublicationPolicy defines model for InventoryPublicationPolicy.
+type InventoryPublicationPolicy struct {
+	Mode         *InventoryPublicationPolicyMode `json:"mode,omitempty"`
+	RequireReady *bool                           `json:"requireReady,omitempty"`
+}
+
+// InventoryPublicationPolicyMode defines model for InventoryPublicationPolicy.Mode.
+type InventoryPublicationPolicyMode string
+
+// InventoryPublicationSpec defines model for InventoryPublicationSpec.
+type InventoryPublicationSpec struct {
+	DestinationRef           InventoryPublicationDestinationReference  `json:"destinationRef"`
+	Format                   InventoryPublicationSpecFormat            `json:"format"`
+	InventoryCaptureGroupRef InventoryPublicationCaptureGroupReference `json:"inventoryCaptureGroupRef"`
+	Path                     string                                    `json:"path"`
+	Policy                   *InventoryPublicationPolicy               `json:"policy,omitempty"`
+}
+
+// InventoryPublicationSpecFormat defines model for InventoryPublicationSpec.Format.
+type InventoryPublicationSpecFormat string
+
+// InventoryPublicationStatus defines model for InventoryPublicationStatus.
+type InventoryPublicationStatus struct {
+	Conditions              *[]InventoryPublicationCondition       `json:"conditions,omitempty"`
+	Destination             *InventoryPublicationDestinationStatus `json:"destination,omitempty"`
+	LastPublishedTime       *time.Time                             `json:"lastPublishedTime,omitempty"`
+	ObservedGeneration      *int64                                 `json:"observedGeneration,omitempty"`
+	ObservedInventoryDigest *string                                `json:"observedInventoryDigest,omitempty"`
+	Phase                   *string                                `json:"phase,omitempty"`
 }
 
 // ListMetadata defines model for ListMetadata.
@@ -243,6 +1396,7 @@ type Machine struct {
 	Kind       MachineKind       `json:"kind"`
 	Metadata   Metadata          `json:"metadata"`
 	Spec       MachineSpec       `json:"spec"`
+	Status     *MachineStatus    `json:"status,omitempty"`
 }
 
 // MachineApiVersion defines model for Machine.ApiVersion.
@@ -250,6 +1404,19 @@ type MachineApiVersion string
 
 // MachineKind defines model for Machine.Kind.
 type MachineKind string
+
+// MachineCondition defines model for MachineCondition.
+type MachineCondition struct {
+	LastTransitionTime *time.Time             `json:"lastTransitionTime,omitempty"`
+	Message            *string                `json:"message,omitempty"`
+	ObservedGeneration *int64                 `json:"observedGeneration,omitempty"`
+	Reason             string                 `json:"reason"`
+	Status             MachineConditionStatus `json:"status"`
+	Type               string                 `json:"type"`
+}
+
+// MachineConditionStatus defines model for MachineCondition.Status.
+type MachineConditionStatus string
 
 // MachineCreate defines model for MachineCreate.
 type MachineCreate struct {
@@ -484,13 +1651,16 @@ type MachineReportSystem struct {
 
 // MachineSpec defines model for MachineSpec.
 type MachineSpec struct {
-	Cpu        MachineReportCPU                  `json:"cpu"`
-	Interfaces []MachineReportNetworkInterface   `json:"interfaces"`
-	LLDPInfo   []MachineReportLLDPInterfaceGroup `json:"lldp_info"`
-	Location   MachineLocation                   `json:"location"`
-	ObservedAt time.Time                         `json:"observed_at"`
-	Storage    []MachineReportStorageDevice      `json:"storage"`
-	System     MachineReportSystem               `json:"system"`
+	Location MachineLocation `json:"location"`
+}
+
+// MachineStatus defines model for MachineStatus.
+type MachineStatus struct {
+	Conditions         *[]MachineCondition `json:"conditions,omitempty"`
+	Inventory          *MachineReportSpec  `json:"inventory,omitempty"`
+	ObservedGeneration *int64              `json:"observedGeneration,omitempty"`
+	Phase              *string             `json:"phase,omitempty"`
+	ServerRef          *ResourceReference  `json:"serverRef,omitempty"`
 }
 
 // Metadata defines model for Metadata.
@@ -498,11 +1668,523 @@ type Metadata struct {
 	Annotations       *map[string]string `json:"annotations,omitempty"`
 	CreationTimestamp *time.Time         `json:"creationTimestamp,omitempty"`
 	DeletionTimestamp *time.Time         `json:"deletionTimestamp,omitempty"`
+	Finalizers        *[]string          `json:"finalizers,omitempty"`
 	Generation        *int64             `json:"generation,omitempty"`
 	Labels            *map[string]string `json:"labels,omitempty"`
 	Name              string             `json:"name"`
 	ResourceVersion   *string            `json:"resourceVersion,omitempty"`
 	Uid               *string            `json:"uid,omitempty"`
+}
+
+// OpenBaoSecretStoreAuthentication defines model for OpenBaoSecretStoreAuthentication.
+type OpenBaoSecretStoreAuthentication struct {
+	TokenEnvironmentVariable *string `json:"tokenEnvironmentVariable,omitempty"`
+	TokenFile                *string `json:"tokenFile,omitempty"`
+}
+
+// OpenBaoSecretStoreProvider defines model for OpenBaoSecretStoreProvider.
+type OpenBaoSecretStoreProvider struct {
+	Address        string                           `json:"address"`
+	Authentication OpenBaoSecretStoreAuthentication `json:"authentication"`
+	KeyPrefix      *string                          `json:"keyPrefix,omitempty"`
+	KvV2Mount      string                           `json:"kvV2Mount"`
+}
+
+// ResourceReference defines model for ResourceReference.
+type ResourceReference struct {
+	Name string `json:"name"`
+	Uid  string `json:"uid"`
+}
+
+// SSHAccessGrant defines model for SSHAccessGrant.
+type SSHAccessGrant struct {
+	ApiVersion SSHAccessGrantApiVersion `json:"apiVersion"`
+	Kind       SSHAccessGrantKind       `json:"kind"`
+	Metadata   Metadata                 `json:"metadata"`
+	Spec       SSHAccessGrantSpec       `json:"spec"`
+	Status     *SSHAccessGrantStatus    `json:"status,omitempty"`
+}
+
+// SSHAccessGrantApiVersion defines model for SSHAccessGrant.ApiVersion.
+type SSHAccessGrantApiVersion string
+
+// SSHAccessGrantKind defines model for SSHAccessGrant.Kind.
+type SSHAccessGrantKind string
+
+// SSHAccessGrantCondition defines model for SSHAccessGrantCondition.
+type SSHAccessGrantCondition struct {
+	Message            *string                       `json:"message,omitempty"`
+	ObservedGeneration *int64                        `json:"observedGeneration,omitempty"`
+	Reason             string                        `json:"reason"`
+	Status             SSHAccessGrantConditionStatus `json:"status"`
+	Type               string                        `json:"type"`
+}
+
+// SSHAccessGrantConditionStatus defines model for SSHAccessGrantCondition.Status.
+type SSHAccessGrantConditionStatus string
+
+// SSHAccessGrantCreate defines model for SSHAccessGrantCreate.
+type SSHAccessGrantCreate struct {
+	ApiVersion SSHAccessGrantCreateApiVersion `json:"apiVersion"`
+	Kind       SSHAccessGrantCreateKind       `json:"kind"`
+	Metadata   Metadata                       `json:"metadata"`
+	Spec       SSHAccessGrantSpec             `json:"spec"`
+}
+
+// SSHAccessGrantCreateApiVersion defines model for SSHAccessGrantCreate.ApiVersion.
+type SSHAccessGrantCreateApiVersion string
+
+// SSHAccessGrantCreateKind defines model for SSHAccessGrantCreate.Kind.
+type SSHAccessGrantCreateKind string
+
+// SSHAccessGrantCredential defines model for SSHAccessGrantCredential.
+type SSHAccessGrantCredential struct {
+	GeneratedKeyPair SSHAccessGrantGeneratedKeyPair `json:"generatedKeyPair"`
+}
+
+// SSHAccessGrantGeneratedKeyPair defines model for SSHAccessGrantGeneratedKeyPair.
+type SSHAccessGrantGeneratedKeyPair struct {
+	Algorithm      SSHAccessGrantGeneratedKeyPairAlgorithm `json:"algorithm"`
+	KeyName        *string                                 `json:"keyName,omitempty"`
+	SecretStoreRef SSHAccessGrantSecretStoreReference      `json:"secretStoreRef"`
+}
+
+// SSHAccessGrantGeneratedKeyPairAlgorithm defines model for SSHAccessGrantGeneratedKeyPair.Algorithm.
+type SSHAccessGrantGeneratedKeyPairAlgorithm string
+
+// SSHAccessGrantList defines model for SSHAccessGrantList.
+type SSHAccessGrantList struct {
+	ApiVersion SSHAccessGrantListApiVersion `json:"apiVersion"`
+	Items      []SSHAccessGrant             `json:"items"`
+	Kind       SSHAccessGrantListKind       `json:"kind"`
+	Metadata   ListMetadata                 `json:"metadata"`
+}
+
+// SSHAccessGrantListApiVersion defines model for SSHAccessGrantList.ApiVersion.
+type SSHAccessGrantListApiVersion string
+
+// SSHAccessGrantListKind defines model for SSHAccessGrantList.Kind.
+type SSHAccessGrantListKind string
+
+// SSHAccessGrantSecretStatus defines model for SSHAccessGrantSecretStatus.
+type SSHAccessGrantSecretStatus struct {
+	LogicalPath string            `json:"logicalPath"`
+	StoreRef    ResourceReference `json:"storeRef"`
+	Version     int64             `json:"version"`
+}
+
+// SSHAccessGrantSecretStoreReference defines model for SSHAccessGrantSecretStoreReference.
+type SSHAccessGrantSecretStoreReference struct {
+	Name string `json:"name"`
+}
+
+// SSHAccessGrantServerReference defines model for SSHAccessGrantServerReference.
+type SSHAccessGrantServerReference struct {
+	Name string `json:"name"`
+}
+
+// SSHAccessGrantSpec defines model for SSHAccessGrantSpec.
+type SSHAccessGrantSpec struct {
+	Credential SSHAccessGrantCredential      `json:"credential"`
+	LoginUser  string                        `json:"loginUser"`
+	ServerRef  SSHAccessGrantServerReference `json:"serverRef"`
+}
+
+// SSHAccessGrantStatus defines model for SSHAccessGrantStatus.
+type SSHAccessGrantStatus struct {
+	Conditions         *[]SSHAccessGrantCondition  `json:"conditions,omitempty"`
+	Fingerprint        *string                     `json:"fingerprint,omitempty"`
+	ObservedGeneration *int64                      `json:"observedGeneration,omitempty"`
+	Phase              *SSHAccessGrantStatusPhase  `json:"phase,omitempty"`
+	PublicKey          *string                     `json:"publicKey,omitempty"`
+	Secret             *SSHAccessGrantSecretStatus `json:"secret,omitempty"`
+	ServerRef          *ResourceReference          `json:"serverRef,omitempty"`
+}
+
+// SSHAccessGrantStatusPhase defines model for SSHAccessGrantStatus.Phase.
+type SSHAccessGrantStatusPhase string
+
+// SecretStore defines model for SecretStore.
+type SecretStore struct {
+	ApiVersion SecretStoreApiVersion `json:"apiVersion"`
+	Kind       SecretStoreKind       `json:"kind"`
+	Metadata   Metadata              `json:"metadata"`
+	Spec       SecretStoreSpec       `json:"spec"`
+}
+
+// SecretStoreApiVersion defines model for SecretStore.ApiVersion.
+type SecretStoreApiVersion string
+
+// SecretStoreKind defines model for SecretStore.Kind.
+type SecretStoreKind string
+
+// SecretStoreCreate defines model for SecretStoreCreate.
+type SecretStoreCreate struct {
+	ApiVersion SecretStoreCreateApiVersion `json:"apiVersion"`
+	Kind       SecretStoreCreateKind       `json:"kind"`
+	Metadata   Metadata                    `json:"metadata"`
+	Spec       SecretStoreSpec             `json:"spec"`
+}
+
+// SecretStoreCreateApiVersion defines model for SecretStoreCreate.ApiVersion.
+type SecretStoreCreateApiVersion string
+
+// SecretStoreCreateKind defines model for SecretStoreCreate.Kind.
+type SecretStoreCreateKind string
+
+// SecretStoreList defines model for SecretStoreList.
+type SecretStoreList struct {
+	ApiVersion SecretStoreListApiVersion `json:"apiVersion"`
+	Items      []SecretStore             `json:"items"`
+	Kind       SecretStoreListKind       `json:"kind"`
+	Metadata   ListMetadata              `json:"metadata"`
+}
+
+// SecretStoreListApiVersion defines model for SecretStoreList.ApiVersion.
+type SecretStoreListApiVersion string
+
+// SecretStoreListKind defines model for SecretStoreList.Kind.
+type SecretStoreListKind string
+
+// SecretStoreProvider defines model for SecretStoreProvider.
+type SecretStoreProvider struct {
+	OpenBao OpenBaoSecretStoreProvider `json:"openBao"`
+}
+
+// SecretStoreSpec defines model for SecretStoreSpec.
+type SecretStoreSpec struct {
+	Provider SecretStoreProvider `json:"provider"`
+}
+
+// Server defines model for Server.
+type Server struct {
+	ApiVersion ServerApiVersion `json:"apiVersion"`
+	Kind       ServerKind       `json:"kind"`
+	Metadata   Metadata         `json:"metadata"`
+	Spec       ServerSpec       `json:"spec"`
+	Status     *ServerStatus    `json:"status,omitempty"`
+}
+
+// ServerApiVersion defines model for Server.ApiVersion.
+type ServerApiVersion string
+
+// ServerKind defines model for Server.Kind.
+type ServerKind string
+
+// ServerAgentStatus defines model for ServerAgentStatus.
+type ServerAgentStatus struct {
+	LastSeenTime *time.Time `json:"lastSeenTime,omitempty"`
+	Reachable    bool       `json:"reachable"`
+	Version      *string    `json:"version,omitempty"`
+}
+
+// ServerChecksum defines model for ServerChecksum.
+type ServerChecksum struct {
+	Algorithm ServerChecksumAlgorithm `json:"algorithm"`
+	Value     string                  `json:"value"`
+}
+
+// ServerChecksumAlgorithm defines model for ServerChecksum.Algorithm.
+type ServerChecksumAlgorithm string
+
+// ServerCondition defines model for ServerCondition.
+type ServerCondition struct {
+	LastTransitionTime *time.Time            `json:"lastTransitionTime,omitempty"`
+	Message            *string               `json:"message,omitempty"`
+	ObservedGeneration *int64                `json:"observedGeneration,omitempty"`
+	Reason             string                `json:"reason"`
+	Status             ServerConditionStatus `json:"status"`
+	Type               string                `json:"type"`
+}
+
+// ServerConditionStatus defines model for ServerCondition.Status.
+type ServerConditionStatus string
+
+// ServerCreate defines model for ServerCreate.
+type ServerCreate struct {
+	ApiVersion ServerCreateApiVersion `json:"apiVersion"`
+	Kind       ServerCreateKind       `json:"kind"`
+	Metadata   Metadata               `json:"metadata"`
+	Spec       ServerSpec             `json:"spec"`
+}
+
+// ServerCreateApiVersion defines model for ServerCreate.ApiVersion.
+type ServerCreateApiVersion string
+
+// ServerCreateKind defines model for ServerCreate.Kind.
+type ServerCreateKind string
+
+// ServerFeatureFlags defines model for ServerFeatureFlags.
+type ServerFeatureFlags struct {
+	Backup     *ServerFeatureToggle     `json:"backup,omitempty"`
+	Daemon     *ServerFeatureToggle     `json:"daemon,omitempty"`
+	Kubernetes *ServerKubernetesFeature `json:"kubernetes,omitempty"`
+	Monitoring *ServerFeatureToggle     `json:"monitoring,omitempty"`
+}
+
+// ServerFeatureStatus defines model for ServerFeatureStatus.
+type ServerFeatureStatus struct {
+	Healthy   bool `json:"healthy"`
+	Installed bool `json:"installed"`
+}
+
+// ServerFeatureStatuses defines model for ServerFeatureStatuses.
+type ServerFeatureStatuses struct {
+	Backup     *ServerFeatureStatus `json:"backup,omitempty"`
+	Daemon     *ServerFeatureStatus `json:"daemon,omitempty"`
+	Kubernetes *ServerFeatureStatus `json:"kubernetes,omitempty"`
+	Monitoring *ServerFeatureStatus `json:"monitoring,omitempty"`
+}
+
+// ServerFeatureToggle defines model for ServerFeatureToggle.
+type ServerFeatureToggle struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ServerInstallationSource defines model for ServerInstallationSource.
+type ServerInstallationSource struct {
+	Checksum ServerChecksum `json:"checksum"`
+	Url      string         `json:"url"`
+}
+
+// ServerKubernetesFeature defines model for ServerKubernetesFeature.
+type ServerKubernetesFeature struct {
+	Enabled bool                         `json:"enabled"`
+	Role    *ServerKubernetesFeatureRole `json:"role,omitempty"`
+}
+
+// ServerKubernetesFeatureRole defines model for ServerKubernetesFeature.Role.
+type ServerKubernetesFeatureRole string
+
+// ServerList defines model for ServerList.
+type ServerList struct {
+	ApiVersion ServerListApiVersion `json:"apiVersion"`
+	Items      []Server             `json:"items"`
+	Kind       ServerListKind       `json:"kind"`
+	Metadata   ListMetadata         `json:"metadata"`
+}
+
+// ServerListApiVersion defines model for ServerList.ApiVersion.
+type ServerListApiVersion string
+
+// ServerListKind defines model for ServerList.Kind.
+type ServerListKind string
+
+// ServerMachineSelector defines model for ServerMachineSelector.
+type ServerMachineSelector struct {
+	Location MachineLocation `json:"location"`
+}
+
+// ServerManagementAddressSelector defines model for ServerManagementAddressSelector.
+type ServerManagementAddressSelector struct {
+	Family ServerManagementAddressSelectorFamily `json:"family"`
+	Subnet string                                `json:"subnet"`
+}
+
+// ServerManagementAddressSelectorFamily defines model for ServerManagementAddressSelector.Family.
+type ServerManagementAddressSelectorFamily string
+
+// ServerManagementAddressStatus defines model for ServerManagementAddressStatus.
+type ServerManagementAddressStatus struct {
+	Address      string                              `json:"address"`
+	Family       ServerManagementAddressStatusFamily `json:"family"`
+	PrefixLength int                                 `json:"prefixLength"`
+}
+
+// ServerManagementAddressStatusFamily defines model for ServerManagementAddressStatus.Family.
+type ServerManagementAddressStatusFamily string
+
+// ServerManagementInterfaceSelector defines model for ServerManagementInterfaceSelector.
+type ServerManagementInterfaceSelector struct {
+	AttachedAtMachineLocation ServerManagementInterfaceSelectorAttachedAtMachineLocation `json:"attachedAtMachineLocation"`
+}
+
+// ServerManagementInterfaceSelectorAttachedAtMachineLocation defines model for ServerManagementInterfaceSelector.AttachedAtMachineLocation.
+type ServerManagementInterfaceSelectorAttachedAtMachineLocation bool
+
+// ServerManagementInterfaceStatus defines model for ServerManagementInterfaceStatus.
+type ServerManagementInterfaceStatus struct {
+	Mac  string `json:"mac"`
+	Name string `json:"name"`
+}
+
+// ServerManagementNetworkSpec defines model for ServerManagementNetworkSpec.
+type ServerManagementNetworkSpec struct {
+	AddressSelector   ServerManagementAddressSelector   `json:"addressSelector"`
+	InterfaceSelector ServerManagementInterfaceSelector `json:"interfaceSelector"`
+}
+
+// ServerManagementNetworkStatus defines model for ServerManagementNetworkStatus.
+type ServerManagementNetworkStatus struct {
+	Address   ServerManagementAddressStatus   `json:"address"`
+	Interface ServerManagementInterfaceStatus `json:"interface"`
+	Reason    string                          `json:"reason"`
+}
+
+// ServerNetworkingSpec defines model for ServerNetworkingSpec.
+type ServerNetworkingSpec struct {
+	Management *ServerManagementNetworkSpec `json:"management,omitempty"`
+}
+
+// ServerNetworkingStatus defines model for ServerNetworkingStatus.
+type ServerNetworkingStatus struct {
+	Management *ServerManagementNetworkStatus `json:"management,omitempty"`
+}
+
+// ServerOperatingSystem defines model for ServerOperatingSystem.
+type ServerOperatingSystem struct {
+	Architecture       ServerOperatingSystemArchitecture `json:"architecture"`
+	BootMode           ServerOperatingSystemBootMode     `json:"bootMode"`
+	Distribution       string                            `json:"distribution"`
+	InstallationSource *ServerInstallationSource         `json:"installationSource,omitempty"`
+	KernelArguments    *[]string                         `json:"kernelArguments,omitempty"`
+	Locale             *string                           `json:"locale,omitempty"`
+	Timezone           *string                           `json:"timezone,omitempty"`
+	Version            string                            `json:"version"`
+}
+
+// ServerOperatingSystemArchitecture defines model for ServerOperatingSystem.Architecture.
+type ServerOperatingSystemArchitecture string
+
+// ServerOperatingSystemBootMode defines model for ServerOperatingSystem.BootMode.
+type ServerOperatingSystemBootMode string
+
+// ServerProvisioningSpec defines model for ServerProvisioningSpec.
+type ServerProvisioningSpec struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ServerProvisioningStatus defines model for ServerProvisioningStatus.
+type ServerProvisioningStatus struct {
+	AttemptID                *string    `json:"attemptID,omitempty"`
+	AttemptNumber            *int       `json:"attemptNumber,omitempty"`
+	BackendRunID             *string    `json:"backendRunID,omitempty"`
+	CompletedAt              *time.Time `json:"completedAt,omitempty"`
+	CurrentStage             *string    `json:"currentStage,omitempty"`
+	Message                  *string    `json:"message,omitempty"`
+	ObservedServerGeneration *int64     `json:"observedServerGeneration,omitempty"`
+	Phase                    *string    `json:"phase,omitempty"`
+	Provisioned              bool       `json:"provisioned"`
+	StartedAt                *time.Time `json:"startedAt,omitempty"`
+}
+
+// ServerReconciliationSpec defines model for ServerReconciliationSpec.
+type ServerReconciliationSpec struct {
+	Paused bool `json:"paused"`
+}
+
+// ServerResourceSummary defines model for ServerResourceSummary.
+type ServerResourceSummary struct {
+	Addresses         *int `json:"addresses,omitempty"`
+	DiskClaims        *int `json:"diskClaims,omitempty"`
+	Interfaces        *int `json:"interfaces,omitempty"`
+	NetworkPortClaims *int `json:"networkPortClaims,omitempty"`
+}
+
+// ServerSSHAuthorizedKeyStatus defines model for ServerSSHAuthorizedKeyStatus.
+type ServerSSHAuthorizedKeyStatus struct {
+	AccessGrantRef ResourceReference `json:"accessGrantRef"`
+	Fingerprint    string            `json:"fingerprint"`
+	LoginUser      string            `json:"loginUser"`
+	PublicKey      string            `json:"publicKey"`
+}
+
+// ServerSSHStatus defines model for ServerSSHStatus.
+type ServerSSHStatus struct {
+	AuthorizedKeys []ServerSSHAuthorizedKeyStatus `json:"authorizedKeys"`
+}
+
+// ServerSpec defines model for ServerSpec.
+type ServerSpec struct {
+	DomainName      *string                   `json:"domainName,omitempty"`
+	FeatureFlags    *ServerFeatureFlags       `json:"featureFlags,omitempty"`
+	Groups          *[]string                 `json:"groups,omitempty"`
+	HostName        *string                   `json:"hostName,omitempty"`
+	MachineSelector ServerMachineSelector     `json:"machineSelector"`
+	Networking      *ServerNetworkingSpec     `json:"networking,omitempty"`
+	OperatingSystem *ServerOperatingSystem    `json:"operatingSystem,omitempty"`
+	Packages        *[]string                 `json:"packages,omitempty"`
+	Provisioning    *ServerProvisioningSpec   `json:"provisioning,omitempty"`
+	Reconciliation  *ServerReconciliationSpec `json:"reconciliation,omitempty"`
+	Sysctls         *map[string]string        `json:"sysctls,omitempty"`
+	Users           *[]ServerUser             `json:"users,omitempty"`
+}
+
+// ServerStatus defines model for ServerStatus.
+type ServerStatus struct {
+	Agent              *ServerAgentStatus        `json:"agent,omitempty"`
+	Conditions         *[]ServerCondition        `json:"conditions,omitempty"`
+	Features           *ServerFeatureStatuses    `json:"features,omitempty"`
+	Fqdn               *string                   `json:"fqdn,omitempty"`
+	MachineRef         *ResourceReference        `json:"machineRef,omitempty"`
+	Networking         *ServerNetworkingStatus   `json:"networking,omitempty"`
+	ObservedAddresses  *[]string                 `json:"observedAddresses,omitempty"`
+	ObservedGeneration *int64                    `json:"observedGeneration,omitempty"`
+	Phase              *string                   `json:"phase,omitempty"`
+	Provisioning       *ServerProvisioningStatus `json:"provisioning,omitempty"`
+	ResourceSummary    *ServerResourceSummary    `json:"resourceSummary,omitempty"`
+	Ssh                *ServerSSHStatus          `json:"ssh,omitempty"`
+	SystemStats        *ServerSystemStats        `json:"systemStats,omitempty"`
+}
+
+// ServerSystemStats defines model for ServerSystemStats.
+type ServerSystemStats struct {
+	CpuPercent    *float32 `json:"cpuPercent,omitempty"`
+	LoadAverage1m *float32 `json:"loadAverage1m,omitempty"`
+	MemoryPercent *float32 `json:"memoryPercent,omitempty"`
+}
+
+// ServerUser defines model for ServerUser.
+type ServerUser struct {
+	Groups *[]string `json:"groups,omitempty"`
+	Locked *bool     `json:"locked,omitempty"`
+	Name   string    `json:"name"`
+	Shell  *string   `json:"shell,omitempty"`
+}
+
+// DeleteGitRepositoryParams defines parameters for DeleteGitRepository.
+type DeleteGitRepositoryParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchGitRepositoryApplicationMergePatchPlusJSONBody defines parameters for PatchGitRepository.
+type PatchGitRepositoryApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchGitRepositoryParams defines parameters for PatchGitRepository.
+type PatchGitRepositoryParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteInventoryCaptureGroupParams defines parameters for DeleteInventoryCaptureGroup.
+type DeleteInventoryCaptureGroupParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchInventoryCaptureGroupApplicationMergePatchPlusJSONBody defines parameters for PatchInventoryCaptureGroup.
+type PatchInventoryCaptureGroupApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchInventoryCaptureGroupParams defines parameters for PatchInventoryCaptureGroup.
+type PatchInventoryCaptureGroupParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteInventoryPublicationParams defines parameters for DeleteInventoryPublication.
+type DeleteInventoryPublicationParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchInventoryPublicationApplicationMergePatchPlusJSONBody defines parameters for PatchInventoryPublication.
+type PatchInventoryPublicationApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchInventoryPublicationParams defines parameters for PatchInventoryPublication.
+type PatchInventoryPublicationParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteMachineReportParams defines parameters for DeleteMachineReport.
@@ -517,6 +2199,87 @@ type DeleteMachineParams struct {
 	IfMatch string `json:"If-Match"`
 }
 
+// PatchMachineApplicationMergePatchPlusJSONBody defines parameters for PatchMachine.
+type PatchMachineApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchMachineParams defines parameters for PatchMachine.
+type PatchMachineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteSecretStoreParams defines parameters for DeleteSecretStore.
+type DeleteSecretStoreParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchSecretStoreApplicationMergePatchPlusJSONBody defines parameters for PatchSecretStore.
+type PatchSecretStoreApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSecretStoreParams defines parameters for PatchSecretStore.
+type PatchSecretStoreParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteServerParams defines parameters for DeleteServer.
+type DeleteServerParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchServerApplicationMergePatchPlusJSONBody defines parameters for PatchServer.
+type PatchServerApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchServerParams defines parameters for PatchServer.
+type PatchServerParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteSSHAccessGrantParams defines parameters for DeleteSSHAccessGrant.
+type DeleteSSHAccessGrantParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchSSHAccessGrantApplicationMergePatchPlusJSONBody defines parameters for PatchSSHAccessGrant.
+type PatchSSHAccessGrantApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHAccessGrantParams defines parameters for PatchSSHAccessGrant.
+type PatchSSHAccessGrantParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// CreateGitRepositoryJSONRequestBody defines body for CreateGitRepository for application/json ContentType.
+type CreateGitRepositoryJSONRequestBody = GitRepositoryCreate
+
+// PatchGitRepositoryApplicationMergePatchPlusJSONRequestBody defines body for PatchGitRepository for application/merge-patch+json ContentType.
+type PatchGitRepositoryApplicationMergePatchPlusJSONRequestBody PatchGitRepositoryApplicationMergePatchPlusJSONBody
+
+// PutGitRepositoryJSONRequestBody defines body for PutGitRepository for application/json ContentType.
+type PutGitRepositoryJSONRequestBody = GitRepositorySpec
+
+// CreateInventoryCaptureGroupJSONRequestBody defines body for CreateInventoryCaptureGroup for application/json ContentType.
+type CreateInventoryCaptureGroupJSONRequestBody = InventoryCaptureGroupCreate
+
+// PatchInventoryCaptureGroupApplicationMergePatchPlusJSONRequestBody defines body for PatchInventoryCaptureGroup for application/merge-patch+json ContentType.
+type PatchInventoryCaptureGroupApplicationMergePatchPlusJSONRequestBody PatchInventoryCaptureGroupApplicationMergePatchPlusJSONBody
+
+// PutInventoryCaptureGroupJSONRequestBody defines body for PutInventoryCaptureGroup for application/json ContentType.
+type PutInventoryCaptureGroupJSONRequestBody = InventoryCaptureGroupSpec
+
+// CreateInventoryPublicationJSONRequestBody defines body for CreateInventoryPublication for application/json ContentType.
+type CreateInventoryPublicationJSONRequestBody = InventoryPublicationCreate
+
+// PatchInventoryPublicationApplicationMergePatchPlusJSONRequestBody defines body for PatchInventoryPublication for application/merge-patch+json ContentType.
+type PatchInventoryPublicationApplicationMergePatchPlusJSONRequestBody PatchInventoryPublicationApplicationMergePatchPlusJSONBody
+
+// PutInventoryPublicationJSONRequestBody defines body for PutInventoryPublication for application/json ContentType.
+type PutInventoryPublicationJSONRequestBody = InventoryPublicationSpec
+
 // CreateMachineReportJSONRequestBody defines body for CreateMachineReport for application/json ContentType.
 type CreateMachineReportJSONRequestBody = MachineReportCreate
 
@@ -526,60 +2289,156 @@ type PutMachineReportJSONRequestBody = MachineReportSpec
 // CreateMachineJSONRequestBody defines body for CreateMachine for application/json ContentType.
 type CreateMachineJSONRequestBody = MachineCreate
 
+// PatchMachineApplicationMergePatchPlusJSONRequestBody defines body for PatchMachine for application/merge-patch+json ContentType.
+type PatchMachineApplicationMergePatchPlusJSONRequestBody PatchMachineApplicationMergePatchPlusJSONBody
+
 // PutMachineJSONRequestBody defines body for PutMachine for application/json ContentType.
 type PutMachineJSONRequestBody = MachineSpec
+
+// CreateSecretStoreJSONRequestBody defines body for CreateSecretStore for application/json ContentType.
+type CreateSecretStoreJSONRequestBody = SecretStoreCreate
+
+// PatchSecretStoreApplicationMergePatchPlusJSONRequestBody defines body for PatchSecretStore for application/merge-patch+json ContentType.
+type PatchSecretStoreApplicationMergePatchPlusJSONRequestBody PatchSecretStoreApplicationMergePatchPlusJSONBody
+
+// PutSecretStoreJSONRequestBody defines body for PutSecretStore for application/json ContentType.
+type PutSecretStoreJSONRequestBody = SecretStoreSpec
+
+// CreateServerJSONRequestBody defines body for CreateServer for application/json ContentType.
+type CreateServerJSONRequestBody = ServerCreate
+
+// PatchServerApplicationMergePatchPlusJSONRequestBody defines body for PatchServer for application/merge-patch+json ContentType.
+type PatchServerApplicationMergePatchPlusJSONRequestBody PatchServerApplicationMergePatchPlusJSONBody
+
+// PutServerJSONRequestBody defines body for PutServer for application/json ContentType.
+type PutServerJSONRequestBody = ServerSpec
+
+// CreateSSHAccessGrantJSONRequestBody defines body for CreateSSHAccessGrant for application/json ContentType.
+type CreateSSHAccessGrantJSONRequestBody = SSHAccessGrantCreate
+
+// PatchSSHAccessGrantApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHAccessGrant for application/merge-patch+json ContentType.
+type PatchSSHAccessGrantApplicationMergePatchPlusJSONRequestBody PatchSSHAccessGrantApplicationMergePatchPlusJSONBody
+
+// PutSSHAccessGrantJSONRequestBody defines body for PutSSHAccessGrant for application/json ContentType.
+type PutSSHAccessGrantJSONRequestBody = SSHAccessGrantSpec
 
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"a8RH2iNHaPu/AAAA//8=",
+	"7H1tc9yolv9XUel/X/x3V52nSWbv+M0tXyfjeCcP3jgztXVTXheW6G6uJdAActJJ+btvIZCEnkGtbrev",
+	"eTUZNxwO54nD+QH64YckSQmGmDP/6IfPwjVMQP7P1zCGHJ6QOIYhRwR/giyLufgFRBESfwHxOSUppBxB",
+	"5h8tQcxg4Kfan374UU4kEv9cEpoA7h/5CPOfX/qBnyCMkizxj54FPt+kUP4EV5D6d3eBT+GfGaKi75eS",
+	"zGXZklz/E4bcvwv8N5QSaskWnNAnJBEU/1UMME4RXgkGEsgYWHX91phFTqFq355Mo73ksmvOp4h/gilh",
+	"iBO6sZwHSNEfkDJEsJwVZkIpa5LAGFw/QeTp7XMQp2vw3A/ac71BONK71RkJuoTDQQQ4EJ3+QuHSP/L/",
+	"39PK5p4qg3v6vmh3F/gsheFY+9rAF6JDU3raPBXfGjdqkFHZHmd8DTFHIeBKYBaSTgFjXwmN3uBbRAlO",
+	"IOZ/AIrAdZwbS4LwO4hXfO0fPe+QXMYgxSAZb9qY99Coo/M9IUmC+IVSgI1VZXxN6JsEoNhgbrL1B5PZ",
+	"lf7yGSZpDLiRPEYmSaGi49xmN27zDjG+T/kiDpOcSvkPYyH4lbkASsFmVF353LZQmehfqc1O+nJ6o+Kf",
+	"6L/1QGcswUaMvAv8awpwuDZw7TAPN1ajaRFKBEka28ZH0aVksUuUbyGI+dpSfowDnrHxHEC16xr3DN9C",
+	"nE8RpDyj8BgzdB3DU0qy1JKbNWEyn+vuMyzuHj7eEsb9u7GcRY5sMb2crKWtyp5Xa9V1xMiWf0Z4XDE1",
+	"oib8T9HLrItIN0N7XEw6GSg8s3IIexKy61wrU+cYJwRLrVlqsD/ZD3xyzSC9hdEpxJCWcdRq3yNmDJjs",
+	"OGLWlYAhFtS++J9pJvYXvwq+/cD/Hd9g8hVrMqk6yz/YBc7813LcklNzkd972nXIHrNLY/8N4egCin28",
+	"9a63Lv8RkyzkbWNV7YkaT+uws8xuYzPINvvnenBZZyer7wEP12++pRQyZh9gb+DGwNJED6CsuQh/Z4L7",
+	"D4Tn/33zDYlEJPBfE8g+EJ7/f2covAVxButq7QmXhcoa0hMcaxwZy2miRyZ18W5pkE1lddhnPqAIIVsO",
+	"VYtCfeO8A9cwHkxd+5SjJaSG8rffJTFNZfZxvpx7c09Q/GBuOuXab1PAlASiT5CRjIbKmgaTkaLLhchr",
+	"qKrophSGIC/qcprBsXwmLBKtLa2nStg6TAcVPWbe8zRjdqWW3FitZKl6bCHKWfJLkiDOG4xP0srHOqEu",
+	"taixBqe8q7HTNWA9NflRH2uS3ybH6E2SLHCEwMdmpVLDzUMj/uTEzfL58+w6nlYM300ir/NzH3m8Nv7E",
+	"ja9OYUf7Xm0IPaJ+gktIIba27ymgRN7HmEm3N9/H3lyX+OFszQ/Oo3foja8h4wgDia5Pc8b59+fBJAfv",
+	"EouV02uymJTdFg5eIQVbunpB5vez10Yr7y0y1ILCLIblWR8/GJ6eNrypuB9I7USPBjalk+ZMD7dyonF6",
+	"TmIU2h7nSNSxlGKh+YhP1gDXjpfoVpqz/gmCaKPZ4DUhMQR4JDluRkbbk0B6rJtiAJ3R8i4oPbuSgcJy",
+	"FhuQxH5Q/u8/60uiZpxdG86JXHZnWGJDArgJJJqWRmA7sjKfpon2Tq6UXNBUjmLW1G6nVSO2qAt05ood",
+	"4UGb1pYGV6TmgR8DxvM2bA2jz0iulOXiEgEOFxzl+6nd5KAFkZLh12gFZSxv25LFHrgW5uxUSdU+uX/X",
+	"21rc6h26DO09CNcI32tOWrCwxzRUDWm3lyw6zbt9VFSnbsaEn3ymIvSKDnaO4jZyJhu5QkH3vne7bz+Z",
+	"1+APOzMuZG2QDOvzObj8t2COTComxnGUXqWEdi977Cvi4foqAeH4UlRRqvUbYFnswCg/AH9TjOzf6+TA",
+	"u/A9Sfnk/HfrZJJCax8qBzshNHeoBOEz2f9527tiskIhiK/CNKuDPc87wR4SwfiqKKR0JGYbJqkVjA+T",
+	"YyS8gdyg4S3EEaFXKBq3/Kppjd1qsBabDSEESuwm+sxFbOkyUUQhY1cMfe8BfkGKQhSNI2/XZEUSlPZh",
+	"dDhLrlXDbGV1ECDwQxCu4RWI0So/aG+CqIoOYk5XN9cGzeNlnLF13sGgNaHwykQiYZp1mF5v0yVIULwZ",
+	"b7uMga0AEUYcgfjKVJfJ+vuoGhMUUtJ/XUfYusFAhh5swnRKvkJ6lQAMVrAwE3MRpZSEkDF56mB4IIau",
+	"Y4RXBmplHKapGHC0pUVIqTgNauFFs6FC/s2YU7Cja09qu+kzddlrc67sXzfwMky0bK2wV+X3Wpxo+F3b",
+	"zYNGdOpQ8XhUPJS8/V82j3j37vX5CUjBNYoRt62rQgyuYxh1VUmrnZ3RXq6gZMbvGjCGJhzt0WZpnwQ1",
+	"JNUMQoH/bbEiCxkM/bKhGFxW2UI6fdw/QJzBkSFfiyFQKsuFYtWIpo93FkHM0RJBOjLo2et8rGSV8AVa",
+	"AgnN7W6O78vYcYY5pGJAbfx0b4OfMx0D3N2QH0AC29UqVAKHhWFVEqjpItCN3si1NMXbeVePt6ujo8Zx",
+	"QLY2Y7WwANvloadoFlZRZWJwUAQ60pP+FEltk6eNeC56D1uQaJKzRLuSk3rbT2evc40hMK4vZX6iraQd",
+	"5IKtxKjmZqfKKfeFkG4HE8NdSWLsHHM1mNHEzu2rIPsM25zHu41fnz+/6wlfYmgjEf5RxA8LGRrGHNNg",
+	"8xCKnSpBNS95anM71MKnZPED5F8JvTmWm4lpBZLO2Fvt2AvcAqW3LwVj6e3PnWBFSuESfbuKFVDxw0/A",
+	"N1VoevFXq8c6Cr6aNEuuTMUyeRWUDEytCDaU0lm0iOA3kxPfYXcFgmfjnQ1P/DKuNpG96JPRWqdSFDkx",
+	"ybnksxgh0KQ6qr8Jx0PCNLMt20pNlKnyNroeWCQDCREgvCQzLMLdl8DqC4vssCQ62nklD7iYwaeME6oy",
+	"QXt2L2Tn1/AWdYuDbRiHiR1N2aVpe/rkKq7LEfIqjl/Tsa6McSuszcTyFlpvVluWD3uPTbZDqzr50z6O",
+	"RTjoLjAwSBHoHqYoBVtC3pwCbBMnAv/rV2wcP27Uf/OpluFEVc/yaVaFPzU3OYBibFyZpdVZaPEaEXYV",
+	"9QXI/FcKY9h9SEY1kHXMod/7r3pcE0CjK8AY5FccrAba9NqO/HnAHGSDIS5Vg3421bZmhNGi1QAvRZNe",
+	"kyoaDLBbNelnOCERiBHoTn1SSqIs5Bpo0duk32NVg4G5lk1ussHfswxFgw2GJso2A7JqeGJl7A3Trhty",
+	"w2zbRlozyYYBNsytaVxdptQynIaZtIyibQKawlvqbSizpbq6otpSbyiqJvKBoDQhw4mJ2ds6zZMRrRML",
+	"xQ9D7O3pRGbrjNjY3UxLVGCm41595yDztegWUoOjvsVdQO1Ib9cpyoknKAHGhINS9lOvPgd+SCEoztsx",
+	"DpK0N2ukEEQfsQiQ8h5mi3b+5uIWpL5UhTicxbF/KbalCIMYfVeXQUsTG7/V2MVqkTtnGP2ZQXVyQ7S4",
+	"C/zVsLn0UNRMJt76Hrq2hQPfium9ePVTniRxSLF/5P/vF7D4/mzxy+X//9vRl4X895PLH8+CF6+e3xW/",
+	"/dvf/uJ3SqV16nZUp2otGmlnenfvYwrx3wG5gCGFebYNLZ9LTMA3/a/Pcz9u/KVRiic3EBu9p6gL+Xjx",
+	"D7D4fnWp/vFs8cvV5b93CjWn/ysaIfj0SVfvOyMRnVNyiyJrDEIr9pTWnFHk9zyuaP6U26gS7wL/Bm7O",
+	"81KOyR2z2z9evCcZ5sMqAYvvx4t/CPOu/nm1uOyRa3d5qRqqNekuc22H8B3cey19bMIFbNGzi/GLi7fH",
+	"YQgZO6UA3+vJwwYnezwyUB/Z7nx8o++8x+TrxN3V5V2eeG/I+t4P0ByWO+zGoCnMgTe5C7YQtMrAYPQb",
+	"3JwDRO1mdNrs3Zxdi/z4VE47OLKxnHhFKOLrRPcNGL149er5L53OcAM33S8cz5P/sWrFNti/NAym1lfb",
+	"0NQMqJxwa7BxYR82sNhwXANksWN2Bwctdut4QiVAHfM+N7uxygxNsGMLHfha9at/RXs+ijmWPAQ15iv6",
+	"5vKq+cQ9vozS5E4VKg6OsQlYX21NMfdTbS1SFzLw7wzS0QB7dalCqdhgfPnLZV88NSwFDSum/bhbQVZn",
+	"OdCFYCDkPdXz+pLZjgC5RHgFaUoR5rvLWsvCXbHenkMcyZqSfMMg8E8IXsYo5HmGiurnbLVie36r+ze4",
+	"6akCCteftoQW98LnriRq4eheU1yNjX3mt9Ww8ya3Fd0D2D78y8r2wLM/Te4mqV9jXoeX921dXSSyCGhf",
+	"KyzHa53tUBRH+J2QPaTaFA213MtlSaubTRHR7zdA5BzsNTaIES3La7LPzGW1nOjxCk5MfmLA+AWElg9P",
+	"UAjCdYEntE/l3Jo/cFLQ6Z/byRqGNyxL5ihDsDV48epnIc81ePX8Rf8719bPumk1gP4jxWpC7qWQQ62b",
+	"Sv0cQMJzn/Fs1sj0KwQ8o/DX4sazzak0EN7ImyDjnKthPpPVKs6TlQjAZBzU6+l8k11DiiGHhjH9t7K9",
+	"IiUPX2HECVV3h625uBsT6aRwv86/2bTpDtsIMw7insucrUswRdugJHppxjLcgyFU+80JhlB1tjWEFoGJ",
+	"RqAlCcMSVdYy25Xd5pc1B67kSj7OpB3Ix9+mvAIeasv7uHzKZKB6H3QY5u/8qFk5Zv+82i4947VoSuJa",
+	"tSYkmFMSL9IY5M9DfSX0ppZs98xmXD2HvsHM1zmjvWU5mwPcVgreihOF0z5WspdDjwWjxRVmdXNnIsv2",
+	"V6dYdo0ht83fygOsqrvNzKYskdoJorEP5k28PPZuzrtj2vlejbaJkMrLNlM/ecU5CNcwOuYdj5QpiXCa",
+	"wYqXvmWmn5LdPKaou+/y2WQoSN4KM2FcXaqa8hXStueOx9l+x9cviE2l2bam3nvTZYugNREbsW3p3FME",
+	"VuZ1tQvn08RU0pr2MZKKg0CLBqObWyU8hFcTzK7+MpPNtHVTH8hqNe6m+fK2/I3m3R/zz5cJBqdctAI0",
+	"XCMOwyKhLB/iTqK8xgJo8vPLzpXjmhD+vvGE+TUiQucZXKLOPhES/77OuNl7+6gzlR+XYscWID/VQzGM",
+	"j+kqE/K1fO1MpDFxz3VdlMDvBPc8NGL4iYeGL9UEVVEJ6vrSlNDvX3kJXfSe5mFzbs1qrEwKlpzDJOXy",
+	"uw7t49Py1w/yObnxxwVBeANx9CnDPfSEfcWQiyzAvK4ZZpTK0ndPcdOk8CnFtaObM2mhhb7NIOOAWs26",
+	"C5tRA/QbwycYEhyiGE39LkEKMmZkmKrhECsS2L/IkgTQzTaPFgwrJULs5iQGKDFoW78gP/LkgFwszgnl",
+	"ZuT7l5OLi7fHGV8Tir7n5y2n+Wl12mLq8bLGKZWRlWLgSNHwiRIrSKU+q/qpoIpqnffLIUlPE66uHtvS",
+	"Ro96x14Yaow5MKkJ3xchCUD4g9kdjWWjem9cwJQ97gJ/RUmWWq7+a8K4IYNJu+pikvbVO1UubVynbaTR",
+	"5Zd2a4nhOJlmNpk/ghDegBVk1m+flmu92dCtRCW3QX2RMKPTsbDIC9kh3/ZeYMaaFyDH2cnjw5h/Na1m",
+	"wMEmhYyV8Q5EB+6nfQS2iSl3HUGUPjkFw5BPKy7/jHoeGCiuIk9bdbbwulJkRRJ33PmY0ajj7Pje9JZ+",
+	"qdUIWjmTiWvWOwm/ZGvjlUs7s5lHJ/H/puue1mEo+6nTtXsG6RzSsHhKvCyjPnsWDL95HRMQHd9CClbw",
+	"eTL+QjZMCN1MGal/0kXeZHNHaMIiGpPwpm/LYfpm1hrGseHTNu0Qepdn1fI1qKh6l9Y/8t9KLMk7Pj8T",
+	"uxvExVa//OuJBMO88xhgqNqU+3r/2ZPnT56p9RaDFPlH/k/5n+SbOrlsnoIUlSjV0xXii/IrgeVH1sRO",
+	"U53ok25/FuXv54q/nyJefT5QVtVYSrCKLS+ePVPIFFdGAdK0+BTW03+qUp70hzFvkeOdkFgsRPlHxVgW",
+	"K9nVZVZ+h9qTvEdCBq9mZOUNpXnNtndkL7874gnNQ8a9pTxEfpfjOiooKfl5II69mhA9Wn5GO/B5nkx+",
+	"8RtivsyfI+BtpbxDjO9PJbWRcsBxSCYxYtwD3CNYygeshITUNybzkxGRymH+Z1F0Wmjwap3sRYOCJ3bS",
+	"3pJQj6/lWH6gTaPplneHaBJChNOMISWswxrk6axac1/GI8j434n8XuP8lqAOhd3ln9OoKH6T306cleYc",
+	"FGshWr310XCZ57sR1JC91D3izWf5gla97X9nhMOodKaERGip2NI9q98LAl/HIevETwAmGIUgLm3QUy+x",
+	"DXvVy/14lXSjiEDmYcK9BPBwnbt+ya0aImfplz06OogpBNHGg98Qk29Jv3zxYo/jI+YhfAtidJjrnvQ7",
+	"D3jNuNQb3u6CkTTl6Q+RV91ZZit5GkRBAnnuZF+aDiB8ziPUazyK41HIM4ph5F1v5FoDuJisUHr+sqR/",
+	"pDy3eHX+yD9bLt4LA/WboWbImS5bYehF20tfqxeVPBCGMBXRAODIA18B4givPO1xpLvAf/HsZZtCqTst",
+	"WXq5V6MRQmpY7UvJ6b4YINxbkgxH+w8WKlv3wuLKYR4u/rp7DgqTFIIvbfKA82SRNRpHjJ7s+BTydjK0",
+	"j9z43hf6u0fu1Adn1aeQ25p0Y7HKFxqVkallRp2p6l9idvFqnFin0nxxa5ntsZAxZB7A3qdfT7z//OmX",
+	"n73/uvj4wXsP6Qp65zJnI420LYXhE++YUrBhHsjlmMYgFCsbJ4lISOPNEz9ouHZO6+Et7yY7sUQIa5GL",
+	"+D/altpdGqu9wVdWmYJeuu19lA1dgx2UC6xz73jEcABhD3h5gPVydXrSE10GtYcNVx7Eonrgaq54LpPT",
+	"1rz3VcCxXvsy3nbeswgmKRGTizdyfFaP2CVrgMOOJSPjey+NlYc6ZyuMdVLcnt4jD+mu5OdKfuMsnRCs",
+	"DlVWLGRp/l6+q/p1Vv3yfDtP5+1WgFYJsHwBfhGClGcULirgd7gGeFb0PJEdT2U/h1xOQS47hdkJWvWI",
+	"fRDJ3L+qOkd0yOY8yOYsxjKEdHZ221Fa1znWTMinDe05Ke8VCe1WlkuPHCL6aBHRvvg1GhaN0yNjpLSP",
+	"FYeYOsTUIaYPBjGdHFH6EdT+JGufOblDVB2i2o2obmHyDmEdQ1gfblrgkFYXeB3i6hDXR424brM27gaB",
+	"vfeS3SyIrDnl+ei6pWB2pNaVJB1i66qSg4jtLkqU8oGS6lPVhpXJc72bg2+3gm81WQ4DcjWhm4G3+9JT",
+	"14AOup0Zup1uKEbArdZr10mgNtTcsO046RkJ3w9oqyvKJUgOs3WYbT10jcVDw3TIHq+ts+HgWgfXOrj2",
+	"4cG1dsHEAKxtJlZ7zMEdVOug2hGo1tbcHVBrDNQ+tHzA4bQu6DqY1sG0Dqadsi7uGKS9n/LcvBDtGOHZ",
+	"yLo1YGf4rKs+OnjWFSCH4Nktq5HqsfL8lT3KDVDZ98Xr5rK9g2OnwLE1IXbCaw0xDwKw+1NJbSQHuc4D",
+	"uU4yhiGQtdZ8R+lbbYyZYFUTmnNQ3CuQWleGy2EcgvpoEdRmXOoNb2NZijFY2hzRoaQOJXUo6YNBSY0D",
+	"Rj8u2s6F9pEaOyTUIaHdSKiFSR8y9rmb8vPeNy6zFJzHKW5Pb68l5sMLZW5D5jZkrqi886Ly1hs08/qx",
+	"qxxvVTkeKhOaVYv3USd2FeJZK8TjSjeoCu82rZq3EjxnDfheq78uzXB130df9+0OWr2phG2R15V3XXnX",
+	"lXcfYHnXKoOtSrp7yF9dGdeVcQfLuL15uLu2MnJt5SEt2u6migug7nKKu5zyyC6njK1xO8UAd1ummhP3",
+	"mw/xu0es718V5XOFN4fvOXyvge8ZFuIYDCnkCxnFx8twF3nzC9nagXtTwD1NhJ1YT03EgyDfvpShjePA",
+	"vnnAPmsjGAL9tMY7yqi0EWYC/8Ypbk9vryCgrgSXjzgg8NECgfVo1BPQhvMQY1SwPpZDBh0y6JDBB4MM",
+	"GgWKfoSwmfXsPvl1SKFDCruRQkNTdojhGGL40BZ0hxq6gOqQQ4ccPkLk0HTN2w2CuNea1yxI4hi9bak9",
+	"6iDuKnmukueQxR0ji1Mre/RWOclYMU82dLDiNFhRSK8HTJKCHQETdy59OYSDEOeCEI0UPgwcinY7y58E",
+	"8dngwgFiW5HaM0iYC9xlFQ4ffMT4oAo67WjVlztY4IGKtoMCHRTooMAHBAX2xoQhALDMXnaasDrYz8F+",
+	"fbDfgNk6sG8c7Hswq7XD+VzwdBCfg/geG8Q3tL7tCtjbeU1qJjivl9QWhB5rhHZFNldkc9DdLqE7i6Ib",
+	"Wy9AGELGFisKsMn3oi4u3h7nPU5lBwfhTYLwalLsRnYagh6G9PanlfpQDuKbCeKbZhCDkF+t/a7SrNog",
+	"c0GAJkRnIblfSLCuEJe1OGjw8UKDzeDUH+XGsxZz0LA5qgMPHXjowMOHAx6aR40BMLGdF+0lVXbgogMX",
+	"e8BFG7N2YOMo2PjwVnkHOrrg6sBHBz4+UvDRav3bERi5/2rZPODkOMkZCD72yO7KgK4M6MDLPYCXdmXB",
+	"NQQxX38XDPft9t+hW4gh2ykk9jZno0sin9fQSykRjAuFgBjdwqYg1jC8KRvFFbvl1DeMw0TNOK8uD074",
+	"EwQRut8ZH5+feSEQ8QeEaw/yUJngT7s3QW14ERIkB4gzPQWQt73bOqjgyUqCbSWIjsU91y8//IzG/pH/",
+	"1Bf7ONX4R7EfVJ3ugvIvp4h/gilhiBO6YfovZ/gWYvHXE5DyjMJTSrK0u8V5dl2Irdag8VnP9i+1v9Uu",
+	"89b+Lien/6nhfGKu3xaMo5XYa2wWSxTDRZrRlLB8khALm4RR4DEYLxdqgwIj72MKsdBORMIsEVGyhG9D",
+	"EkFvJTsiggO5l1H/vvgKVitIvd/Pgry6/ZSkEIMUPRFG88S/+78AAAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

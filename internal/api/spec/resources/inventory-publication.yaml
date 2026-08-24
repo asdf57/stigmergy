@@ -1,0 +1,90 @@
+# InventoryPublication renders one capture group and publishes it to a destination.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: InventoryPublication
+  plural: inventory-publications
+  spec-schema: InventoryPublicationSpec
+  status-schema: InventoryPublicationStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+InventoryPublicationSpec:
+  type: object
+  additionalProperties: false
+  required: [inventoryCaptureGroupRef, format, destinationRef, path]
+  properties:
+    inventoryCaptureGroupRef:
+      $ref: '#/components/schemas/InventoryPublicationCaptureGroupReference'
+    format:
+      type: string
+      enum: [ansible-yaml, ansible-json]
+    destinationRef:
+      $ref: '#/components/schemas/InventoryPublicationDestinationReference'
+    path:
+      type: string
+      minLength: 1
+    policy:
+      $ref: '#/components/schemas/InventoryPublicationPolicy'
+
+InventoryPublicationCaptureGroupReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+InventoryPublicationDestinationReference:
+  type: object
+  additionalProperties: false
+  required: [apiVersion, kind, name]
+  properties:
+    apiVersion: {type: string, minLength: 1}
+    kind: {type: string, minLength: 1}
+    name: {type: string, minLength: 1}
+
+InventoryPublicationPolicy:
+  type: object
+  additionalProperties: false
+  properties:
+    mode:
+      type: string
+      enum: [OnChange]
+    requireReady: {type: boolean}
+
+InventoryPublicationStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    observedInventoryDigest: {type: string}
+    lastPublishedTime: {type: string, format: date-time}
+    destination:
+      $ref: '#/components/schemas/InventoryPublicationDestinationStatus'
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryPublicationCondition'
+
+InventoryPublicationDestinationStatus:
+  type: object
+  additionalProperties: false
+  required: [repositoryUID, observedRepositoryGeneration, revision]
+  properties:
+    repositoryUID: {type: string, minLength: 1}
+    observedRepositoryGeneration: {type: integer, format: int64, minimum: 0}
+    revision: {type: string, minLength: 1}
+    url: {type: string}
+
+InventoryPublicationCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

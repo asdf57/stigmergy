@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -131,8 +130,26 @@ func (s *Store) Update(ctx context.Context, candidate resource.Resource, expecte
 	candidate.Metadata.Generation = existing.Metadata.Generation
 	candidate.Metadata.ResourceVersion = ""
 	candidate.Status = existing.Status
-	if !reflect.DeepEqual(candidate.Spec, existing.Spec) {
+	if !resource.EqualJSON(candidate.Spec, existing.Spec) {
 		candidate.Metadata.Generation++
+	}
+	if existing.Metadata.DeletionTimestamp != nil && len(candidate.Metadata.Finalizers) == 0 {
+		resourceKey := s.keys.resource(candidate.Kind, candidate.Metadata.Name)
+		response, err := s.client.Txn(ctx).
+			If(clientv3.Compare(clientv3.ModRevision(resourceKey), "=", expectedRevision)).
+			Then(
+				clientv3.OpDelete(resourceKey),
+				clientv3.OpDelete(s.keys.uid(existing.Metadata.UID)),
+			).
+			Commit()
+		if err != nil {
+			return resource.Resource{}, fmt.Errorf("finalize resource: %w", err)
+		}
+		if !response.Succeeded {
+			return resource.Resource{}, fmt.Errorf("%w: %s %q changed", storage.ErrConflict, candidate.Kind, candidate.Metadata.Name)
+		}
+		candidate.Metadata.ResourceVersion = strconv.FormatInt(response.Header.Revision, 10)
+		return candidate, nil
 	}
 
 	value, err := encode(candidate)
@@ -155,6 +172,39 @@ func (s *Store) Update(ctx context.Context, candidate resource.Resource, expecte
 	return candidate, nil
 }
 
+// UpdateStatus replaces controller-owned observed state without changing spec,
+// metadata, or generation.
+func (s *Store) UpdateStatus(ctx context.Context, kind, name string, status map[string]any, expectedRevision int64) (resource.Resource, error) {
+	existing, err := s.Get(ctx, kind, name)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
+		return resource.Resource{}, fmt.Errorf("%w: expected %d, current %s", storage.ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
+	}
+
+	existing.Metadata.ResourceVersion = ""
+	existing.Status = status
+	value, err := encode(existing)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	resourceKey := s.keys.resource(kind, name)
+	response, err := s.client.Txn(ctx).
+		If(clientv3.Compare(clientv3.ModRevision(resourceKey), "=", expectedRevision)).
+		Then(clientv3.OpPut(resourceKey, string(value))).
+		Commit()
+	if err != nil {
+		return resource.Resource{}, fmt.Errorf("update resource status: %w", err)
+	}
+	if !response.Succeeded {
+		return resource.Resource{}, fmt.Errorf("%w: %s %q changed", storage.ErrConflict, kind, name)
+	}
+
+	existing.Metadata.ResourceVersion = strconv.FormatInt(response.Header.Revision, 10)
+	return existing, nil
+}
+
 func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision int64) error {
 	existing, err := s.Get(ctx, kind, name)
 	if err != nil {
@@ -162,6 +212,30 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 	}
 	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
 		return fmt.Errorf("%w: expected %d, current %s", storage.ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)
+	}
+	if len(existing.Metadata.Finalizers) != 0 {
+		if existing.Metadata.DeletionTimestamp != nil {
+			return nil
+		}
+		now := s.now().UTC()
+		existing.Metadata.DeletionTimestamp = &now
+		existing.Metadata.ResourceVersion = ""
+		value, err := encode(existing)
+		if err != nil {
+			return err
+		}
+		resourceKey := s.keys.resource(kind, name)
+		response, err := s.client.Txn(ctx).
+			If(clientv3.Compare(clientv3.ModRevision(resourceKey), "=", expectedRevision)).
+			Then(clientv3.OpPut(resourceKey, string(value))).
+			Commit()
+		if err != nil {
+			return fmt.Errorf("mark resource for deletion: %w", err)
+		}
+		if !response.Succeeded {
+			return fmt.Errorf("%w: %s %q changed", storage.ErrConflict, kind, name)
+		}
+		return nil
 	}
 
 	resourceKey := s.keys.resource(kind, name)
@@ -182,34 +256,22 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 }
 
 func (s *Store) DeleteCollection(ctx context.Context, kind string) (int64, error) {
-	response, err := s.client.Delete(
-		ctx,
-		s.keys.resourcePrefix(kind),
-		clientv3.WithPrefix(),
-		clientv3.WithPrevKV(),
-	)
+	resources, err := s.List(ctx, kind)
 	if err != nil {
-		return 0, fmt.Errorf("delete resource collection: %w", err)
+		return 0, err
 	}
-
-	uidDeletes := make([]clientv3.Op, 0, len(response.PrevKvs))
-	for _, previous := range response.PrevKvs {
-		deleted, err := decode(previous.Value, previous.ModRevision)
+	var deleted int64
+	for _, item := range resources.Items {
+		revision, err := strconv.ParseInt(item.Metadata.ResourceVersion, 10, 64)
 		if err != nil {
-			return response.Deleted, fmt.Errorf("clean up deleted resource UID: %w", err)
+			return deleted, fmt.Errorf("parse %s %q resource version: %w", kind, item.Metadata.Name, err)
 		}
-		if deleted.Metadata.UID != "" {
-			uidDeletes = append(uidDeletes, clientv3.OpDelete(s.keys.uid(deleted.Metadata.UID)))
+		if err := s.Delete(ctx, kind, item.Metadata.Name, revision); err != nil {
+			return deleted, fmt.Errorf("delete %s %q: %w", kind, item.Metadata.Name, err)
 		}
+		deleted++
 	}
-	const cleanupBatchSize = 64
-	for start := 0; start < len(uidDeletes); start += cleanupBatchSize {
-		end := min(start+cleanupBatchSize, len(uidDeletes))
-		if _, err := s.client.Txn(ctx).Then(uidDeletes[start:end]...).Commit(); err != nil {
-			return response.Deleted, fmt.Errorf("clean up deleted resource UIDs: %w", err)
-		}
-	}
-	return response.Deleted, nil
+	return deleted, nil
 }
 
 func (s *Store) Ready(ctx context.Context) error {

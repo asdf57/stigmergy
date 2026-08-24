@@ -10,11 +10,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
 	"github.com/asdf57/prov-controller-test/go/internal/resource"
 	"github.com/asdf57/prov-controller-test/go/internal/store"
 )
@@ -52,10 +55,24 @@ func (f *fakeStore) List(_ context.Context, kind string) (resource.List, error) 
 	}, nil
 }
 
-func (f *fakeStore) Update(_ context.Context, value resource.Resource, _ int64) (resource.Resource, error) {
+func (f *fakeStore) Update(_ context.Context, value resource.Resource, expectedRevision int64) (resource.Resource, error) {
+	if f.created.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
+		return resource.Resource{}, store.ErrConflict
+	}
+	value.Metadata.Generation = f.created.Metadata.Generation
+	if !reflect.DeepEqual(value.Spec, f.created.Spec) {
+		value.Metadata.Generation++
+	}
+	value.Status = f.created.Status
 	value.Metadata.ResourceVersion = "8"
 	f.created = value
 	return value, nil
+}
+
+func (f *fakeStore) UpdateStatus(_ context.Context, kind, name string, status map[string]any, _ int64) (resource.Resource, error) {
+	f.created.Status = status
+	f.created.Metadata.ResourceVersion = "8"
+	return f.created, nil
 }
 
 func (f *fakeStore) Delete(_ context.Context, _, _ string, _ int64) error { return nil }
@@ -138,24 +155,17 @@ func TestMachineReportSchemaValidation(t *testing.T) {
 	}
 }
 
-func TestCreateMachineWithCompleteReportProjection(t *testing.T) {
+func TestCreateMachineWithDeclaredLocation(t *testing.T) {
 	t.Parallel()
 
 	storage := &fakeStore{}
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
-	report := testMachineReportSpec()
 	body, err := json.Marshal(apigen.MachineCreate{
 		ApiVersion: apigen.MachineCreateApiVersionHomelabIov1alpha1,
 		Kind:       apigen.MachineCreateKindMachine,
 		Metadata:   apigen.Metadata{Name: "lab-node"},
 		Spec: apigen.MachineSpec{
-			Location:   apigen.MachineLocation{LldpPort: "Ethernet1", SwitchMac: "00:11:22:33:44:55"},
-			ObservedAt: report.ObservedAt,
-			Storage:    report.Storage,
-			System:     report.System,
-			Cpu:        report.Cpu,
-			Interfaces: report.Interfaces,
-			LLDPInfo:   report.LLDPInfo,
+			Location: apigen.MachineLocation{LldpPort: "Ethernet1", SwitchMac: "00:11:22:33:44:55"},
 		},
 	})
 	if err != nil {
@@ -174,8 +184,531 @@ func TestCreateMachineWithCompleteReportProjection(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if created.Spec.Cpu.ModelName != report.Cpu.ModelName || len(created.Spec.LLDPInfo) != len(report.LLDPInfo) {
-		t.Fatalf("Machine does not contain the complete report projection: %#v", created.Spec)
+	if created.Spec.Location.LldpPort != "Ethernet1" || created.Spec.Location.SwitchMac != "00:11:22:33:44:55" {
+		t.Fatalf("Machine location = %#v", created.Spec.Location)
+	}
+	if created.Status != nil {
+		t.Fatalf("client-created Machine status = %#v, want nil", created.Status)
+	}
+}
+
+func TestCreateMachineFromYAMLManifest(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body := `apiVersion: homelab.io/v1alpha1
+kind: Machine
+metadata:
+  name: desktop
+spec:
+  location:
+    lldp_port: bridge/ether3
+    switch_mac: d4:01:c3:27:91:67
+`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/machines", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/yaml")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var created apigen.Machine
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if created.Metadata.Name != "desktop" || created.Spec.Location.LldpPort != "bridge/ether3" || created.Spec.Location.SwitchMac != "d4:01:c3:27:91:67" {
+		t.Fatalf("created Machine = %#v", created)
+	}
+}
+
+func TestCreateInventoryCaptureGroupFromYAML(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body := `apiVersion: homelab.io/v1alpha1
+kind: InventoryCaptureGroup
+metadata:
+  name: servers
+spec:
+  selector:
+    matchKinds:
+      - apiVersion: homelab.io/v1alpha1
+        kind: Server
+    matchLabels:
+      homelab.io/type: server
+`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/inventory-capture-groups", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/yaml")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var created apigen.InventoryCaptureGroup
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if created.Metadata.Name != "servers" || created.Spec.Selector.MatchKinds == nil || len(*created.Spec.Selector.MatchKinds) != 1 || (*created.Spec.Selector.MatchKinds)[0].Kind != "Server" || created.Spec.Selector.MatchLabels == nil || (*created.Spec.Selector.MatchLabels)["homelab.io/type"] != "server" {
+		t.Fatalf("created InventoryCaptureGroup = %#v", created)
+	}
+}
+
+func TestCreateInventoryPublicationResourcesFromYAML(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	tests := []struct {
+		name string
+		path string
+		body string
+	}{
+		{
+			name: "GitRepository",
+			path: "/api/v1alpha1/git-repositories",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: GitRepository
+metadata:
+  name: ansible-inventory
+spec:
+  url: https://github.com/example/inventory.git
+  branch: main
+  authentication:
+    username: x-access-token
+    passwordEnvironmentVariable: GITHUB_TOKEN
+`,
+		},
+		{
+			name: "InventoryPublication",
+			path: "/api/v1alpha1/inventory-publications",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: InventoryPublication
+metadata:
+  name: servers-to-git
+spec:
+  inventoryCaptureGroupRef:
+    name: servers
+  format: ansible-yaml
+  destinationRef:
+    apiVersion: homelab.io/v1alpha1
+    kind: GitRepository
+    name: ansible-inventory
+  path: inventories/homelab/servers.yaml
+`,
+		},
+		{
+			name: "SecretStore",
+			path: "/api/v1alpha1/secret-stores",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: SecretStore
+metadata:
+  name: openbao
+spec:
+  provider:
+    openBao:
+      address: http://openbao:8200
+      kvV2Mount: kv2
+      keyPrefix: secrets
+      authentication:
+        tokenFile: /run/openbao/token
+`,
+		},
+		{
+			name: "SSHAccessGrant",
+			path: "/api/v1alpha1/ssh-access-grants",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: SSHAccessGrant
+metadata:
+  name: desktop-matt
+spec:
+  serverRef:
+    name: desktop
+  loginUser: matt
+  credential:
+    generatedKeyPair:
+      algorithm: ed25519
+      keyName: matt
+      secretStoreRef:
+        name: openbao
+`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, test.path, strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/yaml")
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusCreated {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+			var created map[string]any
+			if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if created["kind"] != test.name {
+				t.Fatalf("created kind = %v, want %s", created["kind"], test.name)
+			}
+			if test.name == "SSHAccessGrant" {
+				metadata := created["metadata"].(map[string]any)
+				finalizers := metadata["finalizers"].([]any)
+				if len(finalizers) != 1 || finalizers[0] != "homelab.io/ssh-access-cleanup" {
+					t.Fatalf("SSHAccessGrant finalizers = %#v", finalizers)
+				}
+			}
+		})
+	}
+}
+
+func TestDeleteFinalizedResourceReturnsAccepted(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{created: resource.Resource{
+		APIVersion: registry.SSHAccessGrantResource.APIVersion,
+		Kind:       registry.SSHAccessGrantResource.Kind,
+		Metadata: resource.Metadata{
+			Name:            "desktop-matt",
+			ResourceVersion: "7",
+			Finalizers:      []string{"homelab.io/ssh-access-cleanup"},
+		},
+		Spec: map[string]any{},
+	}}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request := httptest.NewRequest(http.MethodDelete, "/api/v1alpha1/ssh-access-grants/desktop-matt", nil)
+	request.Header.Set("If-Match", `"7"`)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusAccepted, response.Body.String())
+	}
+}
+
+func TestPutServerFromYAMLSpec(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body := `machineSelector:
+  location:
+    lldp_port: bridge/ether3
+    switch_mac: d4:01:c3:27:91:67
+hostName: atlas
+`
+	request := httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/x-yaml")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var created apigen.Server
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if created.Spec.HostName == nil || *created.Spec.HostName != "atlas" {
+		t.Fatalf("created Server hostName = %#v", created.Spec.HostName)
+	}
+}
+
+func TestYAMLRequestsRejectInvalidAndMultipleDocuments(t *testing.T) {
+	t.Parallel()
+
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeStore{}, time.Second)
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "invalid", body: "metadata: ["},
+		{name: "multiple documents", body: "apiVersion: homelab.io/v1alpha1\n---\nkind: Machine\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/machines", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/yaml")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusBadRequest, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestCreateServerWithDesiredHostConfiguration(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body := []byte(`{
+  "apiVersion": "homelab.io/v1alpha1",
+  "kind": "Server",
+  "metadata": {"name": "server-01"},
+  "spec": {
+    "machineSelector": {"location": {"lldp_port": "Ethernet1", "switch_mac": "00:11:22:33:44:55"}},
+    "hostName": "atlas",
+    "domainName": "homelab.local",
+    "operatingSystem": {
+      "distribution": "debian",
+      "version": "13",
+      "architecture": "amd64",
+      "bootMode": "uefi",
+      "installationSource": {
+        "url": "https://images.homelab.local/debian-13-amd64.tar.zst",
+        "checksum": {"algorithm": "sha256", "value": "abc123"}
+      },
+      "timezone": "America/New_York",
+      "locale": "en_US.UTF-8",
+      "kernelArguments": ["iommu=pt"]
+    },
+    "users": [{
+      "name": "matt",
+      "groups": ["sudo"],
+      "shell": "/bin/bash",
+      "locked": true
+    }],
+    "groups": ["all_servers", "storage_nodes"],
+    "packages": ["curl", "vim"],
+    "sysctls": {"net.ipv4.ip_forward": "1"},
+    "featureFlags": {
+      "daemon": {"enabled": true},
+      "monitoring": {"enabled": true},
+      "backup": {"enabled": false},
+      "kubernetes": {"enabled": false, "role": "worker"}
+    },
+    "networking": {
+      "management": {
+        "interfaceSelector": {"attachedAtMachineLocation": true},
+        "addressSelector": {"family": "ipv4", "subnet": "10.1.1.0/24"}
+      }
+    },
+    "provisioning": {"enabled": true},
+    "reconciliation": {"paused": false}
+  }
+}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/servers", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var created apigen.Server
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if created.Spec.HostName == nil || *created.Spec.HostName != "atlas" {
+		t.Fatalf("Server hostName = %#v", created.Spec.HostName)
+	}
+	if created.Spec.OperatingSystem == nil || created.Spec.OperatingSystem.Distribution != "debian" {
+		t.Fatalf("Server operatingSystem = %#v", created.Spec.OperatingSystem)
+	}
+	if created.Spec.Provisioning == nil || !created.Spec.Provisioning.Enabled {
+		t.Fatalf("Server provisioning = %#v", created.Spec.Provisioning)
+	}
+	if created.Spec.Networking == nil || created.Spec.Networking.Management == nil || created.Spec.Networking.Management.AddressSelector.Subnet != "10.1.1.0/24" {
+		t.Fatalf("Server networking = %#v", created.Spec.Networking)
+	}
+}
+
+func TestPatchServerMergesObjectsAndReplacesArrays(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	createBody := []byte(`{
+  "apiVersion":"homelab.io/v1alpha1",
+  "kind":"Server",
+  "metadata":{"name":"server-01"},
+  "spec":{
+    "machineSelector":{"location":{"lldp_port":"Ethernet1","switch_mac":"00:11:22:33:44:55"}},
+    "domainName":"homelab.local",
+    "users":[{"name":"matt"}],
+    "packages":["curl","vim"],
+    "featureFlags":{"daemon":{"enabled":true},"backup":{"enabled":false}}
+  }
+}`)
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/servers", bytes.NewReader(createBody))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse := httptest.NewRecorder()
+	handler.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, body = %s", createResponse.Code, createResponse.Body.String())
+	}
+	storage.created.Status = map[string]any{"phase": "Ready"}
+
+	patchBody := []byte(`{
+  "users":[{"name":"deploy"}],
+  "packages":["jq"],
+  "featureFlags":{"backup":{"enabled":true}}
+}`)
+	patchRequest := httptest.NewRequest(http.MethodPatch, "/api/v1alpha1/servers/server-01", bytes.NewReader(patchBody))
+	patchRequest.Header.Set("Content-Type", "application/merge-patch+json")
+	patchRequest.Header.Set("If-Match", `"7"`)
+	patchResponse := httptest.NewRecorder()
+	handler.ServeHTTP(patchResponse, patchRequest)
+
+	if patchResponse.Code != http.StatusOK {
+		t.Fatalf("patch status = %d, body = %s", patchResponse.Code, patchResponse.Body.String())
+	}
+	if got := patchResponse.Header().Get("ETag"); got != `"8"` {
+		t.Fatalf("patch ETag = %q, want %q", got, `"8"`)
+	}
+	var patched apigen.Server
+	if err := json.NewDecoder(patchResponse.Body).Decode(&patched); err != nil {
+		t.Fatalf("decode patch response: %v", err)
+	}
+	if patched.Spec.DomainName == nil || *patched.Spec.DomainName != "homelab.local" {
+		t.Fatalf("patch lost unmentioned domainName: %#v", patched.Spec.DomainName)
+	}
+	if patched.Spec.FeatureFlags == nil || patched.Spec.FeatureFlags.Daemon == nil || !patched.Spec.FeatureFlags.Daemon.Enabled || patched.Spec.FeatureFlags.Backup == nil || !patched.Spec.FeatureFlags.Backup.Enabled {
+		t.Fatalf("featureFlags were not recursively merged: %#v", patched.Spec.FeatureFlags)
+	}
+	if patched.Spec.Users == nil || len(*patched.Spec.Users) != 1 || (*patched.Spec.Users)[0].Name != "deploy" {
+		t.Fatalf("users array = %#v, want atomic replacement", patched.Spec.Users)
+	}
+	if patched.Spec.Packages == nil || len(*patched.Spec.Packages) != 1 || (*patched.Spec.Packages)[0] != "jq" {
+		t.Fatalf("packages array = %#v, want atomic replacement", patched.Spec.Packages)
+	}
+	if patched.Metadata.Generation == nil || *patched.Metadata.Generation != 2 {
+		t.Fatalf("generation = %#v, want 2", patched.Metadata.Generation)
+	}
+	if patched.Status == nil || patched.Status.Phase == nil || *patched.Status.Phase != "Ready" {
+		t.Fatalf("patch did not preserve status: %#v", patched.Status)
+	}
+}
+
+func TestPatchServerRequiresCurrentETagAndValidMergedSpec(t *testing.T) {
+	t.Parallel()
+
+	newHandler := func() http.Handler {
+		storage := &fakeStore{created: resource.Resource{
+			APIVersion: registry.ServerResource.APIVersion,
+			Kind:       registry.ServerResource.Kind,
+			Metadata:   resource.Metadata{Name: "server-01", ResourceVersion: "7"},
+			Spec: map[string]any{"machineSelector": map[string]any{"location": map[string]any{
+				"lldp_port": "Ethernet1", "switch_mac": "00:11:22:33:44:55",
+			}}},
+		}}
+		return New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	}
+
+	tests := []struct {
+		name    string
+		ifMatch string
+		patch   string
+		want    int
+	}{
+		{name: "missing If-Match", patch: `{"hostName":"atlas"}`, want: http.StatusPreconditionRequired},
+		{name: "stale If-Match", ifMatch: `"6"`, patch: `{"hostName":"atlas"}`, want: http.StatusConflict},
+		{name: "remove required selector", ifMatch: `"7"`, patch: `{"machineSelector":null}`, want: http.StatusUnprocessableEntity},
+		{name: "unknown field", ifMatch: `"7"`, patch: `{"unknown":true}`, want: http.StatusUnprocessableEntity},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPatch, "/api/v1alpha1/servers/server-01", strings.NewReader(test.patch))
+			request.Header.Set("Content-Type", "application/merge-patch+json")
+			if test.ifMatch != "" {
+				request.Header.Set("If-Match", test.ifMatch)
+			}
+			response := httptest.NewRecorder()
+			newHandler().ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.want, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestPatchServerFromYAML(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{created: resource.Resource{
+		APIVersion: registry.ServerResource.APIVersion,
+		Kind:       registry.ServerResource.Kind,
+		Metadata:   resource.Metadata{Name: "desktop", ResourceVersion: "7", Generation: 1},
+		Spec: map[string]any{
+			"machineSelector": map[string]any{"location": map[string]any{"lldp_port": "bridge/ether3", "switch_mac": "d4:01:c3:27:91:67"}},
+			"packages":        []any{"curl"},
+		},
+	}}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1alpha1/servers/desktop", strings.NewReader("packages:\n  - jq\n"))
+	request.Header.Set("Content-Type", "application/merge-patch+yaml")
+	request.Header.Set("If-Match", `"7"`)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var patched apigen.Server
+	if err := json.NewDecoder(response.Body).Decode(&patched); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if patched.Spec.Packages == nil || len(*patched.Spec.Packages) != 1 || (*patched.Spec.Packages)[0] != "jq" {
+		t.Fatalf("packages = %#v, want YAML patch replacement", patched.Spec.Packages)
+	}
+}
+
+func TestGetMachineIncludesValidatedStatus(t *testing.T) {
+	t.Parallel()
+
+	statusJSON, err := json.Marshal(testMachineReportSpec())
+	if err != nil {
+		t.Fatalf("encode status: %v", err)
+	}
+	var status map[string]any
+	if err := json.Unmarshal(statusJSON, &status); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	storage := &fakeStore{created: resource.Resource{
+		APIVersion: registry.MachineResource.APIVersion,
+		Kind:       registry.MachineResource.Kind,
+		Metadata:   resource.Metadata{Name: "lab-node", ResourceVersion: "7"},
+		Spec: map[string]any{"location": map[string]any{
+			"lldp_port":  "Ethernet1",
+			"switch_mac": "00:11:22:33:44:55",
+		}},
+		Status: map[string]any{
+			"inventory":          status,
+			"phase":              "Ready",
+			"observedGeneration": float64(7),
+			"conditions": []any{map[string]any{
+				"type": "Ready", "status": "True", "reason": "Reconciled",
+			}},
+		},
+	}}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1alpha1/machines/lab-node", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var machine apigen.Machine
+	if err := json.NewDecoder(response.Body).Decode(&machine); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if machine.Status == nil || machine.Status.Inventory == nil || machine.Status.Inventory.Cpu.ModelName != "Test CPU" {
+		t.Fatalf("Machine status = %#v, want typed report observation", machine.Status)
 	}
 }
 

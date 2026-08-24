@@ -1,0 +1,125 @@
+# SSHAccessGrant grants one login user SSH access to one Server.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: SSHAccessGrant
+  plural: ssh-access-grants
+  spec-schema: SSHAccessGrantSpec
+  status-schema: SSHAccessGrantStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/ssh-access-cleanup]
+
+SSHAccessGrantSpec:
+  type: object
+  additionalProperties: false
+  required: [serverRef, loginUser, credential]
+  properties:
+    serverRef:
+      $ref: '#/components/schemas/SSHAccessGrantServerReference'
+    loginUser:
+      type: string
+      minLength: 1
+      pattern: '^[a-z_][a-z0-9_-]*[$]?$'
+    credential:
+      $ref: '#/components/schemas/SSHAccessGrantCredential'
+
+SSHAccessGrantServerReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+
+SSHAccessGrantCredential:
+  type: object
+  additionalProperties: false
+  required: [generatedKeyPair]
+  properties:
+    generatedKeyPair:
+      $ref: '#/components/schemas/SSHAccessGrantGeneratedKeyPair'
+
+SSHAccessGrantGeneratedKeyPair:
+  type: object
+  additionalProperties: false
+  required: [algorithm, secretStoreRef]
+  properties:
+    algorithm:
+      type: string
+      enum: [ed25519]
+    keyName:
+      type: string
+      minLength: 1
+      pattern: '^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$'
+    secretStoreRef:
+      $ref: '#/components/schemas/SSHAccessGrantSecretStoreReference'
+
+SSHAccessGrantSecretStoreReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+
+SSHAccessGrantStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Conflict, Failed]
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
+    serverRef:
+      $ref: '#/components/schemas/ResourceReference'
+    publicKey:
+      type: string
+    fingerprint:
+      type: string
+    secret:
+      $ref: '#/components/schemas/SSHAccessGrantSecretStatus'
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/SSHAccessGrantCondition'
+
+SSHAccessGrantSecretStatus:
+  type: object
+  additionalProperties: false
+  required: [storeRef, logicalPath, version]
+  properties:
+    storeRef:
+      $ref: '#/components/schemas/ResourceReference'
+    logicalPath:
+      type: string
+      minLength: 1
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+
+SSHAccessGrantCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type:
+      type: string
+      minLength: 1
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason:
+      type: string
+      minLength: 1
+    message:
+      type: string
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0

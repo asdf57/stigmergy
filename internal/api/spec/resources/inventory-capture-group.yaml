@@ -1,0 +1,127 @@
+# InventoryCaptureGroup selects manageable resources and materializes an Ansible-ready group.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: InventoryCaptureGroup
+  plural: inventory-capture-groups
+  spec-schema: InventoryCaptureGroupSpec
+  status-schema: InventoryCaptureGroupStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+InventoryCaptureGroupSpec:
+  type: object
+  additionalProperties: false
+  required: [selector]
+  properties:
+    selector:
+      $ref: '#/components/schemas/InventoryCaptureGroupSelector'
+
+InventoryCaptureGroupSelector:
+  type: object
+  additionalProperties: false
+  properties:
+    matchKinds:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryCaptureGroupKindSelector'
+    matchLabels:
+      type: object
+      additionalProperties:
+        type: string
+    matchExpressions:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryCaptureGroupMatchExpression'
+
+InventoryCaptureGroupKindSelector:
+  type: object
+  additionalProperties: false
+  required: [apiVersion, kind]
+  properties:
+    apiVersion: {type: string, minLength: 1}
+    kind: {type: string, minLength: 1}
+
+InventoryCaptureGroupMatchExpression:
+  type: object
+  additionalProperties: false
+  required: [key, operator]
+  properties:
+    key: {type: string, minLength: 1}
+    operator:
+      type: string
+      enum: [In, NotIn, Exists, DoesNotExist]
+    values:
+      type: array
+      items: {type: string}
+
+InventoryCaptureGroupStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string}
+    inventory:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/InventoryCaptureAnsibleGroup'
+    matchedResources: {type: integer, minimum: 0}
+    capturedResources: {type: integer, minimum: 0}
+    omittedResources:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryCaptureOmittedResource'
+    # Deprecated compatibility fields for resources written by the initial
+    # Server-only controller. New reconciliations do not emit them.
+    matchedServers: {type: integer, minimum: 0, deprecated: true}
+    capturedServers: {type: integer, minimum: 0, deprecated: true}
+    omittedServers:
+      type: array
+      deprecated: true
+      items:
+        $ref: '#/components/schemas/InventoryCaptureOmittedResource'
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryCaptureGroupCondition'
+
+InventoryCaptureAnsibleGroup:
+  type: object
+  additionalProperties: false
+  required: [hosts]
+  properties:
+    hosts:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/InventoryCaptureAnsibleHost'
+
+InventoryCaptureAnsibleHost:
+  type: object
+  additionalProperties: false
+  required: [ansible_host]
+  properties:
+    ansible_host: {type: string, minLength: 1}
+    fqdn: {type: string}
+
+InventoryCaptureOmittedResource:
+  type: object
+  additionalProperties: false
+  required: [name, reason]
+  properties:
+    apiVersion: {type: string}
+    kind: {type: string}
+    name: {type: string, minLength: 1}
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+
+InventoryCaptureGroupCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

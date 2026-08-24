@@ -35,6 +35,8 @@ func (s *Server) serveResource(w http.ResponseWriter, r *http.Request) {
 		s.getResource(w, r, definition, resourceName)
 	case http.MethodPut:
 		s.putResource(w, r, definition, resourceName)
+	case http.MethodPatch:
+		s.patchResource(w, r, definition, resourceName)
 	case http.MethodDelete:
 		s.deleteResource(w, r, definition, resourceName)
 	default:

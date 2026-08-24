@@ -8,6 +8,138 @@ import (
 	"github.com/asdf57/prov-controller-test/go/internal/resource"
 )
 
+// GitRepository is the concrete controller-facing resource for GitRepository.
+type GitRepository struct {
+	APIVersion string                   `json:"apiVersion"`
+	Kind       string                   `json:"kind"`
+	Metadata   resource.Metadata        `json:"metadata"`
+	Spec       apigen.GitRepositorySpec `json:"spec"`
+	Status     map[string]any           `json:"status,omitempty"`
+}
+
+// NewGitRepository constructs a GitRepository with its generated type identity.
+func NewGitRepository(metadata resource.Metadata, spec apigen.GitRepositorySpec) GitRepository {
+	return GitRepository{
+		APIVersion: GitRepositoryResource.APIVersion,
+		Kind:       GitRepositoryResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed GitRepository into the generic storage representation.
+func (value GitRepository) Encode() (resource.Resource, error) {
+	return encodeResource(GitRepositoryResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// GitRepositoryDefinition adds concrete GitRepository decoding to the shared API definition.
+type GitRepositoryDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed GitRepository.
+func (definition GitRepositoryDefinition) Decode(value resource.Resource) (GitRepository, error) {
+	spec, err := decodeResourceSpec[apigen.GitRepositorySpec](definition.Definition, value)
+	if err != nil {
+		return GitRepository{}, err
+	}
+	return GitRepository{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+// InventoryCaptureGroup is the concrete controller-facing resource for InventoryCaptureGroup.
+type InventoryCaptureGroup struct {
+	APIVersion string                           `json:"apiVersion"`
+	Kind       string                           `json:"kind"`
+	Metadata   resource.Metadata                `json:"metadata"`
+	Spec       apigen.InventoryCaptureGroupSpec `json:"spec"`
+	Status     map[string]any                   `json:"status,omitempty"`
+}
+
+// NewInventoryCaptureGroup constructs a InventoryCaptureGroup with its generated type identity.
+func NewInventoryCaptureGroup(metadata resource.Metadata, spec apigen.InventoryCaptureGroupSpec) InventoryCaptureGroup {
+	return InventoryCaptureGroup{
+		APIVersion: InventoryCaptureGroupResource.APIVersion,
+		Kind:       InventoryCaptureGroupResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed InventoryCaptureGroup into the generic storage representation.
+func (value InventoryCaptureGroup) Encode() (resource.Resource, error) {
+	return encodeResource(InventoryCaptureGroupResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// InventoryCaptureGroupDefinition adds concrete InventoryCaptureGroup decoding to the shared API definition.
+type InventoryCaptureGroupDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed InventoryCaptureGroup.
+func (definition InventoryCaptureGroupDefinition) Decode(value resource.Resource) (InventoryCaptureGroup, error) {
+	spec, err := decodeResourceSpec[apigen.InventoryCaptureGroupSpec](definition.Definition, value)
+	if err != nil {
+		return InventoryCaptureGroup{}, err
+	}
+	return InventoryCaptureGroup{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+// InventoryPublication is the concrete controller-facing resource for InventoryPublication.
+type InventoryPublication struct {
+	APIVersion string                          `json:"apiVersion"`
+	Kind       string                          `json:"kind"`
+	Metadata   resource.Metadata               `json:"metadata"`
+	Spec       apigen.InventoryPublicationSpec `json:"spec"`
+	Status     map[string]any                  `json:"status,omitempty"`
+}
+
+// NewInventoryPublication constructs a InventoryPublication with its generated type identity.
+func NewInventoryPublication(metadata resource.Metadata, spec apigen.InventoryPublicationSpec) InventoryPublication {
+	return InventoryPublication{
+		APIVersion: InventoryPublicationResource.APIVersion,
+		Kind:       InventoryPublicationResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed InventoryPublication into the generic storage representation.
+func (value InventoryPublication) Encode() (resource.Resource, error) {
+	return encodeResource(InventoryPublicationResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// InventoryPublicationDefinition adds concrete InventoryPublication decoding to the shared API definition.
+type InventoryPublicationDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed InventoryPublication.
+func (definition InventoryPublicationDefinition) Decode(value resource.Resource) (InventoryPublication, error) {
+	spec, err := decodeResourceSpec[apigen.InventoryPublicationSpec](definition.Definition, value)
+	if err != nil {
+		return InventoryPublication{}, err
+	}
+	return InventoryPublication{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
 // MachineReport is the concrete controller-facing resource for MachineReport.
 type MachineReport struct {
 	APIVersion string                   `json:"apiVersion"`
@@ -96,10 +228,154 @@ func (definition MachineDefinition) Decode(value resource.Resource) (Machine, er
 	}, nil
 }
 
-var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports")}
-var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines")}
+// SecretStore is the concrete controller-facing resource for SecretStore.
+type SecretStore struct {
+	APIVersion string                 `json:"apiVersion"`
+	Kind       string                 `json:"kind"`
+	Metadata   resource.Metadata      `json:"metadata"`
+	Spec       apigen.SecretStoreSpec `json:"spec"`
+	Status     map[string]any         `json:"status,omitempty"`
+}
+
+// NewSecretStore constructs a SecretStore with its generated type identity.
+func NewSecretStore(metadata resource.Metadata, spec apigen.SecretStoreSpec) SecretStore {
+	return SecretStore{
+		APIVersion: SecretStoreResource.APIVersion,
+		Kind:       SecretStoreResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed SecretStore into the generic storage representation.
+func (value SecretStore) Encode() (resource.Resource, error) {
+	return encodeResource(SecretStoreResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// SecretStoreDefinition adds concrete SecretStore decoding to the shared API definition.
+type SecretStoreDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed SecretStore.
+func (definition SecretStoreDefinition) Decode(value resource.Resource) (SecretStore, error) {
+	spec, err := decodeResourceSpec[apigen.SecretStoreSpec](definition.Definition, value)
+	if err != nil {
+		return SecretStore{}, err
+	}
+	return SecretStore{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+// Server is the concrete controller-facing resource for Server.
+type Server struct {
+	APIVersion string            `json:"apiVersion"`
+	Kind       string            `json:"kind"`
+	Metadata   resource.Metadata `json:"metadata"`
+	Spec       apigen.ServerSpec `json:"spec"`
+	Status     map[string]any    `json:"status,omitempty"`
+}
+
+// NewServer constructs a Server with its generated type identity.
+func NewServer(metadata resource.Metadata, spec apigen.ServerSpec) Server {
+	return Server{
+		APIVersion: ServerResource.APIVersion,
+		Kind:       ServerResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Server into the generic storage representation.
+func (value Server) Encode() (resource.Resource, error) {
+	return encodeResource(ServerResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// ServerDefinition adds concrete Server decoding to the shared API definition.
+type ServerDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed Server.
+func (definition ServerDefinition) Decode(value resource.Resource) (Server, error) {
+	spec, err := decodeResourceSpec[apigen.ServerSpec](definition.Definition, value)
+	if err != nil {
+		return Server{}, err
+	}
+	return Server{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+// SSHAccessGrant is the concrete controller-facing resource for SSHAccessGrant.
+type SSHAccessGrant struct {
+	APIVersion string                    `json:"apiVersion"`
+	Kind       string                    `json:"kind"`
+	Metadata   resource.Metadata         `json:"metadata"`
+	Spec       apigen.SSHAccessGrantSpec `json:"spec"`
+	Status     map[string]any            `json:"status,omitempty"`
+}
+
+// NewSSHAccessGrant constructs a SSHAccessGrant with its generated type identity.
+func NewSSHAccessGrant(metadata resource.Metadata, spec apigen.SSHAccessGrantSpec) SSHAccessGrant {
+	return SSHAccessGrant{
+		APIVersion: SSHAccessGrantResource.APIVersion,
+		Kind:       SSHAccessGrantResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed SSHAccessGrant into the generic storage representation.
+func (value SSHAccessGrant) Encode() (resource.Resource, error) {
+	return encodeResource(SSHAccessGrantResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// SSHAccessGrantDefinition adds concrete SSHAccessGrant decoding to the shared API definition.
+type SSHAccessGrantDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed SSHAccessGrant.
+func (definition SSHAccessGrantDefinition) Decode(value resource.Resource) (SSHAccessGrant, error) {
+	spec, err := decodeResourceSpec[apigen.SSHAccessGrantSpec](definition.Definition, value)
+	if err != nil {
+		return SSHAccessGrant{}, err
+	}
+	return SSHAccessGrant{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
+var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "", []string(nil))}
+var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
+var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
+var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
+var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil))}
+var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
+var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
+var SSHAccessGrantResource = SSHAccessGrantDefinition{Definition: NewDefinition[apigen.SSHAccessGrantSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHAccessGrant", "ssh-access-grants", "SSHAccessGrantStatus", []string{"homelab.io/ssh-access-cleanup"})}
 
 var Definitions = []Definition{
+	GitRepositoryResource.Definition,
+	InventoryCaptureGroupResource.Definition,
+	InventoryPublicationResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
+	SecretStoreResource.Definition,
+	ServerResource.Definition,
+	SSHAccessGrantResource.Definition,
 }

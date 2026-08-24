@@ -11,17 +11,19 @@ import (
 )
 
 type Definition struct {
-	APIVersion       string
-	PathPrefix       string
-	Kind             string
-	Plural           string
-	CollectionPath   string
-	SpecSchema       string
-	DecodeSpec       func(json.RawMessage) (any, error)
-	DecodeStoredSpec func(map[string]any) (any, error)
+	APIVersion        string
+	PathPrefix        string
+	Kind              string
+	Plural            string
+	CollectionPath    string
+	SpecSchema        string
+	StatusSchema      string
+	DefaultFinalizers []string
+	DecodeSpec        func(json.RawMessage) (any, error)
+	DecodeStoredSpec  func(map[string]any) (any, error)
 }
 
-func NewDefinition[T any](apiVersion, pathPrefix, kind, plural string) Definition {
+func NewDefinition[T any](apiVersion, pathPrefix, kind, plural, statusSchema string, defaultFinalizers []string) Definition {
 	decode := func(encoded json.RawMessage) (T, error) {
 		var value T
 		if err := json.Unmarshal(encoded, &value); err != nil {
@@ -30,12 +32,14 @@ func NewDefinition[T any](apiVersion, pathPrefix, kind, plural string) Definitio
 		return value, nil
 	}
 	return Definition{
-		APIVersion:     apiVersion,
-		PathPrefix:     pathPrefix,
-		Kind:           kind,
-		Plural:         plural,
-		CollectionPath: pathPrefix + "/" + plural,
-		SpecSchema:     reflect.TypeFor[T]().Name(),
+		APIVersion:        apiVersion,
+		PathPrefix:        pathPrefix,
+		Kind:              kind,
+		Plural:            plural,
+		CollectionPath:    pathPrefix + "/" + plural,
+		SpecSchema:        reflect.TypeFor[T]().Name(),
+		StatusSchema:      statusSchema,
+		DefaultFinalizers: append([]string(nil), defaultFinalizers...),
 		DecodeSpec: func(encoded json.RawMessage) (any, error) {
 			return decode(encoded)
 		},

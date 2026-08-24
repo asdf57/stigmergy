@@ -1,0 +1,44 @@
+# GitRepository describes a Git destination used by publication controllers.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: GitRepository
+  plural: git-repositories
+  spec-schema: GitRepositorySpec
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+GitRepositorySpec:
+  type: object
+  additionalProperties: false
+  required: [url, branch]
+  properties:
+    url:
+      type: string
+      minLength: 1
+    branch:
+      type: string
+      minLength: 1
+    authentication:
+      $ref: '#/components/schemas/GitRepositoryAuthentication'
+    commit:
+      $ref: '#/components/schemas/GitRepositoryCommitSpec'
+
+GitRepositoryAuthentication:
+  type: object
+  additionalProperties: false
+  required: [passwordEnvironmentVariable]
+  properties:
+    username:
+      type: string
+      minLength: 1
+    passwordEnvironmentVariable:
+      type: string
+      minLength: 1
+
+GitRepositoryCommitSpec:
+  type: object
+  additionalProperties: false
+  properties:
+    authorName: {type: string, minLength: 1}
+    authorEmail: {type: string, minLength: 1}
+    messageTemplate: {type: string, minLength: 1}

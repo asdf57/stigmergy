@@ -58,6 +58,7 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, definiti
 		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
 	}
+	candidate.Metadata.Finalizers = append([]string(nil), definition.DefaultFinalizers...)
 
 	created, err := s.store.Create(r.Context(), candidate)
 	if err != nil {
@@ -140,10 +141,11 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 
 	existing, err := s.store.Get(r.Context(), definition.Kind, name)
 	if errors.Is(err, store.ErrNotFound) {
+		metadata := resource.Metadata{Name: name, Finalizers: append([]string(nil), definition.DefaultFinalizers...)}
 		created, createErr := s.store.Create(r.Context(), resource.Resource{
 			APIVersion: definition.APIVersion,
 			Kind:       definition.Kind,
-			Metadata:   resource.Metadata{Name: name},
+			Metadata:   metadata,
 			Spec:       spec,
 		})
 		if createErr != nil {
@@ -193,12 +195,77 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 	writeJSON(w, http.StatusOK, body)
 }
 
+func (s *Server) patchResource(w http.ResponseWriter, r *http.Request, definition registry.Definition, name string) {
+	expected, err := requiredRevision(r.Header.Get("If-Match"))
+	if err != nil {
+		writeError(w, http.StatusPreconditionRequired, "PreconditionRequired", err.Error())
+		return
+	}
+	var patch map[string]any
+	if err := decodeJSONBody(r, &patch); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+		return
+	}
+
+	existing, err := s.store.Get(r.Context(), definition.Kind, name)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "NotFound", err.Error())
+			return
+		}
+		s.writeStoreError(w, err)
+		return
+	}
+	if existing.Metadata.ResourceVersion != strconv.FormatInt(expected, 10) {
+		writeError(w, http.StatusConflict, "Conflict", store.ErrConflict.Error())
+		return
+	}
+
+	merged := applyJSONMergePatch(existing.Spec, patch)
+	validated, err := s.validateResourceSpec(definition, merged)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+		return
+	}
+	existing.Spec = validated
+	updated, err := s.store.Update(r.Context(), existing, expected)
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) || errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusConflict, "Conflict", err.Error())
+			return
+		}
+		s.writeStoreError(w, err)
+		return
+	}
+	body, err := s.apiResource(definition, updated)
+	if err != nil {
+		s.writeStoredResourceError(w, err)
+		return
+	}
+	w.Header().Set("ETag", quoteRevision(updated.Metadata.ResourceVersion))
+	writeJSON(w, http.StatusOK, body)
+}
+
 func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definition registry.Definition, name string) {
 	expected, err := requiredRevision(r.Header.Get("If-Match"))
 	if err != nil {
 		writeError(w, http.StatusPreconditionRequired, "PreconditionRequired", err.Error())
 		return
 	}
+	existing, err := s.store.Get(r.Context(), definition.Kind, name)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "NotFound", err.Error())
+			return
+		}
+		s.writeStoreError(w, err)
+		return
+	}
+	if existing.Metadata.ResourceVersion != strconv.FormatInt(expected, 10) {
+		writeError(w, http.StatusConflict, "Conflict", store.ErrConflict.Error())
+		return
+	}
+	waitsForFinalizers := len(existing.Metadata.Finalizers) != 0
 	if err := s.store.Delete(r.Context(), definition.Kind, name, expected); err != nil {
 		switch {
 		case errors.Is(err, store.ErrNotFound):
@@ -208,6 +275,10 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 		default:
 			s.writeStoreError(w, err)
 		}
+		return
+	}
+	if waitsForFinalizers {
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
