@@ -11,9 +11,14 @@ import (
 	"time"
 
 	"github.com/asdf57/prov-controller-test/go/internal/api"
+	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
 	"github.com/asdf57/prov-controller-test/go/internal/config"
 	"github.com/asdf57/prov-controller-test/go/internal/controller"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/inventory"
 	"github.com/asdf57/prov-controller-test/go/internal/controller/machine"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/publication"
+	servercontroller "github.com/asdf57/prov-controller-test/go/internal/controller/server"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/sshaccess"
 	etcdstore "github.com/asdf57/prov-controller-test/go/internal/store/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -62,9 +67,22 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	// Set up the MachineReport resource controller
-	machineReportReconciler := machine.NewMachineReportReconciler(resourceStore)
+	machineReportReconciler := machine.NewReconciler(resourceStore)
 	machineReportController := controller.NewController(machineReportReconciler)
+	serverReconciler := servercontroller.NewReconciler(resourceStore)
+	serverController := controller.NewController(serverReconciler)
+	inventoryReconciler := inventory.NewInventoryCaptureGroupReconciler(resourceStore)
+	inventoryController := controller.NewController(inventoryReconciler)
+	publicationReconciler := publication.NewReconciler(resourceStore)
+	publicationController := controller.NewController(publicationReconciler)
+	sshAccessReconciler := sshaccess.NewReconciler(resourceStore)
+	sshAccessController := controller.NewController(sshAccessReconciler)
+	inventoryWatches := []controller.Watch{
+		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
+	}
+	for _, definition := range inventory.CandidateDefinitions() {
+		inventoryWatches = append(inventoryWatches, controller.Watch{Kind: definition.Kind, Mapper: inventoryReconciler.RequestsForResource})
+	}
 
 	manager := controller.NewManager(
 		logger,
@@ -75,6 +93,37 @@ func run() error {
 				Controller: machineReportController,
 				Watches: []controller.Watch{
 					{Kind: "MachineReport", Mapper: controller.IdentityMapper},
+				},
+			},
+			{
+				Name:       "server-controller",
+				Controller: serverController,
+				Watches: []controller.Watch{
+					{Kind: "Server", Mapper: controller.IdentityMapper},
+					{Kind: "Machine", Mapper: serverReconciler.RequestsForMachine},
+				},
+			},
+			{
+				Name:       "inventory-controller",
+				Controller: inventoryController,
+				Watches:    inventoryWatches,
+			},
+			{
+				Name:       "inventory-publication-controller",
+				Controller: publicationController,
+				Watches: []controller.Watch{
+					{Kind: registry.InventoryPublicationResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: publicationReconciler.RequestsForCaptureGroup},
+					{Kind: registry.GitRepositoryResource.Kind, Mapper: publicationReconciler.RequestsForGitRepository},
+				},
+			},
+			{
+				Name:       "ssh-access-controller",
+				Controller: sshAccessController,
+				Watches: []controller.Watch{
+					{Kind: registry.SSHAccessGrantResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.ServerResource.Kind, Mapper: sshAccessReconciler.RequestsForServer},
+					{Kind: registry.SecretStoreResource.Kind, Mapper: sshAccessReconciler.RequestsForSecretStore},
 				},
 			},
 		},

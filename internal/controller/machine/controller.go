@@ -27,11 +27,6 @@ func NewReconciler(store store.Store) *MachineReportReconciler {
 	return &MachineReportReconciler{store: store}
 }
 
-// NewMachineReportReconciler is kept for callers migrating to NewReconciler.
-func NewMachineReportReconciler(store store.Store) *MachineReportReconciler {
-	return NewReconciler(store)
-}
-
 func (r *MachineReportReconciler) Reconcile(ctx context.Context, event controller.Request) error {
 	rsrc, err := r.store.Get(ctx, registry.MachineReportResource.Kind, event.Name)
 	if errors.Is(err, store.ErrNotFound) {
