@@ -1,4 +1,4 @@
-# InventoryPublication renders one capture group and publishes it to a destination.
+# InventoryPublication renders one capture group as an owned artifact directory.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
@@ -11,18 +11,14 @@ x-stigmergy-resource:
 InventoryPublicationSpec:
   type: object
   additionalProperties: false
-  required: [inventoryCaptureGroupRef, format, destinationRef, path]
+  required: [inventoryCaptureGroupRef, destinationRef, target]
   properties:
     inventoryCaptureGroupRef:
       $ref: '#/components/schemas/InventoryPublicationCaptureGroupReference'
-    format:
-      type: string
-      enum: [ansible-yaml, ansible-json]
     destinationRef:
       $ref: '#/components/schemas/InventoryPublicationDestinationReference'
-    path:
-      type: string
-      minLength: 1
+    target:
+      $ref: '#/components/schemas/InventoryPublicationTarget'
     policy:
       $ref: '#/components/schemas/InventoryPublicationPolicy'
 
@@ -42,13 +38,25 @@ InventoryPublicationDestinationReference:
     kind: {type: string, minLength: 1}
     name: {type: string, minLength: 1}
 
+InventoryPublicationTarget:
+  type: object
+  additionalProperties: false
+  required: [rootPath, layout, inventoryFile]
+  properties:
+    rootPath:
+      type: string
+      minLength: 1
+    layout:
+      type: string
+      enum: [ansible-directory]
+    inventoryFile:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$'
+
 InventoryPublicationPolicy:
   type: object
   additionalProperties: false
   properties:
-    mode:
-      type: string
-      enum: [OnChange]
     requireReady: {type: boolean}
 
 InventoryPublicationStatus:
@@ -57,14 +65,37 @@ InventoryPublicationStatus:
   properties:
     phase: {type: string}
     observedGeneration: {type: integer, format: int64, minimum: 0}
-    observedInventoryDigest: {type: string}
+    observedArtifactDigest: {type: string}
     lastPublishedTime: {type: string, format: date-time}
+    source:
+      $ref: '#/components/schemas/InventoryPublicationSourceStatus'
     destination:
       $ref: '#/components/schemas/InventoryPublicationDestinationStatus'
+    artifacts:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryPublicationArtifactStatus'
     conditions:
       type: array
       items:
         $ref: '#/components/schemas/InventoryPublicationCondition'
+
+InventoryPublicationSourceStatus:
+  type: object
+  additionalProperties: false
+  required: [inventoryCaptureGroupUID, observedGeneration, digest]
+  properties:
+    inventoryCaptureGroupUID: {type: string, minLength: 1}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    digest: {type: string, minLength: 1}
+
+InventoryPublicationArtifactStatus:
+  type: object
+  additionalProperties: false
+  required: [path, digest]
+  properties:
+    path: {type: string, minLength: 1}
+    digest: {type: string, minLength: 1}
 
 InventoryPublicationDestinationStatus:
   type: object

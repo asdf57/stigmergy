@@ -96,11 +96,21 @@ func TestReconcilePublishesReadyInventoryOncePerDigest(t *testing.T) {
 	if len(publisher.requests) != 1 {
 		t.Fatalf("Publish() calls = %d, want 1", len(publisher.requests))
 	}
-	if !strings.Contains(string(publisher.requests[0].Content), "ansible_host: 10.1.1.251") {
-		t.Fatalf("published content = %s", publisher.requests[0].Content)
+	if publisher.requests[0].RootPath != "inventories/servers" || len(publisher.requests[0].Artifacts) != 3 {
+		t.Fatalf("publish request = %#v", publisher.requests[0])
+	}
+	artifactContent := make(map[string]string)
+	for _, artifact := range publisher.requests[0].Artifacts {
+		artifactContent[artifact.Path] = string(artifact.Content)
+	}
+	if !strings.Contains(artifactContent["inventory.yaml"], "ansible_host: 10.1.1.251") || strings.Contains(artifactContent["inventory.yaml"], "ansible_user") {
+		t.Fatalf("inventory artifact = %s", artifactContent["inventory.yaml"])
+	}
+	if !strings.Contains(artifactContent["group_vars/all.yaml"], "ansible_user: matt") || !strings.Contains(artifactContent["group_vars/workstations.yaml"], "desktop_environment: true") {
+		t.Fatalf("group variable artifacts = %#v", artifactContent)
 	}
 	status := storage.resources["InventoryPublication/servers-git"].Status
-	if status["phase"] != "Published" || status["observedInventoryDigest"] == "" {
+	if status["phase"] != "Published" || status["observedArtifactDigest"] == "" {
 		t.Fatalf("publication status = %#v", status)
 	}
 	if status["destination"].(map[string]any)["revision"] != "abc123" {
@@ -134,6 +144,30 @@ func TestReconcileWaitsForReadyInventoryByDefault(t *testing.T) {
 	}
 }
 
+func TestReconcileRejectsOverlappingPublicationRoots(t *testing.T) {
+	group := publicationTestGroup("Ready")
+	repository := publicationTestRepository()
+	publication := publicationTestResource()
+	other := publicationTestResource()
+	other.Metadata.Name = "all-inventories"
+	other.Metadata.UID = "other-publication-uid"
+	other.Spec["target"].(map[string]any)["rootPath"] = "inventories"
+	storage := newFakeStore(group, repository, publication, other)
+	publisher := &fakePublisher{}
+
+	if err := NewReconcilerWithPublisher(storage, publisher).Reconcile(context.Background(), controller.Request{Kind: publication.Kind, Name: publication.Metadata.Name}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if len(publisher.requests) != 0 {
+		t.Fatalf("Publish() calls = %d, want 0", len(publisher.requests))
+	}
+	status := storage.resources["InventoryPublication/servers-git"].Status
+	condition := status["conditions"].([]any)[0].(map[string]any)
+	if status["phase"] != "Failed" || condition["reason"] != "TargetOwnershipConflict" {
+		t.Fatalf("publication status = %#v", status)
+	}
+}
+
 func TestCredentialEnvironmentVariableIsRequiredWhenConfigured(t *testing.T) {
 	publisher := &GitPublisher{LookupEnv: func(string) (string, bool) { return "", false }}
 	_, err := publisher.authentication(apigen.GitRepositorySpec{
@@ -151,10 +185,18 @@ func publicationTestGroup(phase string) resource.Resource {
 		Metadata:   resource.Metadata{Name: "servers", UID: "group-uid", ResourceVersion: "1", Generation: 1},
 		Spec:       map[string]any{"selector": map[string]any{}},
 		Status: map[string]any{
-			"phase": phase,
-			"inventory": map[string]any{"servers": map[string]any{"hosts": map[string]any{
-				"desktop": map[string]any{"ansible_host": "10.1.1.251"},
-			}}},
+			"phase":              phase,
+			"observedGeneration": int64(1),
+			"inventory": map[string]any{
+				"all": map[string]any{
+					"hosts": map[string]any{"desktop": map[string]any{"ansible_host": "10.1.1.251"}},
+					"vars":  map[string]any{"ansible_user": "matt"},
+				},
+				"workstations": map[string]any{
+					"hosts": map[string]any{"desktop": map[string]any{"ansible_host": "10.1.1.251"}},
+					"vars":  map[string]any{"desktop_environment": true},
+				},
+			},
 		},
 	}
 }
@@ -177,13 +219,14 @@ func publicationTestResource() resource.Resource {
 		Metadata:   resource.Metadata{Name: "servers-git", UID: "publication-uid", ResourceVersion: "1", Generation: 1},
 		Spec: map[string]any{
 			"inventoryCaptureGroupRef": map[string]any{"name": "servers"},
-			"format":                   "ansible-yaml",
 			"destinationRef": map[string]any{
 				"apiVersion": registry.GitRepositoryResource.APIVersion,
 				"kind":       registry.GitRepositoryResource.Kind,
 				"name":       "infrastructure",
 			},
-			"path": "ansible/inventory/homelab.yaml",
+			"target": map[string]any{
+				"rootPath": "inventories/servers", "layout": "ansible-directory", "inventoryFile": "inventory.yaml",
+			},
 		},
 		Status: map[string]any{},
 	}

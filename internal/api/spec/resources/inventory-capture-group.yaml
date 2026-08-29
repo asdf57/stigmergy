@@ -1,4 +1,4 @@
-# InventoryCaptureGroup selects manageable resources and materializes an Ansible-ready group.
+# InventoryCaptureGroup selects manageable resources and materializes an Ansible inventory with optional groups.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
@@ -13,6 +13,26 @@ InventoryCaptureGroupSpec:
   additionalProperties: false
   required: [selector]
   properties:
+    selector:
+      $ref: '#/components/schemas/InventoryCaptureGroupSelector'
+    groups:
+      type: array
+      items:
+        $ref: '#/components/schemas/InventoryCaptureGroupGroup'
+    groupVars:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties: true
+
+InventoryCaptureGroupGroup:
+  type: object
+  additionalProperties: false
+  required: [name, selector]
+  properties:
+    name:
+      type: string
+      pattern: '^[A-Za-z_][A-Za-z0-9_]*$'
     selector:
       $ref: '#/components/schemas/InventoryCaptureGroupSelector'
 
@@ -93,6 +113,9 @@ InventoryCaptureAnsibleGroup:
       type: object
       additionalProperties:
         $ref: '#/components/schemas/InventoryCaptureAnsibleHost'
+    vars:
+      type: object
+      additionalProperties: true
 
 InventoryCaptureAnsibleHost:
   type: object

@@ -85,7 +85,7 @@ func TestReconcileCapturesReadyServersAndReportsOmittedServers(t *testing.T) {
 		t.Fatalf("capture summary = %#v", status)
 	}
 	inventory := status["inventory"].(map[string]any)
-	hosts := inventory["servers"].(map[string]any)["hosts"].(map[string]any)
+	hosts := inventory["all"].(map[string]any)["hosts"].(map[string]any)
 	if len(hosts) != 1 {
 		t.Fatalf("hosts = %#v, want only desktop", hosts)
 	}
@@ -159,9 +159,69 @@ func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
 		t.Fatalf("Reconcile() error = %v", err)
 	}
 	status := storage.resources["InventoryCaptureGroup/servers"].Status
-	hosts := status["inventory"].(map[string]any)["servers"].(map[string]any)["hosts"].(map[string]any)
+	hosts := status["inventory"].(map[string]any)["all"].(map[string]any)["hosts"].(map[string]any)
 	if hosts["gateway"].(map[string]any)["ansible_host"] != "10.1.1.1" {
 		t.Fatalf("Router host = %#v", hosts["gateway"])
+	}
+}
+
+func TestReconcileBuildsSubgroupsAndGroupVariablesFromCapturedResources(t *testing.T) {
+	group := testGroup()
+	group.Spec = map[string]any{
+		"selector": map[string]any{"matchKinds": []any{map[string]any{
+			"apiVersion": registry.ServerResource.APIVersion, "kind": registry.ServerResource.Kind,
+		}}},
+		"groups": []any{
+			map[string]any{"name": "workstations", "selector": map[string]any{"matchLabels": map[string]any{"homelab.io/role": "workstation"}}},
+			map[string]any{"name": "storage", "selector": map[string]any{"matchLabels": map[string]any{"homelab.io/role": "storage"}}},
+		},
+		"groupVars": map[string]any{
+			"all":          map[string]any{"ansible_user": "matt"},
+			"workstations": map[string]any{"desktop_environment": true},
+		},
+	}
+	desktop := testServer("desktop", map[string]string{"homelab.io/role": "workstation"}, "10.1.1.251", "")
+	beelink := testServer("beelink", map[string]string{"homelab.io/role": "server"}, "10.1.1.50", "")
+	storage := newFakeStore(group, desktop, beelink)
+
+	if err := NewInventoryCaptureGroupReconciler(storage).Reconcile(context.Background(), controller.Request{Kind: group.Kind, Name: group.Metadata.Name}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	inventory := storage.resources["InventoryCaptureGroup/servers"].Status["inventory"].(map[string]any)
+	all := inventory["all"].(map[string]any)
+	if len(all["hosts"].(map[string]any)) != 2 || all["vars"].(map[string]any)["ansible_user"] != "matt" {
+		t.Fatalf("all group = %#v", all)
+	}
+	workstations := inventory["workstations"].(map[string]any)
+	if len(workstations["hosts"].(map[string]any)) != 1 || workstations["hosts"].(map[string]any)["desktop"] == nil {
+		t.Fatalf("workstations group = %#v", workstations)
+	}
+	if workstations["vars"].(map[string]any)["desktop_environment"] != true {
+		t.Fatalf("workstations vars = %#v", workstations["vars"])
+	}
+	if len(inventory["storage"].(map[string]any)["hosts"].(map[string]any)) != 0 {
+		t.Fatalf("storage group = %#v, want empty", inventory["storage"])
+	}
+}
+
+func TestReconcileRejectsGroupVarsForUndeclaredGroup(t *testing.T) {
+	group := testGroup()
+	group.Spec = map[string]any{
+		"selector":  map[string]any{},
+		"groupVars": map[string]any{"missing": map[string]any{"value": true}},
+	}
+	storage := newFakeStore(group)
+
+	if err := NewInventoryCaptureGroupReconciler(storage).Reconcile(context.Background(), controller.Request{Kind: group.Kind, Name: group.Metadata.Name}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	status := storage.resources["InventoryCaptureGroup/servers"].Status
+	if status["phase"] != "Failed" || status["inventory"] != nil {
+		t.Fatalf("status = %#v", status)
+	}
+	condition := status["conditions"].([]any)[0].(map[string]any)
+	if condition["reason"] != "InvalidConfiguration" {
+		t.Fatalf("condition = %#v", condition)
 	}
 }
 

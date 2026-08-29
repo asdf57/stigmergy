@@ -240,6 +240,16 @@ spec:
         kind: Server
     matchLabels:
       homelab.io/type: server
+  groups:
+    - name: workstations
+      selector:
+        matchLabels:
+          homelab.io/role: workstation
+  groupVars:
+    all:
+      ansible_user: matt
+    workstations:
+      desktop_environment: true
 `
 	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/inventory-capture-groups", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/yaml")
@@ -256,6 +266,9 @@ spec:
 	}
 	if created.Metadata.Name != "servers" || created.Spec.Selector.MatchKinds == nil || len(*created.Spec.Selector.MatchKinds) != 1 || (*created.Spec.Selector.MatchKinds)[0].Kind != "Server" || created.Spec.Selector.MatchLabels == nil || (*created.Spec.Selector.MatchLabels)["homelab.io/type"] != "server" {
 		t.Fatalf("created InventoryCaptureGroup = %#v", created)
+	}
+	if created.Spec.Groups == nil || len(*created.Spec.Groups) != 1 || (*created.Spec.Groups)[0].Name != "workstations" || created.Spec.GroupVars == nil || (*created.Spec.GroupVars)["all"]["ansible_user"] != "matt" {
+		t.Fatalf("created InventoryCaptureGroup groups and vars = %#v", created.Spec)
 	}
 }
 
@@ -294,12 +307,14 @@ metadata:
 spec:
   inventoryCaptureGroupRef:
     name: servers
-  format: ansible-yaml
   destinationRef:
     apiVersion: homelab.io/v1alpha1
     kind: GitRepository
     name: ansible-inventory
-  path: inventories/homelab/servers.yaml
+  target:
+    rootPath: inventories/servers
+    layout: ansible-directory
+    inventoryFile: inventory.yaml
 `,
 		},
 		{

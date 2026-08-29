@@ -71,6 +71,7 @@ func (r *InventoryCaptureGroupReconciler) Reconcile(ctx context.Context, request
 	})
 
 	hosts := make(map[string]any, len(selected))
+	capturedResources := make([]resource.Resource, 0, len(selected))
 	omitted := make([]any, 0)
 	nameCounts := make(map[string]int, len(selected))
 	for _, candidate := range selected {
@@ -87,9 +88,11 @@ func (r *InventoryCaptureGroupReconciler) Reconcile(ctx context.Context, request
 			continue
 		}
 		hosts[candidate.Metadata.Name] = host
+		capturedResources = append(capturedResources, candidate)
 	}
 
-	status := inventoryStatus(group.Metadata.Name, group.Metadata.Generation, len(selected), hosts, omitted)
+	inventory, configurationErr := buildInventory(group.Spec, capturedResources, hosts)
+	status := inventoryStatus(group.Metadata.Generation, len(selected), hosts, omitted, inventory, configurationErr)
 	if resource.EqualJSON(group.Status, status) {
 		return nil
 	}
@@ -137,6 +140,18 @@ func kindMatches(definition registry.Definition, selectors *[]apigen.InventoryCa
 	}
 	for _, selector := range *selectors {
 		if selector.ApiVersion == definition.APIVersion && selector.Kind == definition.Kind {
+			return true
+		}
+	}
+	return false
+}
+
+func resourceKindMatches(candidate resource.Resource, selectors *[]apigen.InventoryCaptureGroupKindSelector) bool {
+	if selectors == nil || len(*selectors) == 0 {
+		return true
+	}
+	for _, selector := range *selectors {
+		if selector.ApiVersion == candidate.APIVersion && selector.Kind == candidate.Kind {
 			return true
 		}
 	}
@@ -234,13 +249,74 @@ func managementConditionMessage(status map[string]any) string {
 	return "Server does not have a resolved management address"
 }
 
-func inventoryStatus(groupName string, generation int64, matched int, hosts map[string]any, omitted []any) map[string]any {
+func buildInventory(spec apigen.InventoryCaptureGroupSpec, captured []resource.Resource, hosts map[string]any) (map[string]any, error) {
+	groups := []apigen.InventoryCaptureGroupGroup{}
+	if spec.Groups != nil {
+		groups = *spec.Groups
+	}
+	declared := make(map[string]struct{}, len(groups))
+	for _, group := range groups {
+		if group.Name == "all" || group.Name == "ungrouped" {
+			return nil, fmt.Errorf("group name %q is reserved by Ansible", group.Name)
+		}
+		if _, exists := declared[group.Name]; exists {
+			return nil, fmt.Errorf("group name %q is declared more than once", group.Name)
+		}
+		declared[group.Name] = struct{}{}
+	}
+	groupVars := map[string]map[string]interface{}{}
+	if spec.GroupVars != nil {
+		groupVars = *spec.GroupVars
+	}
+	for name := range groupVars {
+		if name == "all" {
+			continue
+		}
+		if _, exists := declared[name]; !exists {
+			return nil, fmt.Errorf("groupVars %q does not reference a declared group", name)
+		}
+	}
+
+	inventory := make(map[string]any, len(groups)+1)
+	all := map[string]any{"hosts": hosts}
+	if variables, exists := groupVars["all"]; exists && len(variables) != 0 {
+		all["vars"] = variables
+	}
+	inventory["all"] = all
+	for _, group := range groups {
+		requiredLabels := map[string]string{}
+		if group.Selector.MatchLabels != nil {
+			requiredLabels = *group.Selector.MatchLabels
+		}
+		groupHosts := make(map[string]any)
+		for _, candidate := range captured {
+			if resourceKindMatches(candidate, group.Selector.MatchKinds) &&
+				selectorMatches(candidate.Metadata.Labels, requiredLabels, group.Selector.MatchExpressions) {
+				groupHosts[candidate.Metadata.Name] = hosts[candidate.Metadata.Name]
+			}
+		}
+		capturedGroup := map[string]any{"hosts": groupHosts}
+		if variables, exists := groupVars[group.Name]; exists && len(variables) != 0 {
+			capturedGroup["vars"] = variables
+		}
+		inventory[group.Name] = capturedGroup
+	}
+	return inventory, nil
+}
+
+func inventoryStatus(generation int64, matched int, hosts map[string]any, omitted []any, inventory map[string]any, configurationErr error) map[string]any {
 	captured := len(hosts)
 	phase := "Ready"
 	conditionStatus := "True"
 	reason := "InventoryCaptured"
 	message := fmt.Sprintf("Captured %d resource(s)", captured)
-	if matched == 0 {
+	if configurationErr != nil {
+		phase = "Failed"
+		conditionStatus = "False"
+		reason = "InvalidConfiguration"
+		message = configurationErr.Error()
+		inventory = nil
+	} else if matched == 0 {
 		reason = "EmptySelection"
 		message = "No resources match the source and selector"
 	} else if captured == 0 {
@@ -252,13 +328,10 @@ func inventoryStatus(groupName string, generation int64, matched int, hosts map[
 		phase = "Partial"
 		conditionStatus = "False"
 		reason = "ResourcesOmitted"
-		message = fmt.Sprintf("Captured %d of %d matching Server(s)", captured, matched)
+		message = fmt.Sprintf("Captured %d of %d matching resource(s)", captured, matched)
 	}
-	return map[string]any{
-		"phase": phase,
-		"inventory": map[string]any{
-			groupName: map[string]any{"hosts": hosts},
-		},
+	status := map[string]any{
+		"phase":              phase,
 		"matchedResources":   matched,
 		"capturedResources":  captured,
 		"omittedResources":   omitted,
@@ -271,4 +344,8 @@ func inventoryStatus(groupName string, generation int64, matched int, hosts map[
 			"observedGeneration": generation,
 		}},
 	}
+	if inventory != nil {
+		status["inventory"] = inventory
+	}
+	return status
 }

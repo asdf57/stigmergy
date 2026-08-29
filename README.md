@@ -150,9 +150,10 @@ does not guess between NICs or virtual functions.
 
 ## Dynamic Ansible inventory
 
-`InventoryCaptureGroup` selects manageable resources across registered kinds by
-metadata labels. The inventory controller materializes an Ansible-ready group
-from each selected resource's resolved management address:
+`InventoryCaptureGroup` selects a manageable resource universe across registered
+kinds. It materializes every captured host in Ansible's implicit `all` group and
+can assign overlapping subsets to independently named groups. Group selectors
+run only against resources accepted by the outer selector:
 
 ```yaml
 apiVersion: homelab.io/v1alpha1
@@ -161,12 +162,20 @@ metadata:
   name: servers
 spec:
   selector:
-    matchLabels:
-      homelab.io/managed-by: ansible
-    matchExpressions:
-      - key: homelab.io/environment
-        operator: In
-        values: [lab]
+    matchKinds:
+      - apiVersion: homelab.io/v1alpha1
+        kind: Server
+  groups:
+    - name: workstations
+      selector:
+        matchLabels:
+          homelab.io/role: workstation
+  groupVars:
+    all:
+      ansible_user: matt
+      ansible_ssh_private_key_file: /home/matt/.ssh/id_ed25519
+    workstations:
+      desktop_environment: true
 ```
 
 Omitting `matchKinds` selects across every manageable kind. To select every
@@ -188,17 +197,27 @@ curl --fail-with-body \
   http://127.0.0.1:8080/api/v1alpha1/inventory-capture-groups
 ```
 
-The resulting status is shaped for direct conversion to Ansible inventory:
+The resulting status records host membership and desired group variables:
 
 ```yaml
 status:
   phase: Ready
   inventory:
-    servers:
+    all:
       hosts:
         desktop:
           ansible_host: 10.1.1.251
           fqdn: desktop.homelab.local
+      vars:
+        ansible_user: matt
+        ansible_ssh_private_key_file: /home/matt/.ssh/id_ed25519
+    workstations:
+      hosts:
+        desktop:
+          ansible_host: 10.1.1.251
+          fqdn: desktop.homelab.local
+      vars:
+        desktop_environment: true
   matchedResources: 1
   capturedResources: 1
   omittedResources: []
@@ -216,6 +235,11 @@ phase is `Partial` or `Pending` until ready. `matchLabels` and Kubernetes-style
 `In`, `NotIn`, `Exists`, and `DoesNotExist` match expressions are supported.
 Changes to any registered inventory-source kind automatically trigger
 reconciliation.
+
+`all` and `ungrouped` are reserved Ansible group names. Other group names must
+be valid Ansible identifiers and unique within the resource. Every `groupVars`
+key must be either `all` or the name of a declared group. `metadata.name` is
+only the API identity and never becomes an Ansible group implicitly.
 
 Labels such as `homelab.io/managed-by: ansible` are user-owned selection intent.
 Resource controllers do not add or restore them automatically.
@@ -249,14 +273,15 @@ metadata:
 spec:
   inventoryCaptureGroupRef:
     name: servers
-  format: ansible-yaml
   destinationRef:
     apiVersion: homelab.io/v1alpha1
     kind: GitRepository
     name: ansible-inventory
-  path: inventories/homelab/servers.yaml
+  target:
+    rootPath: inventories/servers
+    layout: ansible-directory
+    inventoryFile: inventory.yaml
   policy:
-    mode: OnChange
     requireReady: true
 ```
 
@@ -283,12 +308,21 @@ export GITHUB_TOKEN='github-token-value'
 make up
 ```
 
-The publication controller waits for a Ready capture group by default, renders
-the inventory deterministically, and commits only when the destination file's
-content changes. Its status records the inventory digest, repository UID and
-generation, resulting Git revision, and success or failure conditions. Pushes
+The publication controller waits for a Ready and fully observed capture group by
+default. It renders an exclusively owned Ansible directory containing
+`inventory.yaml` and `group_vars/<group>.yaml`, then commits only when the set of
+artifact paths or contents changes. Removing a group variable removes its stale
+file in the same commit. Publication status records each artifact and digest,
+the source and repository generations, and the resulting Git revision. Pushes
 are non-forced. A missing credential or rejected push leaves the publication in
-`Failed` without changing the repository.
+`Failed` without changing the repository. Do not place hand-managed files below
+a publication's `target.rootPath`; reconciliation treats that directory as its
+exact desired output.
+
+This replaces the initial single-file `format` and `path` contract. Existing
+`v1alpha1` publications must be updated with the `target` object above; the old
+fields are intentionally rejected rather than interpreted ambiguously as a
+file or directory.
 
 ## Server-scoped SSH access
 

@@ -28,6 +28,18 @@ func (s *Server) getReadiness(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, apigen.Health{Status: "ready"})
 }
 
+func (s *Server) deleteAllResources(w http.ResponseWriter, r *http.Request) {
+	for _, definition := range registry.Definitions {
+		deleted, err := s.store.DeleteCollection(r.Context(), definition.Kind)
+		if err != nil {
+			s.writeStoreError(w, err)
+			return
+		}
+		s.logger.Info("deleted resources", "kind", definition.Kind, "count", deleted)
+	}
+	writeJSON(w, http.StatusOK, apigen.DeleteCollectionResult{Deleted: -1})
+}
+
 func (s *Server) createResource(w http.ResponseWriter, r *http.Request, definition registry.Definition) {
 	var request createResourceRequest
 	if err := decodeJSONBody(r, &request); err != nil {

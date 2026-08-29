@@ -40,6 +40,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1alpha1/resources:
+    delete:
+      tags: [System]
+      summary: Delete all resources in the API
+      operationId: deleteAllResources
+      responses:
+        '200':
+          description: All resources were deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCollectionResult'
+        '503':
+          description: The API cannot reach its resource store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:

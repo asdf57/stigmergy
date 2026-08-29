@@ -108,11 +108,14 @@ object contract. The store assigns server-owned metadata and derives
   `Server.status.networking.management`. Ambiguous results remain unresolved.
 - Binding is exclusive and eventually consistent. An unmatched Server remains
   Pending and a Server targeting an already-bound Machine reports Conflict.
-- `InventoryCaptureGroup.spec.selector` selects across registered durable
-  resource kinds. Selection supports an optional `matchKinds` filter,
-  `matchLabels`, and the standard set-based label operators. Capture capability
-  is determined from canonical management-address status, not from a schema
-  marker or controller-added label.
+- `InventoryCaptureGroup.spec.selector` selects a resource universe across
+  registered durable kinds. Optional `groups` selectors evaluate only that
+  universe and can assign one host to multiple Ansible groups. `groupVars.all`
+  applies to every captured host; other keys must name declared groups.
+  Selection supports `matchKinds`, `matchLabels`, and the standard set-based
+  label operators. Capture capability is determined from canonical
+  management-address status, not from a schema marker or controller-added
+  label. The resource's metadata name never becomes an Ansible group.
   The inventory controller captures only resources with a resolved canonical
   management address. The capture-group name is the Ansible group name and the
   selected resource's `metadata.name` is the host name.
@@ -120,9 +123,12 @@ object contract. The store assigns server-owned metadata and derives
   process environment variable containing its credential. Secret material is
   never copied into resource spec or status.
 - `InventoryPublication.spec` connects one capture group to a destination and
-  owns no inventory itself. Its controller deterministically renders the
-  capture group's status, publishes only changed content, and records the
-  observed inventory digest, destination identity and Git revision in status.
+  exclusively owns `target.rootPath`. Its controller deterministically renders
+  an Ansible directory containing the configured inventory filename and
+  `group_vars/<group>.yaml` files, removes stale owned artifacts, and publishes
+  the complete change in one Git commit. Status records source and destination
+  generations, the artifact-set digest, individual artifact paths and digests,
+  and the resulting Git revision.
 - Publication requires a Ready capture group unless explicitly disabled. Git
   updates are ordinary non-forced commits to the configured branch.
 - `SecretStore.spec` describes how controllers reach an external secret store;

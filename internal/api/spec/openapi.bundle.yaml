@@ -145,6 +145,9 @@ components:
                     additionalProperties:
                         $ref: '#/components/schemas/InventoryCaptureAnsibleHost'
                     type: object
+                vars:
+                    additionalProperties: true
+                    type: object
             required:
                 - hosts
             type: object
@@ -226,6 +229,18 @@ components:
                 - metadata
                 - spec
             type: object
+        InventoryCaptureGroupGroup:
+            additionalProperties: false
+            properties:
+                name:
+                    pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+                    type: string
+                selector:
+                    $ref: '#/components/schemas/InventoryCaptureGroupSelector'
+            required:
+                - name
+                - selector
+            type: object
         InventoryCaptureGroupKindSelector:
             additionalProperties: false
             properties:
@@ -300,6 +315,15 @@ components:
         InventoryCaptureGroupSpec:
             additionalProperties: false
             properties:
+                groupVars:
+                    additionalProperties:
+                        additionalProperties: true
+                        type: object
+                    type: object
+                groups:
+                    items:
+                        $ref: '#/components/schemas/InventoryCaptureGroupGroup'
+                    type: array
                 selector:
                     $ref: '#/components/schemas/InventoryCaptureGroupSelector'
             required:
@@ -386,6 +410,19 @@ components:
                 - kind
                 - metadata
                 - spec
+            type: object
+        InventoryPublicationArtifactStatus:
+            additionalProperties: false
+            properties:
+                digest:
+                    minLength: 1
+                    type: string
+                path:
+                    minLength: 1
+                    type: string
+            required:
+                - path
+                - digest
             type: object
         InventoryPublicationCaptureGroupReference:
             additionalProperties: false
@@ -502,39 +539,50 @@ components:
         InventoryPublicationPolicy:
             additionalProperties: false
             properties:
-                mode:
-                    enum:
-                        - OnChange
-                    type: string
                 requireReady:
                     type: boolean
+            type: object
+        InventoryPublicationSourceStatus:
+            additionalProperties: false
+            properties:
+                digest:
+                    minLength: 1
+                    type: string
+                inventoryCaptureGroupUID:
+                    minLength: 1
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+            required:
+                - inventoryCaptureGroupUID
+                - observedGeneration
+                - digest
             type: object
         InventoryPublicationSpec:
             additionalProperties: false
             properties:
                 destinationRef:
                     $ref: '#/components/schemas/InventoryPublicationDestinationReference'
-                format:
-                    enum:
-                        - ansible-yaml
-                        - ansible-json
-                    type: string
                 inventoryCaptureGroupRef:
                     $ref: '#/components/schemas/InventoryPublicationCaptureGroupReference'
-                path:
-                    minLength: 1
-                    type: string
                 policy:
                     $ref: '#/components/schemas/InventoryPublicationPolicy'
+                target:
+                    $ref: '#/components/schemas/InventoryPublicationTarget'
             required:
                 - inventoryCaptureGroupRef
-                - format
                 - destinationRef
-                - path
+                - target
             type: object
         InventoryPublicationStatus:
             additionalProperties: false
             properties:
+                artifacts:
+                    items:
+                        $ref: '#/components/schemas/InventoryPublicationArtifactStatus'
+                    type: array
                 conditions:
                     items:
                         $ref: '#/components/schemas/InventoryPublicationCondition'
@@ -544,14 +592,34 @@ components:
                 lastPublishedTime:
                     format: date-time
                     type: string
+                observedArtifactDigest:
+                    type: string
                 observedGeneration:
                     format: int64
                     minimum: 0
                     type: integer
-                observedInventoryDigest:
-                    type: string
                 phase:
                     type: string
+                source:
+                    $ref: '#/components/schemas/InventoryPublicationSourceStatus'
+            type: object
+        InventoryPublicationTarget:
+            additionalProperties: false
+            properties:
+                inventoryFile:
+                    pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$
+                    type: string
+                layout:
+                    enum:
+                        - ansible-directory
+                    type: string
+                rootPath:
+                    minLength: 1
+                    type: string
+            required:
+                - rootPath
+                - layout
+                - inventoryFile
             type: object
         ListMetadata:
             additionalProperties: false
@@ -3658,6 +3726,25 @@ paths:
             summary: Create or replace one Machine
             tags:
                 - Machines
+    /api/v1alpha1/resources:
+        delete:
+            operationId: deleteAllResources
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: All resources were deleted
+                "503":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: The API cannot reach its resource store
+            summary: Delete all resources in the API
+            tags:
+                - System
     /api/v1alpha1/secret-stores:
         delete:
             operationId: deleteSecretStores

@@ -50,6 +50,7 @@ func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Dur
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("GET /healthz", server.getLiveness)
 	apiMux.HandleFunc("GET /readyz", server.getReadiness)
+	apiMux.HandleFunc("DELETE /api/v1alpha1/resources", server.deleteAllResources)
 	apiMux.HandleFunc("/", server.serveResource)
 
 	mux := http.NewServeMux()
