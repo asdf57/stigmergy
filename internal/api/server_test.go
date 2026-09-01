@@ -312,6 +312,7 @@ spec:
     kind: GitRepository
     name: ansible-inventory
   target:
+    branch: servers-inventory
     rootPath: inventories/servers
     layout: ansible-directory
     inventoryFile: inventory.yaml

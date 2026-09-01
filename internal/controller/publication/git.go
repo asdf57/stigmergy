@@ -24,6 +24,7 @@ import (
 type PublishRequest struct {
 	Repository      apigen.GitRepositorySpec
 	PublicationName string
+	Branch          string
 	RootPath        string
 	Artifacts       []Artifact
 }
@@ -53,9 +54,13 @@ func NewGitPublisher() *GitPublisher {
 }
 
 func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (PublishResult, error) {
-	repositoryPath, err := safeRepositoryPath(request.RootPath)
+	repositoryPath, err := safePublicationRoot(request.RootPath)
 	if err != nil {
 		return PublishResult{}, err
+	}
+	branch := plumbing.NewBranchReferenceName(request.Branch)
+	if err := branch.Validate(); err != nil {
+		return PublishResult{}, fmt.Errorf("invalid publication branch %q: %w", request.Branch, err)
 	}
 	artifacts, err := validateArtifacts(request.Artifacts)
 	if err != nil {
@@ -71,7 +76,6 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 	}
 	defer func() { _ = os.RemoveAll(temporaryDirectory) }()
 
-	branch := plumbing.NewBranchReferenceName(request.Repository.Branch)
 	repository, err := git.PlainCloneContext(ctx, temporaryDirectory, false, &git.CloneOptions{
 		URL:           request.Repository.Url,
 		Auth:          auth,
@@ -79,8 +83,30 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 		SingleBranch:  true,
 	})
 	emptyRemote := errors.Is(err, transport.ErrEmptyRemoteRepository)
-	if err != nil && !emptyRemote {
-		return PublishResult{}, fmt.Errorf("clone Git repository: %w", err)
+	missingPublicationBranch := (errors.Is(err, plumbing.ErrReferenceNotFound) || errors.Is(err, git.NoMatchingRefSpecError{})) && request.Branch != request.Repository.Branch
+	if err != nil && !emptyRemote && !missingPublicationBranch {
+		return PublishResult{}, fmt.Errorf("clone Git publication branch %q: %w", request.Branch, err)
+	}
+	if missingPublicationBranch {
+		if err := os.RemoveAll(temporaryDirectory); err != nil {
+			return PublishResult{}, fmt.Errorf("reset Git worktree after missing publication branch: %w", err)
+		}
+		repository, err = git.PlainCloneContext(ctx, temporaryDirectory, false, &git.CloneOptions{
+			URL:           request.Repository.Url,
+			Auth:          auth,
+			ReferenceName: plumbing.NewBranchReferenceName(request.Repository.Branch),
+			SingleBranch:  true,
+		})
+		if err != nil {
+			return PublishResult{}, fmt.Errorf("clone Git repository base branch %q: %w", request.Repository.Branch, err)
+		}
+		worktree, err := repository.Worktree()
+		if err != nil {
+			return PublishResult{}, fmt.Errorf("open Git worktree: %w", err)
+		}
+		if err := worktree.Checkout(&git.CheckoutOptions{Branch: branch, Create: true}); err != nil {
+			return PublishResult{}, fmt.Errorf("create publication branch %q: %w", request.Branch, err)
+		}
 	}
 	if emptyRemote {
 		repository, err = git.PlainInitWithOptions(temporaryDirectory, &git.PlainInitOptions{
@@ -102,7 +128,7 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 		return PublishResult{}, fmt.Errorf("open Git worktree: %w", err)
 	}
 	rootPath := filepath.Join(temporaryDirectory, filepath.FromSlash(repositoryPath))
-	unchanged, err := directoryMatches(rootPath, artifacts)
+	unchanged, err := directoryMatches(rootPath, artifacts, repositoryPath == ".")
 	if err != nil {
 		return PublishResult{}, err
 	}
@@ -116,7 +142,7 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 	if err := rejectSymlinkParents(temporaryDirectory, repositoryPath); err != nil {
 		return PublishResult{}, err
 	}
-	if err := os.RemoveAll(rootPath); err != nil {
+	if err := clearPublicationRoot(temporaryDirectory, rootPath, repositoryPath); err != nil {
 		return PublishResult{}, fmt.Errorf("clear owned publication directory: %w", err)
 	}
 	if err := os.MkdirAll(rootPath, 0o755); err != nil {
@@ -169,7 +195,7 @@ func validateArtifacts(artifacts []Artifact) ([]Artifact, error) {
 	return validated, nil
 }
 
-func directoryMatches(root string, artifacts []Artifact) (bool, error) {
+func directoryMatches(root string, artifacts []Artifact, repositoryRoot bool) (bool, error) {
 	desired := make(map[string][]byte, len(artifacts))
 	for _, artifact := range artifacts {
 		desired[artifact.Path] = artifact.Content
@@ -181,6 +207,9 @@ func directoryMatches(root string, artifacts []Artifact) (bool, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
+			if repositoryRoot && filePath == filepath.Join(root, ".git") {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
@@ -215,6 +244,25 @@ func directoryMatches(root string, artifacts []Artifact) (bool, error) {
 		return false, fmt.Errorf("inspect publication directory: %w", err)
 	}
 	return matches && found == len(artifacts), nil
+}
+
+func clearPublicationRoot(repositoryRoot, root, repositoryPath string) error {
+	if repositoryPath != "." {
+		return os.RemoveAll(root)
+	}
+	entries, err := os.ReadDir(repositoryRoot)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.Name() == ".git" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(repositoryRoot, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func rejectSymlinkParents(repositoryRoot, repositoryPath string) error {
@@ -260,6 +308,13 @@ func safeRepositoryPath(value string) (string, error) {
 		return "", fmt.Errorf("publication path %q cannot modify Git metadata", value)
 	}
 	return cleaned, nil
+}
+
+func safePublicationRoot(value string) (string, error) {
+	if value == "." {
+		return value, nil
+	}
+	return safeRepositoryPath(value)
 }
 
 func commitMetadata(repository apigen.GitRepositorySpec, publicationName string) (string, string, string) {

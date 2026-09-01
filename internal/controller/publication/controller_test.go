@@ -96,7 +96,7 @@ func TestReconcilePublishesReadyInventoryOncePerDigest(t *testing.T) {
 	if len(publisher.requests) != 1 {
 		t.Fatalf("Publish() calls = %d, want 1", len(publisher.requests))
 	}
-	if publisher.requests[0].RootPath != "inventories/servers" || len(publisher.requests[0].Artifacts) != 3 {
+	if publisher.requests[0].Branch != "servers-inventory" || publisher.requests[0].RootPath != "inventories/servers" || len(publisher.requests[0].Artifacts) != 3 {
 		t.Fatalf("publish request = %#v", publisher.requests[0])
 	}
 	artifactContent := make(map[string]string)
@@ -114,6 +114,9 @@ func TestReconcilePublishesReadyInventoryOncePerDigest(t *testing.T) {
 		t.Fatalf("publication status = %#v", status)
 	}
 	if status["destination"].(map[string]any)["revision"] != "abc123" {
+		t.Fatalf("destination status = %#v", status["destination"])
+	}
+	if status["destination"].(map[string]any)["branch"] != "servers-inventory" {
 		t.Fatalf("destination status = %#v", status["destination"])
 	}
 
@@ -165,6 +168,25 @@ func TestReconcileRejectsOverlappingPublicationRoots(t *testing.T) {
 	condition := status["conditions"].([]any)[0].(map[string]any)
 	if status["phase"] != "Failed" || condition["reason"] != "TargetOwnershipConflict" {
 		t.Fatalf("publication status = %#v", status)
+	}
+}
+
+func TestReconcileAllowsOverlappingPublicationRootsOnDifferentBranches(t *testing.T) {
+	group := publicationTestGroup("Ready")
+	repository := publicationTestRepository()
+	publication := publicationTestResource()
+	other := publicationTestResource()
+	other.Metadata.Name = "other-branch"
+	other.Metadata.UID = "other-publication-uid"
+	other.Spec["target"].(map[string]any)["branch"] = "other-inventory"
+	storage := newFakeStore(group, repository, publication, other)
+	publisher := &fakePublisher{result: PublishResult{Revision: "abc123", URL: "https://example.test/repo.git", Changed: true}}
+
+	if err := NewReconcilerWithPublisher(storage, publisher).Reconcile(context.Background(), controller.Request{Kind: publication.Kind, Name: publication.Metadata.Name}); err != nil {
+		t.Fatalf("Reconcile() error = %v", err)
+	}
+	if len(publisher.requests) != 1 {
+		t.Fatalf("Publish() calls = %d, want 1", len(publisher.requests))
 	}
 }
 
@@ -225,7 +247,7 @@ func publicationTestResource() resource.Resource {
 				"name":       "infrastructure",
 			},
 			"target": map[string]any{
-				"rootPath": "inventories/servers", "layout": "ansible-directory", "inventoryFile": "inventory.yaml",
+				"branch": "servers-inventory", "rootPath": "inventories/servers", "layout": "ansible-directory", "inventoryFile": "inventory.yaml",
 			},
 		},
 		Status: map[string]any{},

@@ -498,6 +498,9 @@ components:
         InventoryPublicationDestinationStatus:
             additionalProperties: false
             properties:
+                branch:
+                    minLength: 1
+                    type: string
                 observedRepositoryGeneration:
                     format: int64
                     minimum: 0
@@ -513,6 +516,7 @@ components:
             required:
                 - repositoryUID
                 - observedRepositoryGeneration
+                - branch
                 - revision
             type: object
         InventoryPublicationList:
@@ -606,6 +610,9 @@ components:
         InventoryPublicationTarget:
             additionalProperties: false
             properties:
+                branch:
+                    minLength: 1
+                    type: string
                 inventoryFile:
                     pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$
                     type: string
@@ -617,6 +624,7 @@ components:
                     minLength: 1
                     type: string
             required:
+                - branch
                 - rootPath
                 - layout
                 - inventoryFile

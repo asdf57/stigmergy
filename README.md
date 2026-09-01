@@ -247,7 +247,7 @@ Resource controllers do not add or restore them automatically.
 ### Publishing inventory to Git
 
 An `InventoryPublication` connects a capture group to a destination resource.
-For a Git destination, define the repository separately so its URL, branch,
+For a Git destination, define the repository separately so its URL, base branch,
 credential source, and commit identity can be reused:
 
 ```yaml
@@ -278,6 +278,7 @@ spec:
     kind: GitRepository
     name: ansible-inventory
   target:
+    branch: servers-inventory
     rootPath: inventories/servers
     layout: ansible-directory
     inventoryFile: inventory.yaml
@@ -309,15 +310,17 @@ make up
 ```
 
 The publication controller waits for a Ready and fully observed capture group by
-default. It renders an exclusively owned Ansible directory containing
+default. It creates `target.branch` from the Git repository's configured branch
+when necessary, then renders an exclusively owned Ansible directory containing
 `inventory.yaml` and `group_vars/<group>.yaml`, then commits only when the set of
 artifact paths or contents changes. Removing a group variable removes its stale
 file in the same commit. Publication status records each artifact and digest,
 the source and repository generations, and the resulting Git revision. Pushes
 are non-forced. A missing credential or rejected push leaves the publication in
 `Failed` without changing the repository. Do not place hand-managed files below
-a publication's `target.rootPath`; reconciliation treats that directory as its
-exact desired output.
+a publication's `target.rootPath` on that branch; reconciliation treats that
+directory as its exact desired output. A `rootPath` of `.` owns every file on
+the publication branch except Git metadata.
 
 This replaces the initial single-file `format` and `path` contract. Existing
 `v1alpha1` publications must be updated with the `target` object above; the old

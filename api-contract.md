@@ -121,16 +121,18 @@ object contract. The store assigns server-owned metadata and derives
   selected resource's `metadata.name` is the host name.
 - `GitRepository.spec` describes a reusable Git destination and names the
   process environment variable containing its credential. Secret material is
-  never copied into resource spec or status.
+  never copied into resource spec or status. Its branch is the base used when
+  a publication's target branch does not exist yet.
 - `InventoryPublication.spec` connects one capture group to a destination and
-  exclusively owns `target.rootPath`. Its controller deterministically renders
-  an Ansible directory containing the configured inventory filename and
-  `group_vars/<group>.yaml` files, removes stale owned artifacts, and publishes
-  the complete change in one Git commit. Status records source and destination
-  generations, the artifact-set digest, individual artifact paths and digests,
+  exclusively owns `target.rootPath` on `target.branch`. Its controller creates
+  a missing target branch from the repository's configured branch and
+  deterministically renders an Ansible directory containing the configured
+  inventory filename and `group_vars/<group>.yaml` files, removes stale owned
+  artifacts, and publishes the complete change in one Git commit. Status records
+  source and destination generations, the artifact-set digest, individual artifact paths and digests,
   and the resulting Git revision.
 - Publication requires a Ready capture group unless explicitly disabled. Git
-  updates are ordinary non-forced commits to the configured branch.
+  updates are ordinary non-forced commits to the target branch.
 - `SecretStore.spec` describes how controllers reach an external secret store;
   authentication names either a process environment variable or an absolute
   Agent-managed token file and never contains the credential value itself.

@@ -41,8 +41,11 @@ InventoryPublicationDestinationReference:
 InventoryPublicationTarget:
   type: object
   additionalProperties: false
-  required: [rootPath, layout, inventoryFile]
+  required: [branch, rootPath, layout, inventoryFile]
   properties:
+    branch:
+      type: string
+      minLength: 1
     rootPath:
       type: string
       minLength: 1
@@ -100,10 +103,11 @@ InventoryPublicationArtifactStatus:
 InventoryPublicationDestinationStatus:
   type: object
   additionalProperties: false
-  required: [repositoryUID, observedRepositoryGeneration, revision]
+  required: [repositoryUID, observedRepositoryGeneration, branch, revision]
   properties:
     repositoryUID: {type: string, minLength: 1}
     observedRepositoryGeneration: {type: integer, format: int64, minimum: 0}
+    branch: {type: string, minLength: 1}
     revision: {type: string, minLength: 1}
     url: {type: string}
 

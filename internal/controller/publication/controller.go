@@ -101,6 +101,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	result, err := r.publisher.Publish(ctx, PublishRequest{
 		Repository:      repository.Spec,
 		PublicationName: publication.Metadata.Name,
+		Branch:          publication.Spec.Target.Branch,
 		RootPath:        publication.Spec.Target.RootPath,
 		Artifacts:       artifacts,
 	})
@@ -111,7 +112,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 }
 
 func (r *Reconciler) conflictingPublication(ctx context.Context, publication registry.InventoryPublication) (string, error) {
-	root, err := safeRepositoryPath(publication.Spec.Target.RootPath)
+	root, err := safePublicationRoot(publication.Spec.Target.RootPath)
 	if err != nil {
 		return "", err
 	}
@@ -130,15 +131,22 @@ func (r *Reconciler) conflictingPublication(ctx context.Context, publication reg
 		if other.Spec.DestinationRef != publication.Spec.DestinationRef {
 			continue
 		}
-		otherRoot, err := safeRepositoryPath(other.Spec.Target.RootPath)
+		if other.Spec.Target.Branch != publication.Spec.Target.Branch {
+			continue
+		}
+		otherRoot, err := safePublicationRoot(other.Spec.Target.RootPath)
 		if err != nil {
 			return "", fmt.Errorf("validate InventoryPublication %q target: %w", other.Metadata.Name, err)
 		}
-		if root == otherRoot || strings.HasPrefix(root, otherRoot+"/") || strings.HasPrefix(otherRoot, root+"/") {
+		if publicationRootsOverlap(root, otherRoot) {
 			return other.Metadata.Name, nil
 		}
 	}
 	return "", nil
+}
+
+func publicationRootsOverlap(left, right string) bool {
+	return left == "." || right == "." || left == right || strings.HasPrefix(left, right+"/") || strings.HasPrefix(right, left+"/")
 }
 
 func (r *Reconciler) RequestsForCaptureGroup(ctx context.Context, request controller.Request) ([]controller.Request, error) {
@@ -246,7 +254,8 @@ func publicationUpToDate(publication registry.InventoryPublication, group regist
 		numberAsInt64(source["observedGeneration"]) == group.Metadata.Generation &&
 		source["digest"] == digest &&
 		destination["repositoryUID"] == repository.Metadata.UID &&
-		numberAsInt64(destination["observedRepositoryGeneration"]) == repository.Metadata.Generation
+		numberAsInt64(destination["observedRepositoryGeneration"]) == repository.Metadata.Generation &&
+		destination["branch"] == publication.Spec.Target.Branch
 }
 
 func numberAsInt64(value any) int64 {
@@ -285,6 +294,7 @@ func (r *Reconciler) updateSuccess(ctx context.Context, publication registry.Inv
 		"destination": map[string]any{
 			"repositoryUID":                repository.Metadata.UID,
 			"observedRepositoryGeneration": repository.Metadata.Generation,
+			"branch":                       publication.Spec.Target.Branch,
 			"revision":                     result.Revision,
 			"url":                          result.URL,
 		},
