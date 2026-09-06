@@ -2414,19 +2414,26 @@ paths:
             tags:
                 - GitRepositorys
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putGitRepository
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/GitRepositorySpec'
+                            $ref: '#/components/schemas/GitRepositoryCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/GitRepositorySpec'
+                            $ref: '#/components/schemas/GitRepositoryCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/GitRepositorySpec'
+                            $ref: '#/components/schemas/GitRepositoryCreate'
                 required: true
             responses:
                 "200":
@@ -2745,19 +2752,26 @@ paths:
             tags:
                 - InventoryCaptureGroups
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putInventoryCaptureGroup
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/InventoryCaptureGroupSpec'
+                            $ref: '#/components/schemas/InventoryCaptureGroupCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/InventoryCaptureGroupSpec'
+                            $ref: '#/components/schemas/InventoryCaptureGroupCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/InventoryCaptureGroupSpec'
+                            $ref: '#/components/schemas/InventoryCaptureGroupCreate'
                 required: true
             responses:
                 "200":
@@ -3076,19 +3090,26 @@ paths:
             tags:
                 - InventoryPublications
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putInventoryPublication
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/InventoryPublicationSpec'
+                            $ref: '#/components/schemas/InventoryPublicationCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/InventoryPublicationSpec'
+                            $ref: '#/components/schemas/InventoryPublicationCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/InventoryPublicationSpec'
+                            $ref: '#/components/schemas/InventoryPublicationCreate'
                 required: true
             responses:
                 "200":
@@ -3335,19 +3356,26 @@ paths:
                 pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
                 type: string
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putMachineReport
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/MachineReportSpec'
+                            $ref: '#/components/schemas/MachineReportCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/MachineReportSpec'
+                            $ref: '#/components/schemas/MachineReportCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/MachineReportSpec'
+                            $ref: '#/components/schemas/MachineReportCreate'
                 required: true
             responses:
                 "200":
@@ -3666,19 +3694,26 @@ paths:
             tags:
                 - Machines
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putMachine
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/MachineSpec'
+                            $ref: '#/components/schemas/MachineCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/MachineSpec'
+                            $ref: '#/components/schemas/MachineCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/MachineSpec'
+                            $ref: '#/components/schemas/MachineCreate'
                 required: true
             responses:
                 "200":
@@ -4016,19 +4051,26 @@ paths:
             tags:
                 - SecretStores
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putSecretStore
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/SecretStoreSpec'
+                            $ref: '#/components/schemas/SecretStoreCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/SecretStoreSpec'
+                            $ref: '#/components/schemas/SecretStoreCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/SecretStoreSpec'
+                            $ref: '#/components/schemas/SecretStoreCreate'
                 required: true
             responses:
                 "200":
@@ -4347,19 +4389,26 @@ paths:
             tags:
                 - Servers
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putServer
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/ServerSpec'
+                            $ref: '#/components/schemas/ServerCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/ServerSpec'
+                            $ref: '#/components/schemas/ServerCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/ServerSpec'
+                            $ref: '#/components/schemas/ServerCreate'
                 required: true
             responses:
                 "200":
@@ -4678,19 +4727,26 @@ paths:
             tags:
                 - SSHAccessGrants
         put:
-            description: Idempotently stores the latest resource state.
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
             operationId: putSSHAccessGrant
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantSpec'
+                            $ref: '#/components/schemas/SSHAccessGrantCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantSpec'
+                            $ref: '#/components/schemas/SSHAccessGrantCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantSpec'
+                            $ref: '#/components/schemas/SSHAccessGrantCreate'
                 required: true
             responses:
                 "200":

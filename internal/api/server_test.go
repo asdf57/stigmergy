@@ -23,7 +23,10 @@ import (
 )
 
 type fakeStore struct {
-	created resource.Resource
+	created         resource.Resource
+	updateCalls     int
+	updateConflicts int
+	conflictSpec    map[string]any
 }
 
 func (f *fakeStore) Create(_ context.Context, value resource.Resource) (resource.Resource, error) {
@@ -56,6 +59,17 @@ func (f *fakeStore) List(_ context.Context, kind string) (resource.List, error) 
 }
 
 func (f *fakeStore) Update(_ context.Context, value resource.Resource, expectedRevision int64) (resource.Resource, error) {
+	f.updateCalls++
+	if f.updateConflicts > 0 {
+		f.updateConflicts--
+		current, _ := strconv.ParseInt(f.created.Metadata.ResourceVersion, 10, 64)
+		f.created.Metadata.ResourceVersion = strconv.FormatInt(current+1, 10)
+		f.created.Status = map[string]any{"phase": "ConcurrentUpdate"}
+		if f.conflictSpec != nil {
+			f.created.Spec = f.conflictSpec
+		}
+		return resource.Resource{}, store.ErrConflict
+	}
 	if f.created.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
 		return resource.Resource{}, store.ErrConflict
 	}
@@ -64,7 +78,7 @@ func (f *fakeStore) Update(_ context.Context, value resource.Resource, expectedR
 		value.Metadata.Generation++
 	}
 	value.Status = f.created.Status
-	value.Metadata.ResourceVersion = "8"
+	value.Metadata.ResourceVersion = strconv.FormatInt(expectedRevision+1, 10)
 	f.created = value
 	return value, nil
 }
@@ -415,11 +429,16 @@ func TestPutServerFromYAMLSpec(t *testing.T) {
 
 	storage := &fakeStore{}
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
-	body := `machineSelector:
-  location:
-    lldp_port: bridge/ether3
-    switch_mac: d4:01:c3:27:91:67
-hostName: atlas
+	body := `apiVersion: homelab.io/v1alpha1
+kind: Server
+metadata:
+  name: desktop
+spec:
+  machineSelector:
+    location:
+      lldp_port: bridge/ether3
+      switch_mac: d4:01:c3:27:91:67
+  hostName: atlas
 `
 	request := httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/x-yaml")
@@ -436,6 +455,156 @@ hostName: atlas
 	}
 	if created.Spec.HostName == nil || *created.Spec.HostName != "atlas" {
 		t.Fatalf("created Server hostName = %#v", created.Spec.HostName)
+	}
+}
+
+func TestPutServerReplacesDesiredStateAndPreservesOwnedState(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStore{created: resource.Resource{
+		APIVersion: registry.ServerResource.APIVersion,
+		Kind:       registry.ServerResource.Kind,
+		Metadata: resource.Metadata{
+			Name:              "desktop",
+			UID:               "existing-uid",
+			ResourceVersion:   "7",
+			Generation:        3,
+			CreationTimestamp: time.Unix(1, 0).UTC(),
+			Finalizers:        []string{"controller.example/cleanup"},
+			Labels:            map[string]string{"old": "label"},
+			Annotations:       map[string]string{"old": "annotation"},
+		},
+		Spec: map[string]any{"machineSelector": map[string]any{"location": map[string]any{
+			"lldp_port": "old-port", "switch_mac": "00:11:22:33:44:55",
+		}}},
+		Status: map[string]any{"phase": "Ready"},
+	}}
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body := `apiVersion: homelab.io/v1alpha1
+kind: Server
+metadata:
+  name: desktop
+  labels:
+    homelab.io/role: workstation
+  annotations:
+    homelab.io/source: homelab-init
+spec:
+  machineSelector:
+    location:
+      lldp_port: bridge/ether3
+      switch_mac: d4:01:c3:27:91:67
+`
+
+	put := func(ifMatch string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/yaml")
+		if ifMatch != "" {
+			request.Header.Set("If-Match", ifMatch)
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+
+	response := put("")
+	if response.Code != http.StatusOK {
+		t.Fatalf("replace status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if storage.created.Metadata.UID != "existing-uid" ||
+		!storage.created.Metadata.CreationTimestamp.Equal(time.Unix(1, 0).UTC()) ||
+		!reflect.DeepEqual(storage.created.Metadata.Finalizers, []string{"controller.example/cleanup"}) ||
+		storage.created.Status["phase"] != "Ready" {
+		t.Fatalf("PUT changed server/controller-owned state: %#v", storage.created)
+	}
+	if !reflect.DeepEqual(storage.created.Metadata.Labels, map[string]string{"homelab.io/role": "workstation"}) ||
+		!reflect.DeepEqual(storage.created.Metadata.Annotations, map[string]string{"homelab.io/source": "homelab-init"}) {
+		t.Fatalf("PUT metadata = %#v", storage.created.Metadata)
+	}
+
+	response = put(`"8"`)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"8"` {
+		t.Fatalf("no-op status = %d, ETag = %q, body = %s", response.Code, response.Header().Get("ETag"), response.Body.String())
+	}
+	if storage.updateCalls != 1 {
+		t.Fatalf("Update calls = %d, want 1 after no-op PUT", storage.updateCalls)
+	}
+}
+
+func TestPutServerRetriesUnconditionalConflictButHonorsIfMatch(t *testing.T) {
+	t.Parallel()
+
+	newStorage := func() *fakeStore {
+		return &fakeStore{created: resource.Resource{
+			APIVersion: registry.ServerResource.APIVersion,
+			Kind:       registry.ServerResource.Kind,
+			Metadata:   resource.Metadata{Name: "desktop", ResourceVersion: "7", Generation: 1},
+			Spec: map[string]any{"machineSelector": map[string]any{"location": map[string]any{
+				"lldp_port": "old-port", "switch_mac": "00:11:22:33:44:55",
+			}}},
+		}}
+	}
+	body := `{"apiVersion":"homelab.io/v1alpha1","kind":"Server","metadata":{"name":"desktop"},"spec":{"machineSelector":{"location":{"lldp_port":"new-port","switch_mac":"00:11:22:33:44:55"}}}}`
+
+	storage := newStorage()
+	storage.updateConflicts = 1
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request := httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || storage.updateCalls != 2 || storage.created.Status["phase"] != "ConcurrentUpdate" {
+		t.Fatalf("unconditional PUT status = %d, calls = %d, resource = %#v, body = %s", response.Code, storage.updateCalls, storage.created, response.Body.String())
+	}
+
+	storage = newStorage()
+	storage.updateConflicts = 1
+	concurrentSpec := map[string]any{"machineSelector": map[string]any{"location": map[string]any{
+		"lldp_port": "concurrent-port", "switch_mac": "00:11:22:33:44:55",
+	}}}
+	storage.conflictSpec = concurrentSpec
+	handler = New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request = httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || storage.updateCalls != 1 {
+		t.Fatalf("concurrent desired-state PUT status = %d, calls = %d, body = %s", response.Code, storage.updateCalls, response.Body.String())
+	}
+
+	storage = newStorage()
+	handler = New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	request = httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", `"6"`)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || storage.updateCalls != 0 {
+		t.Fatalf("conditional PUT status = %d, calls = %d, body = %s", response.Code, storage.updateCalls, response.Body.String())
+	}
+}
+
+func TestPutServerRequiresMatchingManifestIdentity(t *testing.T) {
+	t.Parallel()
+
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeStore{}, time.Second)
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "apiVersion", body: `{"apiVersion":"other.io/v1","kind":"Server","metadata":{"name":"desktop"},"spec":{"machineSelector":{"location":{"lldp_port":"port","switch_mac":"00:11:22:33:44:55"}}}}`},
+		{name: "kind", body: `{"apiVersion":"homelab.io/v1alpha1","kind":"Machine","metadata":{"name":"desktop"},"spec":{"machineSelector":{"location":{"lldp_port":"port","switch_mac":"00:11:22:33:44:55"}}}}`},
+		{name: "name", body: `{"apiVersion":"homelab.io/v1alpha1","kind":"Server","metadata":{"name":"other"},"spec":{"machineSelector":{"location":{"lldp_port":"port","switch_mac":"00:11:22:33:44:55"}}}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPut, "/api/v1alpha1/servers/desktop", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest && response.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 
@@ -733,7 +902,12 @@ func TestPutMachineReportCreatesAndReplaces(t *testing.T) {
 
 	storage := &fakeStore{}
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
-	body, err := json.Marshal(testMachineReportSpec())
+	body, err := json.Marshal(apigen.MachineReportCreate{
+		ApiVersion: apigen.MachineReportCreateApiVersionHomelabIov1alpha1,
+		Kind:       apigen.MachineReportCreateKindMachineReport,
+		Metadata:   apigen.Metadata{Name: "lab-node"},
+		Spec:       testMachineReportSpec(),
+	})
 	if err != nil {
 		t.Fatalf("encode request: %v", err)
 	}
@@ -746,6 +920,17 @@ func TestPutMachineReportCreatesAndReplaces(t *testing.T) {
 		t.Fatalf("create status = %d, body = %s", response.Code, response.Body.String())
 	}
 
+	replacement := testMachineReportSpec()
+	replacement.ObservedAt = time.Unix(2, 0).UTC()
+	body, err = json.Marshal(apigen.MachineReportCreate{
+		ApiVersion: apigen.MachineReportCreateApiVersionHomelabIov1alpha1,
+		Kind:       apigen.MachineReportCreateKindMachineReport,
+		Metadata:   apigen.Metadata{Name: "lab-node"},
+		Spec:       replacement,
+	})
+	if err != nil {
+		t.Fatalf("encode replacement request: %v", err)
+	}
 	request = httptest.NewRequest(http.MethodPut, "/api/v1alpha1/machine-reports/lab-node", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	response = httptest.NewRecorder()
@@ -763,7 +948,12 @@ func TestDeleteMachineReportCollection(t *testing.T) {
 
 	storage := &fakeStore{}
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
-	body, err := json.Marshal(testMachineReportSpec())
+	body, err := json.Marshal(apigen.MachineReportCreate{
+		ApiVersion: apigen.MachineReportCreateApiVersionHomelabIov1alpha1,
+		Kind:       apigen.MachineReportCreateKindMachineReport,
+		Metadata:   apigen.Metadata{Name: "lab-node"},
+		Spec:       testMachineReportSpec(),
+	})
 	if err != nil {
 		t.Fatalf("encode request: %v", err)
 	}

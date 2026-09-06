@@ -217,6 +217,14 @@ func requiredRevision(value string) (int64, error) {
 	return revision, nil
 }
 
+func optionalRevision(value string) (int64, bool, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, false, nil
+	}
+	revision, err := requiredRevision(value)
+	return revision, true, err
+}
+
 func quoteRevision(revision string) string {
 	return `"` + revision + `"`
 }

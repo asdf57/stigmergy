@@ -331,9 +331,10 @@ func putOperation(metadata resourceMetadata) map[string]any {
 	return map[string]any{
 		"tags":        []any{metadata.Kind + "s"},
 		"summary":     "Create or replace one " + metadata.Kind,
-		"description": "Idempotently stores the latest resource state.",
+		"description": "Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.",
 		"operationId": "put" + metadata.Kind,
-		"requestBody": map[string]any{"required": true, "content": resourceWriteContent(schemaRef(metadata.SpecSchema))},
+		"parameters":  []any{putIfMatchParameter()},
+		"requestBody": map[string]any{"required": true, "content": resourceWriteContent(schemaRef(metadata.Kind + "Create"))},
 		"responses": map[string]any{
 			"200": resourceResponse(metadata.Kind, false),
 			"201": resourceResponse(metadata.Kind, true),
@@ -342,6 +343,14 @@ func putOperation(metadata resourceMetadata) map[string]any {
 			"422": errorResponse("Resource is invalid"),
 			"500": errorResponse("Resource store request failed"),
 		},
+	}
+}
+
+func putIfMatchParameter() map[string]any {
+	return map[string]any{
+		"name": "If-Match", "in": "header", "required": false,
+		"description": "Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.",
+		"schema":      map[string]any{"type": "string"},
 	}
 }
 

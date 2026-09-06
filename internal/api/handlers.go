@@ -5,7 +5,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -135,12 +134,20 @@ func (s *Server) getResource(w http.ResponseWriter, r *http.Request, definition 
 }
 
 func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition registry.Definition, name string) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, "Invalid", "read request body")
+	var request createResourceRequest
+	if err := decodeJSONBody(r, &request); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
 	}
-	typedSpec, err := definition.DecodeSpec(raw)
+	if request.APIVersion != definition.APIVersion || request.Kind != definition.Kind {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", "apiVersion and kind do not match the resource endpoint")
+		return
+	}
+	if request.Metadata.Name != name {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", "metadata.name does not match the resource URL")
+		return
+	}
+	typedSpec, err := definition.DecodeSpec(request.Spec)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
@@ -151,60 +158,108 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 		return
 	}
 
-	existing, err := s.store.Get(r.Context(), definition.Kind, name)
-	if errors.Is(err, store.ErrNotFound) {
-		metadata := resource.Metadata{Name: name, Finalizers: append([]string(nil), definition.DefaultFinalizers...)}
-		created, createErr := s.store.Create(r.Context(), resource.Resource{
-			APIVersion: definition.APIVersion,
-			Kind:       definition.Kind,
-			Metadata:   metadata,
-			Spec:       spec,
-		})
-		if createErr != nil {
-			if errors.Is(createErr, store.ErrConflict) {
-				writeError(w, http.StatusConflict, "Conflict", createErr.Error())
-				return
-			}
-			s.writeStoreError(w, createErr)
-			return
-		}
-		body, convertErr := s.apiResource(definition, created)
-		if convertErr != nil {
-			s.writeStoredResourceError(w, convertErr)
-			return
-		}
-		w.Header().Set("ETag", quoteRevision(created.Metadata.ResourceVersion))
-		w.Header().Set("Location", definition.CollectionPath+"/"+created.Metadata.Name)
-		writeJSON(w, http.StatusCreated, body)
+	candidate := resource.Resource{
+		APIVersion: definition.APIVersion,
+		Kind:       definition.Kind,
+		Metadata:   domainMetadata(request.Metadata),
+		Spec:       spec,
+	}
+	if err := resource.ValidateCreate(candidate); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
 	}
+	expected, conditional, err := optionalRevision(r.Header.Get("If-Match"))
 	if err != nil {
-		s.writeStoreError(w, err)
+		writeError(w, http.StatusBadRequest, "Invalid", err.Error())
 		return
 	}
 
-	expected, err := strconv.ParseInt(existing.Metadata.ResourceVersion, 10, 64)
-	if err != nil {
-		s.writeStoredResourceError(w, fmt.Errorf("invalid stored resource version: %w", err))
-		return
-	}
-	existing.Spec = spec
-	updated, err := s.store.Update(r.Context(), existing, expected)
-	if err != nil {
-		if errors.Is(err, store.ErrConflict) || errors.Is(err, store.ErrNotFound) {
-			writeError(w, http.StatusConflict, "Conflict", err.Error())
+	const maxAttempts = 3
+	var retryBase *resource.Resource
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		existing, getErr := s.store.Get(r.Context(), definition.Kind, name)
+		if errors.Is(getErr, store.ErrNotFound) {
+			if conditional {
+				writeError(w, http.StatusConflict, "Conflict", store.ErrConflict.Error())
+				return
+			}
+			candidate.Metadata.Finalizers = append([]string(nil), definition.DefaultFinalizers...)
+			created, createErr := s.store.Create(r.Context(), candidate)
+			if errors.Is(createErr, store.ErrConflict) {
+				base := candidate
+				retryBase = &base
+				continue
+			}
+			if createErr != nil {
+				s.writeStoreError(w, createErr)
+				return
+			}
+			s.writePutResource(w, definition, created, http.StatusCreated)
 			return
 		}
-		s.writeStoreError(w, err)
+		if getErr != nil {
+			s.writeStoreError(w, getErr)
+			return
+		}
+		if retryBase != nil && !sameClientOwnedState(existing, *retryBase) && !sameClientOwnedState(existing, candidate) {
+			writeError(w, http.StatusConflict, "Conflict", "client-owned resource state changed concurrently")
+			return
+		}
+		if conditional && existing.Metadata.ResourceVersion != strconv.FormatInt(expected, 10) {
+			writeError(w, http.StatusConflict, "Conflict", store.ErrConflict.Error())
+			return
+		}
+		if sameClientOwnedState(existing, candidate) {
+			s.writePutResource(w, definition, existing, http.StatusOK)
+			return
+		}
+		if !conditional {
+			expected, err = strconv.ParseInt(existing.Metadata.ResourceVersion, 10, 64)
+			if err != nil {
+				s.writeStoredResourceError(w, fmt.Errorf("invalid stored resource version: %w", err))
+				return
+			}
+		}
+		observed := existing
+		existing.Spec = candidate.Spec
+		existing.Metadata.Labels = candidate.Metadata.Labels
+		existing.Metadata.Annotations = candidate.Metadata.Annotations
+		updated, updateErr := s.store.Update(r.Context(), existing, expected)
+		if errors.Is(updateErr, store.ErrConflict) || errors.Is(updateErr, store.ErrNotFound) {
+			if conditional {
+				writeError(w, http.StatusConflict, "Conflict", updateErr.Error())
+				return
+			}
+			retryBase = &observed
+			continue
+		}
+		if updateErr != nil {
+			s.writeStoreError(w, updateErr)
+			return
+		}
+		s.writePutResource(w, definition, updated, http.StatusOK)
 		return
 	}
-	body, err := s.apiResource(definition, updated)
+	writeError(w, http.StatusConflict, "Conflict", "resource changed during PUT retries")
+}
+
+func sameClientOwnedState(left, right resource.Resource) bool {
+	return resource.EqualJSON(left.Spec, right.Spec) &&
+		resource.EqualJSON(left.Metadata.Labels, right.Metadata.Labels) &&
+		resource.EqualJSON(left.Metadata.Annotations, right.Metadata.Annotations)
+}
+
+func (s *Server) writePutResource(w http.ResponseWriter, definition registry.Definition, value resource.Resource, status int) {
+	body, err := s.apiResource(definition, value)
 	if err != nil {
 		s.writeStoredResourceError(w, err)
 		return
 	}
-	w.Header().Set("ETag", quoteRevision(updated.Metadata.ResourceVersion))
-	writeJSON(w, http.StatusOK, body)
+	w.Header().Set("ETag", quoteRevision(value.Metadata.ResourceVersion))
+	if status == http.StatusCreated {
+		w.Header().Set("Location", definition.CollectionPath+"/"+value.Metadata.Name)
+	}
+	writeJSON(w, status, body)
 }
 
 func (s *Server) patchResource(w http.ResponseWriter, r *http.Request, definition registry.Definition, name string) {
