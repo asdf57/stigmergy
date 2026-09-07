@@ -17,6 +17,7 @@ import (
 	"github.com/asdf57/prov-controller-test/go/internal/controller/inventory"
 	"github.com/asdf57/prov-controller-test/go/internal/controller/machine"
 	"github.com/asdf57/prov-controller-test/go/internal/controller/publication"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/secret"
 	servercontroller "github.com/asdf57/prov-controller-test/go/internal/controller/server"
 	"github.com/asdf57/prov-controller-test/go/internal/controller/sshaccess"
 	etcdstore "github.com/asdf57/prov-controller-test/go/internal/store/etcd"
@@ -77,6 +78,8 @@ func run() error {
 	publicationController := controller.NewController(publicationReconciler)
 	sshAccessReconciler := sshaccess.NewReconciler(resourceStore)
 	sshAccessController := controller.NewController(sshAccessReconciler)
+	secretReconciler := secret.NewReconciler(resourceStore)
+	secretController := controller.NewController(secretReconciler)
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
 	}
@@ -118,12 +121,21 @@ func run() error {
 				},
 			},
 			{
+				Name:       "secret-controller",
+				Controller: secretController,
+				Watches: []controller.Watch{
+					{Kind: registry.SecretResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SecretStoreResource.Kind, Mapper: secretReconciler.RequestsForSecretStore},
+				},
+			},
+			{
 				Name:       "ssh-access-controller",
 				Controller: sshAccessController,
 				Watches: []controller.Watch{
 					{Kind: registry.SSHAccessGrantResource.Kind, Mapper: controller.IdentityMapper},
 					{Kind: registry.ServerResource.Kind, Mapper: sshAccessReconciler.RequestsForServer},
 					{Kind: registry.SecretStoreResource.Kind, Mapper: sshAccessReconciler.RequestsForSecretStore},
+					{Kind: registry.SecretResource.Kind, Mapper: sshAccessReconciler.RequestsForSecret},
 				},
 			},
 		},

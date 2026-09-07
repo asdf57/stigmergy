@@ -1544,6 +1544,132 @@ components:
                 serverRef:
                     $ref: '#/components/schemas/ResourceReference'
             type: object
+        Secret:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Secret
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/SecretSpec'
+                status:
+                    $ref: '#/components/schemas/SecretStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        SecretCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
+            type: object
+        SecretCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Secret
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/SecretSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        SecretList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/Secret'
+                    type: array
+                kind:
+                    const: SecretList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        SecretSpec:
+            additionalProperties: false
+            properties:
+                data:
+                    additionalProperties:
+                        type: string
+                    type: object
+                path:
+                    type: string
+                secretStoreRef:
+                    $ref: '#/components/schemas/SecretStoreReference'
+            required:
+                - secretStoreRef
+                - path
+                - data
+            type: object
+        SecretStatus:
+            additionalProperties: false
+            properties:
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/SecretCondition'
+                    type: array
+                externalVersion:
+                    format: int64
+                    minimum: 1
+                    type: integer
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Ready
+                        - Failed
+                    type: string
+            type: object
         SecretStore:
             additionalProperties: false
             properties:
@@ -1605,11 +1731,20 @@ components:
             type: object
         SecretStoreProvider:
             additionalProperties: false
+            maxProperties: 1
+            minProperties: 1
             properties:
                 openBao:
                     $ref: '#/components/schemas/OpenBaoSecretStoreProvider'
+            type: object
+        SecretStoreReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
             required:
-                - openBao
+                - name
             type: object
         SecretStoreSpec:
             additionalProperties: false
@@ -4126,6 +4261,344 @@ paths:
             summary: Create or replace one SecretStore
             tags:
                 - SecretStores
+    /api/v1alpha1/secrets:
+        delete:
+            operationId: deleteSecrets
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all Secret resources
+            tags:
+                - Secrets
+        get:
+            operationId: listSecrets
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SecretList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List Secret resources
+            tags:
+                - Secrets
+        post:
+            operationId: createSecret
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Secret'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a Secret
+            tags:
+                - Secrets
+    /api/v1alpha1/secrets/{name}:
+        delete:
+            operationId: deleteSecret
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one Secret
+            tags:
+                - Secrets
+        get:
+            operationId: getSecret
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Secret'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one Secret
+            tags:
+                - Secrets
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchSecret
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Secret'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one Secret
+            tags:
+                - Secrets
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putSecret
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/SecretCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Secret'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Secret'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one Secret
+            tags:
+                - Secrets
     /api/v1alpha1/servers:
         delete:
             operationId: deleteServers
@@ -4844,6 +5317,7 @@ tags:
     - name: MachineReports
     - name: Machines
     - name: SecretStores
+    - name: Secrets
     - name: Servers
     - name: SSHAccessGrants
 x-stigmergy-file-purpose: Generated, self-contained OpenAPI document used for code generation, validation, Swagger UI, and /openapi.json.

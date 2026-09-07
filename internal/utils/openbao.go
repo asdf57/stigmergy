@@ -207,6 +207,10 @@ func (s *OpenBaoKeyStore) DeleteSecret(ctx context.Context, path string) error {
 	}
 	defer response.Body.Close()
 	logger.InfoContext(ctx, "received OpenBao delete response", "status", response.StatusCode, "duration", time.Since(started))
+	if response.StatusCode == http.StatusNotFound {
+		logger.InfoContext(ctx, "OpenBao secret was already absent")
+		return nil
+	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		err := openBaoResponseError("delete secret", response)
 		logger.ErrorContext(ctx, "OpenBao rejected secret delete", "status", response.StatusCode, "error", err)

@@ -1,33 +1,34 @@
 package sshaccess
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
 
+	"golang.org/x/crypto/ssh"
+
+	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
 	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
 	"github.com/asdf57/prov-controller-test/go/internal/controller"
 	"github.com/asdf57/prov-controller-test/go/internal/resource"
 	"github.com/asdf57/prov-controller-test/go/internal/store"
 )
 
-const cleanupFinalizer = "homelab.io/ssh-access-cleanup"
+const (
+	cleanupFinalizer       = "homelab.io/ssh-access-cleanup"
+	secretCleanupFinalizer = "homelab.io/secret-cleanup"
+	grantUIDAnnotation     = "homelab.io/ssh-access-grant-uid"
+	serverUIDAnnotation    = "homelab.io/server-uid"
+)
 
-type Reconciler struct {
-	store    store.Store
-	keyStore KeyStore
-}
+type Reconciler struct{ store store.Store }
 
-func NewReconciler(store store.Store) *Reconciler {
-	return &Reconciler{store: store, keyStore: NewOpenBaoKeyStore()}
-}
-
-func NewReconcilerWithKeyStore(store store.Store, keyStore KeyStore) *Reconciler {
-	return &Reconciler{store: store, keyStore: keyStore}
-}
+func NewReconciler(store store.Store) *Reconciler { return &Reconciler{store: store} }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) error {
 	raw, err := r.store.Get(ctx, registry.SSHAccessGrantResource.Kind, request.Name)
@@ -50,7 +51,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		if err != nil {
 			return fmt.Errorf("encode SSHAccessGrant %q while adding finalizer: %w", grant.Metadata.Name, err)
 		}
-		revision, err := strconv.ParseInt(grant.Metadata.ResourceVersion, 10, 64)
+		revision, err := resourceRevision(grant.Metadata.ResourceVersion)
 		if err != nil {
 			return fmt.Errorf("parse SSHAccessGrant %q resource version: %w", grant.Metadata.Name, err)
 		}
@@ -90,29 +91,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if err != nil {
 		return fmt.Errorf("decode SecretStore %q: %w", storeName, err)
 	}
-	provider := secretStore.Spec.Provider.OpenBao
-	prefix := ""
-	if provider.KeyPrefix != nil {
-		prefix = *provider.KeyPrefix
-	}
-	keyName := grant.Metadata.Name
-	if configured := grant.Spec.Credential.GeneratedKeyPair.KeyName; configured != nil {
-		keyName = *configured
-	}
-	logicalPath, err := logicalKeyPath(prefix, server.Metadata.Name, keyName)
+	secretPath, logicalPath, err := keyPaths(secretStore, server.Metadata.Name, keyName(grant))
 	if err != nil {
 		if updateErr := r.updateGrantFailure(ctx, grant, "Failed", "InvalidSecretPath", err.Error()); updateErr != nil {
 			return updateErr
 		}
 		return r.reconcileServerKeys(ctx, server)
 	}
-	pair, err := r.keyStore.EnsureKeyPair(ctx, provider, logicalPath, KeyOwnership{
-		ServerUID: server.Metadata.UID,
-		GrantUID:  grant.Metadata.UID,
-	})
+	secretResource, pair, created, err := r.ensureSecret(ctx, grant, server, secretStore, secretPath)
 	if err != nil {
-		phase, reason := "Failed", "KeyPairProvisioningFailed"
-		if containsOwnershipConflict(err) {
+		phase, reason := "Failed", "SecretProvisioningFailed"
+		if errors.Is(err, errSecretOwnershipConflict) {
 			phase, reason = "Conflict", "SecretOwnershipConflict"
 		}
 		if updateErr := r.updateGrantFailure(ctx, grant, phase, reason, err.Error()); updateErr != nil {
@@ -120,71 +109,169 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		}
 		return r.reconcileServerKeys(ctx, server)
 	}
-	if err := r.updateGrantSuccess(ctx, grant, server, secretStore, logicalPath, pair); err != nil {
+	if created || !secretReady(secretResource) {
+		if phase, _ := secretResource.Status["phase"].(string); phase == "Failed" {
+			return r.updateGrantFailure(ctx, grant, "Failed", "SecretReconciliationFailed", fmt.Sprintf("Secret %q failed reconciliation", secretResource.Metadata.Name))
+		}
+		if err := r.updateGrantFailure(ctx, grant, "Pending", "SecretPending", fmt.Sprintf("Secret %q is waiting for reconciliation", secretResource.Metadata.Name)); err != nil {
+			return err
+		}
+		return r.reconcileServerKeys(ctx, server)
+	}
+	version, _ := numericInt64(secretResource.Status["externalVersion"])
+	if version < 1 {
+		version = 1
+	}
+	if err := r.updateGrantSuccess(ctx, grant, server, secretStore, logicalPath, pair, version); err != nil {
 		return err
 	}
 	return r.reconcileServerKeys(ctx, server)
+}
+
+var errSecretOwnershipConflict = errors.New("Secret ownership conflict")
+
+type keyPair struct{ privateKey, publicKey, fingerprint string }
+
+func (r *Reconciler) ensureSecret(ctx context.Context, grant registry.SSHAccessGrant, server registry.Server, secretStore registry.SecretStore, secretPath string) (registry.Secret, keyPair, bool, error) {
+	raw, err := r.store.Get(ctx, registry.SecretResource.Kind, grant.Metadata.Name)
+	if err == nil {
+		secretResource, decodeErr := registry.SecretResource.Decode(raw)
+		if decodeErr != nil {
+			return registry.Secret{}, keyPair{}, false, fmt.Errorf("decode Secret %q: %w", grant.Metadata.Name, decodeErr)
+		}
+		pair, validateErr := validateOwnedSecret(secretResource, grant, server, secretStore, secretPath)
+		return secretResource, pair, false, validateErr
+	}
+	if !errors.Is(err, store.ErrNotFound) {
+		return registry.Secret{}, keyPair{}, false, fmt.Errorf("get Secret %q: %w", grant.Metadata.Name, err)
+	}
+	privateKey, publicKey, fingerprint, err := generateEd25519KeyPair()
+	if err != nil {
+		return registry.Secret{}, keyPair{}, false, err
+	}
+	desired := registry.NewSecret(resource.Metadata{
+		Name: grant.Metadata.Name, Finalizers: []string{secretCleanupFinalizer},
+		Annotations: map[string]string{grantUIDAnnotation: grant.Metadata.UID, serverUIDAnnotation: server.Metadata.UID},
+	}, apigen.SecretSpec{
+		SecretStoreRef: apigen.SecretStoreReference{Name: secretStore.Metadata.Name}, Path: secretPath,
+		Data: map[string]string{"privateKey": privateKey, "publicKey": publicKey, "serverUID": server.Metadata.UID, "accessGrantUID": grant.Metadata.UID},
+	})
+	encoded, err := desired.Encode()
+	if err != nil {
+		return registry.Secret{}, keyPair{}, false, fmt.Errorf("encode Secret %q: %w", grant.Metadata.Name, err)
+	}
+	created, err := r.store.Create(ctx, encoded)
+	if errors.Is(err, store.ErrConflict) {
+		existing, getErr := r.store.Get(ctx, registry.SecretResource.Kind, grant.Metadata.Name)
+		if getErr != nil {
+			return registry.Secret{}, keyPair{}, false, fmt.Errorf("get Secret %q after create conflict: %w", grant.Metadata.Name, getErr)
+		}
+		secretResource, decodeErr := registry.SecretResource.Decode(existing)
+		if decodeErr != nil {
+			return registry.Secret{}, keyPair{}, false, fmt.Errorf("decode Secret %q after create conflict: %w", grant.Metadata.Name, decodeErr)
+		}
+		pair, validateErr := validateOwnedSecret(secretResource, grant, server, secretStore, secretPath)
+		return secretResource, pair, false, validateErr
+	}
+	if err != nil {
+		return registry.Secret{}, keyPair{}, false, fmt.Errorf("create Secret %q: %w", grant.Metadata.Name, err)
+	}
+	secretResource, err := registry.SecretResource.Decode(created)
+	if err != nil {
+		return registry.Secret{}, keyPair{}, false, fmt.Errorf("decode created Secret %q: %w", grant.Metadata.Name, err)
+	}
+	return secretResource, keyPair{privateKey, publicKey, fingerprint}, true, nil
+}
+
+func validateOwnedSecret(secretResource registry.Secret, grant registry.SSHAccessGrant, server registry.Server, secretStore registry.SecretStore, secretPath string) (keyPair, error) {
+	annotations := secretResource.Metadata.Annotations
+	if annotations[grantUIDAnnotation] != grant.Metadata.UID || annotations[serverUIDAnnotation] != server.Metadata.UID {
+		return keyPair{}, fmt.Errorf("%w: Secret %q is not owned by SSHAccessGrant %q", errSecretOwnershipConflict, secretResource.Metadata.Name, grant.Metadata.Name)
+	}
+	if secretResource.Metadata.DeletionTimestamp != nil {
+		return keyPair{}, fmt.Errorf("Secret %q is terminating", secretResource.Metadata.Name)
+	}
+	if secretResource.Spec.SecretStoreRef.Name != secretStore.Metadata.Name || secretResource.Spec.Path != secretPath || secretResource.Spec.Data["serverUID"] != server.Metadata.UID || secretResource.Spec.Data["accessGrantUID"] != grant.Metadata.UID {
+		return keyPair{}, fmt.Errorf("%w: Secret %q has unexpected destination or ownership data", errSecretOwnershipConflict, secretResource.Metadata.Name)
+	}
+	publicKey := strings.TrimSpace(secretResource.Spec.Data["publicKey"])
+	parsedPublic, _, _, _, err := ssh.ParseAuthorizedKey([]byte(publicKey))
+	if err != nil {
+		return keyPair{}, fmt.Errorf("parse public key in Secret %q: %w", secretResource.Metadata.Name, err)
+	}
+	privateKey := secretResource.Spec.Data["privateKey"]
+	parsedPrivate, err := ssh.ParseRawPrivateKey([]byte(privateKey))
+	if err != nil {
+		return keyPair{}, fmt.Errorf("parse private key in Secret %q: %w", secretResource.Metadata.Name, err)
+	}
+	signer, err := ssh.NewSignerFromKey(parsedPrivate)
+	if err != nil {
+		return keyPair{}, fmt.Errorf("derive public key from Secret %q private key: %w", secretResource.Metadata.Name, err)
+	}
+	if !bytes.Equal(signer.PublicKey().Marshal(), parsedPublic.Marshal()) {
+		return keyPair{}, fmt.Errorf("public and private keys in Secret %q do not match", secretResource.Metadata.Name)
+	}
+	return keyPair{privateKey, publicKey, ssh.FingerprintSHA256(parsedPublic)}, nil
+}
+
+func secretReady(secretResource registry.Secret) bool {
+	observed, ok := numericInt64(secretResource.Status["observedGeneration"])
+	return secretResource.Status["phase"] == "Ready" && ok && observed == secretResource.Metadata.Generation
+}
+
+func numericInt64(value any) (int64, bool) {
+	switch typed := value.(type) {
+	case int64:
+		return typed, true
+	case int:
+		return int64(typed), true
+	case float64:
+		return int64(typed), typed == float64(int64(typed))
+	default:
+		return 0, false
+	}
 }
 
 func (r *Reconciler) finalizeGrant(ctx context.Context, grant registry.SSHAccessGrant) error {
 	if !hasFinalizer(grant.Metadata.Finalizers, cleanupFinalizer) {
 		return r.reconcileAllServerKeys(ctx)
 	}
-
-	serverUID := statusReferenceUID(grant.Status, "serverRef")
-	serverRaw, serverErr := r.store.Get(ctx, registry.ServerResource.Kind, grant.Spec.ServerRef.Name)
-	if serverErr == nil {
-		serverUID = serverRaw.Metadata.UID
-	} else if !errors.Is(serverErr, store.ErrNotFound) {
-		return fmt.Errorf("get Server %q while finalizing SSHAccessGrant %q: %w", grant.Spec.ServerRef.Name, grant.Metadata.Name, serverErr)
-	}
-
-	storeName := grant.Spec.Credential.GeneratedKeyPair.SecretStoreRef.Name
-	secretStoreRaw, err := r.store.Get(ctx, registry.SecretStoreResource.Kind, storeName)
-	if errors.Is(err, store.ErrNotFound) && grant.Status["secret"] == nil {
-		return r.finishGrantDeletion(ctx, grant)
-	}
-	if err != nil {
-		return fmt.Errorf("get SecretStore %q while finalizing SSHAccessGrant %q: %w", storeName, grant.Metadata.Name, err)
-	}
-	secretStore, err := registry.SecretStoreResource.Decode(secretStoreRaw)
-	if err != nil {
-		return fmt.Errorf("decode SecretStore %q while finalizing SSHAccessGrant %q: %w", storeName, grant.Metadata.Name, err)
-	}
-
-	logicalPath := statusLogicalPath(grant.Status)
-	if logicalPath == "" {
-		prefix := ""
-		if secretStore.Spec.Provider.OpenBao.KeyPrefix != nil {
-			prefix = *secretStore.Spec.Provider.OpenBao.KeyPrefix
-		}
-		keyName := grant.Metadata.Name
-		if configured := grant.Spec.Credential.GeneratedKeyPair.KeyName; configured != nil {
-			keyName = *configured
-		}
-		logicalPath, err = logicalKeyPath(prefix, grant.Spec.ServerRef.Name, keyName)
-		if err != nil {
-			return fmt.Errorf("derive secret path while finalizing SSHAccessGrant %q: %w", grant.Metadata.Name, err)
-		}
-	}
-	if serverErr == nil {
-		server, err := registry.ServerResource.Decode(serverRaw)
-		if err != nil {
-			return fmt.Errorf("decode Server %q while finalizing SSHAccessGrant %q: %w", grant.Spec.ServerRef.Name, grant.Metadata.Name, err)
+	if serverRaw, err := r.store.Get(ctx, registry.ServerResource.Kind, grant.Spec.ServerRef.Name); err == nil {
+		server, decodeErr := registry.ServerResource.Decode(serverRaw)
+		if decodeErr != nil {
+			return fmt.Errorf("decode Server %q while finalizing SSHAccessGrant %q: %w", grant.Spec.ServerRef.Name, grant.Metadata.Name, decodeErr)
 		}
 		if err := r.reconcileServerKeys(ctx, server); err != nil {
 			return err
 		}
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("get Server %q while finalizing SSHAccessGrant %q: %w", grant.Spec.ServerRef.Name, grant.Metadata.Name, err)
 	}
-	if serverUID != "" {
-		if err := r.keyStore.DeleteKeyPair(ctx, secretStore.Spec.Provider.OpenBao, logicalPath, KeyOwnership{
-			ServerUID: serverUID,
-			GrantUID:  grant.Metadata.UID,
-		}); err != nil {
-			return fmt.Errorf("delete key pair while finalizing SSHAccessGrant %q: %w", grant.Metadata.Name, err)
-		}
+	secretRaw, err := r.store.Get(ctx, registry.SecretResource.Kind, grant.Metadata.Name)
+	if errors.Is(err, store.ErrNotFound) {
+		return r.finishGrantDeletion(ctx, grant)
 	}
-	return r.finishGrantDeletion(ctx, grant)
+	if err != nil {
+		return fmt.Errorf("get Secret %q while finalizing SSHAccessGrant: %w", grant.Metadata.Name, err)
+	}
+	secretResource, err := registry.SecretResource.Decode(secretRaw)
+	if err != nil {
+		return fmt.Errorf("decode Secret %q while finalizing SSHAccessGrant: %w", grant.Metadata.Name, err)
+	}
+	if secretResource.Metadata.Annotations[grantUIDAnnotation] != grant.Metadata.UID {
+		return fmt.Errorf("%w: refusing to delete Secret %q", errSecretOwnershipConflict, secretResource.Metadata.Name)
+	}
+	if secretResource.Metadata.DeletionTimestamp != nil {
+		return nil
+	}
+	revision, err := resourceRevision(secretResource.Metadata.ResourceVersion)
+	if err != nil {
+		return fmt.Errorf("parse Secret %q resource version: %w", secretResource.Metadata.Name, err)
+	}
+	if err := r.store.Delete(ctx, secretResource.Kind, secretResource.Metadata.Name, revision); err != nil && !errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("delete Secret %q while finalizing SSHAccessGrant: %w", secretResource.Metadata.Name, err)
+	}
+	return nil
 }
 
 func (r *Reconciler) finishGrantDeletion(ctx context.Context, grant registry.SSHAccessGrant) error {
@@ -193,14 +280,52 @@ func (r *Reconciler) finishGrantDeletion(ctx context.Context, grant registry.SSH
 	if err != nil {
 		return fmt.Errorf("encode SSHAccessGrant %q while removing finalizer: %w", grant.Metadata.Name, err)
 	}
-	revision, err := strconv.ParseInt(grant.Metadata.ResourceVersion, 10, 64)
+	revision, err := resourceRevision(grant.Metadata.ResourceVersion)
 	if err != nil {
 		return fmt.Errorf("parse SSHAccessGrant %q resource version: %w", grant.Metadata.Name, err)
 	}
-	if _, err := r.store.Update(ctx, encoded, revision); err != nil {
+	if _, err := r.store.Update(ctx, encoded, revision); err != nil && !errors.Is(err, store.ErrNotFound) {
 		return fmt.Errorf("remove finalizer from SSHAccessGrant %q: %w", grant.Metadata.Name, err)
 	}
 	return nil
+}
+
+func keyName(grant registry.SSHAccessGrant) string {
+	if configured := grant.Spec.Credential.GeneratedKeyPair.KeyName; configured != nil {
+		return *configured
+	}
+	return grant.Metadata.Name
+}
+
+func keyPaths(secretStore registry.SecretStore, serverName, keyName string) (string, string, error) {
+	relative, err := logicalKeyPath("", serverName, keyName)
+	if err != nil {
+		return "", "", err
+	}
+	prefix := ""
+	if provider := secretStore.Spec.Provider.OpenBao; provider != nil && provider.KeyPrefix != nil {
+		prefix = *provider.KeyPrefix
+	}
+	logical, err := logicalKeyPath(prefix, serverName, keyName)
+	return relative, logical, err
+}
+
+func logicalKeyPath(prefix, serverName, keyName string) (string, error) {
+	segments := []string{}
+	if prefix != "" {
+		segments = append(segments, strings.Split(strings.Trim(prefix, "/"), "/")...)
+	}
+	segments = append(segments, serverName, "ssh-keys", keyName)
+	joined := strings.Join(segments, "/")
+	if joined == "" || path.Clean(joined) != joined || strings.HasPrefix(prefix, "/") || strings.HasSuffix(prefix, "/") {
+		return "", fmt.Errorf("secret key prefix %q is not canonical", prefix)
+	}
+	for _, segment := range segments {
+		if segment == "" || segment == "." || segment == ".." {
+			return "", fmt.Errorf("secret key path %q is not canonical", joined)
+		}
+	}
+	return joined, nil
 }
 
 func hasFinalizer(finalizers []string, expected string) bool {
@@ -222,32 +347,20 @@ func removeFinalizer(finalizers []string, removed string) []string {
 	return result
 }
 
-func statusReferenceUID(status map[string]any, field string) string {
-	reference, _ := status[field].(map[string]any)
-	uid, _ := reference["uid"].(string)
-	return uid
-}
-
-func statusLogicalPath(status map[string]any) string {
-	secret, _ := status["secret"].(map[string]any)
-	logicalPath, _ := secret["logicalPath"].(string)
-	return logicalPath
-}
-
-func containsOwnershipConflict(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "ownership conflict")
-}
+func resourceRevision(version string) (int64, error) { return strconv.ParseInt(version, 10, 64) }
 
 func (r *Reconciler) RequestsForServer(ctx context.Context, request controller.Request) ([]controller.Request, error) {
-	return r.requestsMatching(ctx, func(grant registry.SSHAccessGrant) bool {
-		return grant.Spec.ServerRef.Name == request.Name
-	})
+	return r.requestsMatching(ctx, func(grant registry.SSHAccessGrant) bool { return grant.Spec.ServerRef.Name == request.Name })
 }
 
 func (r *Reconciler) RequestsForSecretStore(ctx context.Context, request controller.Request) ([]controller.Request, error) {
 	return r.requestsMatching(ctx, func(grant registry.SSHAccessGrant) bool {
 		return grant.Spec.Credential.GeneratedKeyPair.SecretStoreRef.Name == request.Name
 	})
+}
+
+func (r *Reconciler) RequestsForSecret(_ context.Context, request controller.Request) ([]controller.Request, error) {
+	return []controller.Request{{Kind: registry.SSHAccessGrantResource.Kind, Name: request.Name}}, nil
 }
 
 func (r *Reconciler) requestsMatching(ctx context.Context, matches func(registry.SSHAccessGrant) bool) ([]controller.Request, error) {
@@ -268,34 +381,21 @@ func (r *Reconciler) requestsMatching(ctx context.Context, matches func(registry
 	return requests, nil
 }
 
-func (r *Reconciler) updateGrantSuccess(ctx context.Context, grant registry.SSHAccessGrant, server registry.Server, secretStore registry.SecretStore, logicalPath string, pair KeyPair) error {
+func (r *Reconciler) updateGrantSuccess(ctx context.Context, grant registry.SSHAccessGrant, server registry.Server, secretStore registry.SecretStore, logicalPath string, pair keyPair, version int64) error {
 	status := map[string]any{
-		"phase":              "Ready",
-		"observedGeneration": grant.Metadata.Generation,
-		"serverRef":          map[string]any{"name": server.Metadata.Name, "uid": server.Metadata.UID},
-		"publicKey":          pair.PublicKey,
-		"fingerprint":        pair.Fingerprint,
-		"secret": map[string]any{
-			"storeRef":    map[string]any{"name": secretStore.Metadata.Name, "uid": secretStore.Metadata.UID},
-			"logicalPath": logicalPath,
-			"version":     pair.Version,
-		},
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "True", "reason": "KeyPairAvailable",
-			"message": "The generated key pair is stored in OpenBao", "observedGeneration": grant.Metadata.Generation,
-		}},
+		"phase": "Ready", "observedGeneration": grant.Metadata.Generation,
+		"serverRef": map[string]any{"name": server.Metadata.Name, "uid": server.Metadata.UID},
+		"publicKey": pair.publicKey, "fingerprint": pair.fingerprint,
+		"secret":     map[string]any{"storeRef": map[string]any{"name": secretStore.Metadata.Name, "uid": secretStore.Metadata.UID}, "logicalPath": logicalPath, "version": version},
+		"conditions": []any{map[string]any{"type": "Ready", "status": "True", "reason": "KeyPairAvailable", "message": "The generated key pair is managed by a Ready Secret resource", "observedGeneration": grant.Metadata.Generation}},
 	}
 	return r.writeGrantStatus(ctx, grant, status)
 }
 
 func (r *Reconciler) updateGrantFailure(ctx context.Context, grant registry.SSHAccessGrant, phase, reason, message string) error {
 	status := map[string]any{
-		"phase":              phase,
-		"observedGeneration": grant.Metadata.Generation,
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "False", "reason": reason,
-			"message": message, "observedGeneration": grant.Metadata.Generation,
-		}},
+		"phase": phase, "observedGeneration": grant.Metadata.Generation,
+		"conditions": []any{map[string]any{"type": "Ready", "status": "False", "reason": reason, "message": message, "observedGeneration": grant.Metadata.Generation}},
 	}
 	return r.writeGrantStatus(ctx, grant, status)
 }
@@ -304,7 +404,7 @@ func (r *Reconciler) writeGrantStatus(ctx context.Context, grant registry.SSHAcc
 	if resource.EqualJSON(grant.Status, status) {
 		return nil
 	}
-	revision, err := strconv.ParseInt(grant.Metadata.ResourceVersion, 10, 64)
+	revision, err := resourceRevision(grant.Metadata.ResourceVersion)
 	if err != nil {
 		return fmt.Errorf("parse SSHAccessGrant %q resource version: %w", grant.Metadata.Name, err)
 	}
@@ -336,13 +436,7 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 	if err != nil {
 		return fmt.Errorf("list SSHAccessGrants for Server %q: %w", server.Metadata.Name, err)
 	}
-	type resolvedKey struct {
-		grantName   string
-		loginUser   string
-		publicKey   string
-		fingerprint string
-		grantUID    string
-	}
+	type resolvedKey struct{ grantName, loginUser, publicKey, fingerprint, grantUID string }
 	keys := make([]resolvedKey, 0)
 	for _, raw := range list.Items {
 		grant, err := registry.SSHAccessGrantResource.Decode(raw)
@@ -361,10 +455,7 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 		if !publicOK || !fingerprintOK || publicKey == "" || fingerprint == "" {
 			continue
 		}
-		keys = append(keys, resolvedKey{
-			grantName: grant.Metadata.Name, grantUID: grant.Metadata.UID,
-			loginUser: grant.Spec.LoginUser, publicKey: publicKey, fingerprint: fingerprint,
-		})
+		keys = append(keys, resolvedKey{grant.Metadata.Name, grant.Spec.LoginUser, publicKey, fingerprint, grant.Metadata.UID})
 	}
 	sort.Slice(keys, func(left, right int) bool {
 		if keys[left].loginUser != keys[right].loginUser {
@@ -374,17 +465,14 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 	})
 	authorizedKeys := make([]any, 0, len(keys))
 	for _, key := range keys {
-		authorizedKeys = append(authorizedKeys, map[string]any{
-			"accessGrantRef": map[string]any{"name": key.grantName, "uid": key.grantUID},
-			"loginUser":      key.loginUser, "publicKey": key.publicKey, "fingerprint": key.fingerprint,
-		})
+		authorizedKeys = append(authorizedKeys, map[string]any{"accessGrantRef": map[string]any{"name": key.grantName, "uid": key.grantUID}, "loginUser": key.loginUser, "publicKey": key.publicKey, "fingerprint": key.fingerprint})
 	}
 	status := cloneStatus(server.Status)
 	status["ssh"] = map[string]any{"authorizedKeys": authorizedKeys}
 	if resource.EqualJSON(server.Status, status) {
 		return nil
 	}
-	revision, err := strconv.ParseInt(server.Metadata.ResourceVersion, 10, 64)
+	revision, err := resourceRevision(server.Metadata.ResourceVersion)
 	if err != nil {
 		return fmt.Errorf("parse Server %q resource version: %w", server.Metadata.Name, err)
 	}

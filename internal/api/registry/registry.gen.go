@@ -272,6 +272,50 @@ func (definition SecretStoreDefinition) Decode(value resource.Resource) (SecretS
 	}, nil
 }
 
+// Secret is the concrete controller-facing resource for Secret.
+type Secret struct {
+	APIVersion string            `json:"apiVersion"`
+	Kind       string            `json:"kind"`
+	Metadata   resource.Metadata `json:"metadata"`
+	Spec       apigen.SecretSpec `json:"spec"`
+	Status     map[string]any    `json:"status,omitempty"`
+}
+
+// NewSecret constructs a Secret with its generated type identity.
+func NewSecret(metadata resource.Metadata, spec apigen.SecretSpec) Secret {
+	return Secret{
+		APIVersion: SecretResource.APIVersion,
+		Kind:       SecretResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Secret into the generic storage representation.
+func (value Secret) Encode() (resource.Resource, error) {
+	return encodeResource(SecretResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// SecretDefinition adds concrete Secret decoding to the shared API definition.
+type SecretDefinition struct {
+	Definition
+}
+
+// Decode converts a generic storage resource into a typed Secret.
+func (definition SecretDefinition) Decode(value resource.Resource) (Secret, error) {
+	spec, err := decodeResourceSpec[apigen.SecretSpec](definition.Definition, value)
+	if err != nil {
+		return Secret{}, err
+	}
+	return Secret{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     value.Status,
+	}, nil
+}
+
 // Server is the concrete controller-facing resource for Server.
 type Server struct {
 	APIVersion string            `json:"apiVersion"`
@@ -366,6 +410,7 @@ var InventoryPublicationResource = InventoryPublicationDefinition{Definition: Ne
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil))}
 var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
+var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
 var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
 var SSHAccessGrantResource = SSHAccessGrantDefinition{Definition: NewDefinition[apigen.SSHAccessGrantSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHAccessGrant", "ssh-access-grants", "SSHAccessGrantStatus", []string{"homelab.io/ssh-access-cleanup"})}
 
@@ -376,6 +421,7 @@ var Definitions = []Definition{
 	MachineReportResource.Definition,
 	MachineResource.Definition,
 	SecretStoreResource.Definition,
+	SecretResource.Definition,
 	ServerResource.Definition,
 	SSHAccessGrantResource.Definition,
 }
