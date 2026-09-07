@@ -57,6 +57,7 @@ func (c *Controller) Run(ctx context.Context) {
 		err := c.reconciler.Reconcile(ctx, request)
 		c.workqueue.Done(item)
 		if err != nil {
+			fmt.Printf("Reconcile error for %s: %v. Retrying after %s\n", request.Key(), err, c.retryDelay)
 			c.workqueue.AddAfter(ctx, item, c.retryDelay)
 		}
 	}
