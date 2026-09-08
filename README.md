@@ -76,8 +76,9 @@ then deletes the processed report using optimistic concurrency:
 - `POST /api/v1alpha1/machine-reports` creates a report resource.
 - `GET /api/v1alpha1/machine-reports` lists reports awaiting consumption.
 - `GET /api/v1alpha1/machine-reports/{name}` fetches a pending report.
-- `PUT /api/v1alpha1/machine-reports/{name}` idempotently creates or replaces
-  a pending report, making it the preferred endpoint for periodic agents.
+- `PUT /api/v1alpha1/machine-reports/{name}` accepts a complete resource
+  manifest and idempotently creates or replaces a pending report, making it
+  the preferred endpoint for periodic agents.
 - `DELETE /api/v1alpha1/machine-reports` deletes every report and returns the
   number deleted.
 - `DELETE /api/v1alpha1/machine-reports/{name}` deletes a report using its
@@ -414,9 +415,14 @@ controller removes the external value before completing Secret deletion; only
 then does the grant complete deletion. Cleanup failures leave both resources
 visible with `metadata.deletionTimestamp` for retry.
 
-Machine and Server specs support two update styles:
+Machine and Server resources support two update styles:
 
-- `PUT /api/v1alpha1/machines/{name}` replaces the complete spec.
+- `PUT /api/v1alpha1/machines/{name}` accepts a complete manifest and creates
+  or replaces `spec`, labels, and annotations. The manifest identity must match
+  the URL. Server-owned metadata, controller-owned finalizers, and status are
+  preserved. An optional `If-Match` makes the replacement conditional; an
+  unconditional PUT retries bounded server/controller-owned update conflicts
+  but rejects concurrent changes to client-owned state.
 - `PATCH /api/v1alpha1/machines/{name}` applies an RFC 7396 JSON Merge Patch,
   requires the current ETag in `If-Match`, and replaces arrays atomically.
 
@@ -424,7 +430,7 @@ Use the corresponding `/api/v1alpha1/servers/{name}` paths to modify desired
 host configuration. Server updates never rewrite Machine inventory or manage
 SSH key-pair storage.
 
-Resource creation and replacement also accept `application/yaml` and
+Resource creation and PUT replacement also accept `application/yaml` and
 `application/x-yaml`. Merge patches may use `application/merge-patch+yaml`.
 YAML is normalized to JSON before the same OpenAPI validation and handlers run;
 multi-document request bodies are rejected.

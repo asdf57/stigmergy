@@ -76,8 +76,13 @@ object contract. The store assigns server-owned metadata and derives
 
 - Create assigns a UID, generation `1`, creation timestamp, and resource
   version.
-- Update requires the expected resource revision, preserves server-owned
-  metadata and status, and increments generation only when `spec` changes.
+- PUT creates or replaces the complete client-owned desired state: `spec`,
+  labels, and annotations. Its manifest identity must match the resource URL.
+  It preserves server/controller-owned metadata and status, increments
+  generation only when `spec` changes, and skips storage writes when desired
+  state is unchanged. `If-Match` makes replacement conditional; without it,
+  the API retries bounded conflicts caused only by server/controller-owned
+  updates and rejects concurrent changes to client-owned state.
 - Merge patch requires the expected resource revision, recursively merges JSON
   objects in `spec`, replaces arrays atomically, and validates the complete
   merged spec before updating it.
