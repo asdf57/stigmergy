@@ -330,9 +330,10 @@ file or directory.
 ## Server-scoped SSH access
 
 `SSHAccessGrant` associates one login user with one Server. Its controller
-generates an Ed25519 key pair, stores both halves in OpenBao with create-only
-semantics, and publishes only the public key and fingerprint through API
-status. Neither private keys nor OpenBao tokens are persisted in etcd.
+generates an Ed25519 key pair and creates a same-named `Secret` resource that
+declares the external destination and key data. The Secret controller is the
+only component that writes the value to OpenBao. SSH access becomes Ready and
+publishes the public key only after that Secret reports Ready.
 
 First describe the OpenBao backend in `openbao-secret-store.yaml`:
 
@@ -382,13 +383,14 @@ curl --fail-with-body -H 'Content-Type: application/yaml' \
   http://127.0.0.1:8080/api/v1alpha1/ssh-access-grants
 ```
 
-For these names, the controller derives the logical KV path
+For these names, the SSH access controller creates a `Secret` whose relative
+path is `desktop/ssh-keys/matt`. With the store prefix, this produces the logical KV path
 `secrets/desktop/ssh-keys/matt` beneath the `kv2` mount. `metadata.name` remains
 globally unique while `keyName` controls only the leaf inside that Server's
-path. The stored value
-contains `privateKey`, `publicKey`, `serverUID`, and `accessGrantUID`. Existing
-material is adopted only when both immutable UIDs match; otherwise the grant
-reports `SecretOwnershipConflict` and the controller never overwrites it.
+path. The value contains `privateKey`, `publicKey`, `serverUID`, and
+`accessGrantUID`. An existing Secret is adopted only when its ownership
+annotations, immutable UIDs, destination, and key pair match; otherwise the
+grant reports `SecretOwnershipConflict` and never overwrites it.
 
 A Ready grant is projected into the Server API contract that homelabd consumes:
 
@@ -407,10 +409,10 @@ status:
 homelabd talks only to this API and installs the resolved public keys. It never
 connects to OpenBao. Every grant receives the
 `homelab.io/ssh-access-cleanup` finalizer. Deleting a grant first removes its
-public Server projection, verifies the OpenBao record's Server and grant UIDs,
-permanently deletes that KV v2 record, and then completes API deletion. If
-OpenBao is unavailable or ownership does not match, the grant remains visible
-with `metadata.deletionTimestamp` until cleanup can safely succeed.
+public Server projection and deletes its owned Secret resource. The Secret
+controller removes the external value before completing Secret deletion; only
+then does the grant complete deletion. Cleanup failures leave both resources
+visible with `metadata.deletionTimestamp` for retry.
 
 Machine and Server specs support two update styles:
 

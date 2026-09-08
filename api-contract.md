@@ -137,17 +137,17 @@ object contract. The store assigns server-owned metadata and derives
   authentication names either a process environment variable or an absolute
   Agent-managed token file and never contains the credential value itself.
 - `SSHAccessGrant.spec` associates one login user with one Server and requests a
-  generated key pair. The SSH access controller derives the backend path,
-  creates the key pair with create-only semantics, and checks stored Server and
-  grant UIDs before adopting existing material.
-- Private SSH key material exists only in OpenBao. The grant status and
+  generated key pair. The SSH access controller creates and owns a same-named
+  `Secret`, waits for its observed generation to become Ready, and checks the
+  stored Server and grant UIDs before adopting an existing Secret.
+- The Secret controller, rather than the SSH access controller, writes and
+  removes SSH key material in the configured external store. The grant status and
   `Server.status.ssh.authorizedKeys` contain the public key and fingerprint for
   homelabd. The Server controller does not create or store SSH credentials.
 - `SSHAccessGrant` receives `homelab.io/ssh-access-cleanup` at creation.
-  Deleting it immediately removes its public Server projection, verifies the
-  stored Server and grant UIDs, permanently deletes its OpenBao KV v2 value,
-  and only then removes the finalizer. Cleanup failures keep the grant in a
-  terminating state for retry.
+  Deleting it immediately removes its public Server projection and requests
+  deletion of its owned Secret. The Secret finalizer removes the external
+  value; the grant finalizer is removed only after the Secret is gone.
 
 ## Reserved future capabilities
 
