@@ -94,6 +94,9 @@ object contract. The store assigns server-owned metadata and derives
 - Collection deletion applies the same graceful-deletion behavior to each
   resource instead of bypassing finalizers.
 - Recreating a deleted name creates a distinct object with a new UID.
+- Controller startup lists and enqueues the current resources for every watched
+  kind, then watches from the following store revision. Existing Pending or
+  terminating resources therefore resume reconciliation after a restart.
 
 ## Machine and Server ownership
 

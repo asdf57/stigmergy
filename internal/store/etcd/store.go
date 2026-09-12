@@ -30,8 +30,8 @@ func New(client *clientv3.Client, prefix string) *Store {
 	}
 }
 
-func (s *Store) Watch(ctx context.Context, kind string) <-chan clientv3.WatchResponse {
-	return s.client.Watch(ctx, s.keys.resourcePrefix(kind), clientv3.WithPrefix())
+func (s *Store) Watch(ctx context.Context, kind string, revision int64) <-chan clientv3.WatchResponse {
+	return s.client.Watch(ctx, s.keys.resourcePrefix(kind), clientv3.WithPrefix(), clientv3.WithRev(revision))
 }
 
 func (s *Store) Create(ctx context.Context, candidate resource.Resource) (resource.Resource, error) {

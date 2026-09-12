@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 
+	"github.com/asdf57/prov-controller-test/go/internal/resource"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type WatchStore interface {
-	Watch(context.Context, string) <-chan clientv3.WatchResponse
+	List(context.Context, string) (resource.List, error)
+	Watch(context.Context, string, int64) <-chan clientv3.WatchResponse
 }
 
 type Manager struct {
@@ -76,9 +79,22 @@ func (m *Manager) Serve(ctx context.Context) error {
 		}()
 	}
 
-	// For every relevant resource kind, create a new watch stream
-	for kind := range watchTargetsByKind {
-		resourceWatchMap[kind] = m.store.Watch(ctx, kind)
+	// Reconcile the current snapshot, then watch from the following revision so
+	// persisted resources resume convergence after a controller restart without
+	// leaving a gap in which changes can be missed.
+	for kind, watchTargets := range watchTargetsByKind {
+		snapshot, err := m.store.List(ctx, kind)
+		if err != nil {
+			return fmt.Errorf("list %s resources for initial reconciliation: %w", kind, err)
+		}
+		revision, err := strconv.ParseInt(snapshot.Metadata.ResourceVersion, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s snapshot resource version %q: %w", kind, snapshot.Metadata.ResourceVersion, err)
+		}
+		resourceWatchMap[kind] = m.store.Watch(ctx, kind, revision+1)
+		for _, item := range snapshot.Items {
+			m.enqueueMappedRequests(ctx, kind, item.Metadata.Name, watchTargets)
+		}
 	}
 
 	// For passed etcd events, trigger the appropriate reconcilers
@@ -96,23 +112,27 @@ func (m *Manager) Serve(ctx context.Context) error {
 				}
 
 				for _, sourceRequest := range requests {
-					for _, target := range watchTargets {
-						mappedRequests, err := target.mapper(ctx, sourceRequest)
-						if err != nil {
-							m.log.Error("could not map watched resource", "kind", resourceKind, "name", sourceRequest.Name, "controller", target.controllerName, "error", err)
-							continue
-						}
-
-						for _, request := range mappedRequests {
-							if err := m.controllers[target.controllerName].workqueue.Add(request); err != nil {
-								m.log.Error("could not enqueue request", "kind", request.Kind, "name", request.Name, "controller", target.controllerName, "error", err)
-							}
-						}
-					}
+					m.enqueueMappedRequests(ctx, resourceKind, sourceRequest.Name, watchTargets)
 				}
 			}
 		}()
 	}
 
 	return nil
+}
+
+func (m *Manager) enqueueMappedRequests(ctx context.Context, kind, name string, watchTargets []watchTarget) {
+	sourceRequest := Request{Kind: kind, Name: name}
+	for _, target := range watchTargets {
+		mappedRequests, err := target.mapper(ctx, sourceRequest)
+		if err != nil {
+			m.log.Error("could not map watched resource", "kind", kind, "name", name, "controller", target.controllerName, "error", err)
+			continue
+		}
+		for _, request := range mappedRequests {
+			if err := m.controllers[target.controllerName].workqueue.Add(request); err != nil {
+				m.log.Error("could not enqueue request", "kind", request.Kind, "name", request.Name, "controller", target.controllerName, "error", err)
+			}
+		}
+	}
 }

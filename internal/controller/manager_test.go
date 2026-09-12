@@ -7,15 +7,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/asdf57/prov-controller-test/go/internal/resource"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type fakeWatchStore struct {
-	streams map[string]chan clientv3.WatchResponse
+	streams   map[string]chan clientv3.WatchResponse
+	lists     map[string]resource.List
+	revisions map[string]int64
 }
 
-func (s *fakeWatchStore) Watch(_ context.Context, kind string) <-chan clientv3.WatchResponse {
+func (s *fakeWatchStore) List(_ context.Context, kind string) (resource.List, error) {
+	if list, ok := s.lists[kind]; ok {
+		return list, nil
+	}
+	return resource.List{Metadata: resource.ListMetadata{ResourceVersion: "1"}}, nil
+}
+
+func (s *fakeWatchStore) Watch(_ context.Context, kind string, revision int64) <-chan clientv3.WatchResponse {
+	if s.revisions != nil {
+		s.revisions[kind] = revision
+	}
 	return s.streams[kind]
 }
 
@@ -118,6 +131,45 @@ func TestManagerUsesIdentityMapperForPrimaryWatch(t *testing.T) {
 		t.Fatal("primary watch event did not trigger reconciliation")
 	}
 
+	close(primaryEvents)
+}
+
+func TestManagerReconcilesExistingResourcesAtStartup(t *testing.T) {
+	primaryEvents := make(chan clientv3.WatchResponse)
+	watchStore := &fakeWatchStore{
+		streams:   map[string]chan clientv3.WatchResponse{"Secret": primaryEvents},
+		revisions: make(map[string]int64),
+		lists: map[string]resource.List{"Secret": {
+			Metadata: resource.ListMetadata{ResourceVersion: "41"},
+			Items:    []resource.Resource{{Kind: "Secret", Metadata: resource.Metadata{Name: "existing"}}},
+		}},
+	}
+	reconciler := &recordingReconciler{requests: make(chan Request, 1)}
+	manager := NewManager(
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		watchStore,
+		[]Registration{{
+			Name: "secret-controller", Controller: NewController(reconciler),
+			Watches: []Watch{{Kind: "Secret", Mapper: IdentityMapper}},
+		}},
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := manager.Serve(ctx); err != nil {
+		t.Fatalf("Serve() error = %v", err)
+	}
+	if got := watchStore.revisions["Secret"]; got != 42 {
+		t.Fatalf("Watch() revision = %d, want 42", got)
+	}
+	select {
+	case got := <-reconciler.requests:
+		if want := (Request{Kind: "Secret", Name: "existing"}); got != want {
+			t.Fatalf("Reconcile() request = %#v, want %#v", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("existing resource was not reconciled at startup")
+	}
 	close(primaryEvents)
 }
 
