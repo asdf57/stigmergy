@@ -1353,21 +1353,21 @@ components:
                 - name
                 - uid
             type: object
-        SSHAccessGrant:
+        SSHKeyPair:
             additionalProperties: false
             properties:
                 apiVersion:
                     const: homelab.io/v1alpha1
                     type: string
                 kind:
-                    const: SSHAccessGrant
+                    const: SSHKeyPair
                     type: string
                 metadata:
                     $ref: '#/components/schemas/Metadata'
                 spec:
-                    $ref: '#/components/schemas/SSHAccessGrantSpec'
+                    $ref: '#/components/schemas/SSHKeyPairSpec'
                 status:
-                    $ref: '#/components/schemas/SSHAccessGrantStatus'
+                    $ref: '#/components/schemas/SSHKeyPairStatus'
                     readOnly: true
             required:
                 - apiVersion
@@ -1375,7 +1375,7 @@ components:
                 - metadata
                 - spec
             type: object
-        SSHAccessGrantCondition:
+        SSHKeyPairCondition:
             additionalProperties: false
             properties:
                 message:
@@ -1401,51 +1401,26 @@ components:
                 - status
                 - reason
             type: object
-        SSHAccessGrantCreate:
+        SSHKeyPairCreate:
             additionalProperties: false
             properties:
                 apiVersion:
                     const: homelab.io/v1alpha1
                     type: string
                 kind:
-                    const: SSHAccessGrant
+                    const: SSHKeyPair
                     type: string
                 metadata:
                     $ref: '#/components/schemas/Metadata'
                 spec:
-                    $ref: '#/components/schemas/SSHAccessGrantSpec'
+                    $ref: '#/components/schemas/SSHKeyPairSpec'
             required:
                 - apiVersion
                 - kind
                 - metadata
                 - spec
             type: object
-        SSHAccessGrantCredential:
-            additionalProperties: false
-            properties:
-                generatedKeyPair:
-                    $ref: '#/components/schemas/SSHAccessGrantGeneratedKeyPair'
-            required:
-                - generatedKeyPair
-            type: object
-        SSHAccessGrantGeneratedKeyPair:
-            additionalProperties: false
-            properties:
-                algorithm:
-                    enum:
-                        - ed25519
-                    type: string
-                keyName:
-                    minLength: 1
-                    pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
-                    type: string
-                secretStoreRef:
-                    $ref: '#/components/schemas/SSHAccessGrantSecretStoreReference'
-            required:
-                - algorithm
-                - secretStoreRef
-            type: object
-        SSHAccessGrantList:
+        SSHKeyPairList:
             additionalProperties: false
             properties:
                 apiVersion:
@@ -1453,10 +1428,10 @@ components:
                     type: string
                 items:
                     items:
-                        $ref: '#/components/schemas/SSHAccessGrant'
+                        $ref: '#/components/schemas/SSHKeyPair'
                     type: array
                 kind:
-                    const: SSHAccessGrantList
+                    const: SSHKeyPairList
                     type: string
                 metadata:
                     $ref: '#/components/schemas/ListMetadata'
@@ -1466,24 +1441,7 @@ components:
                 - metadata
                 - items
             type: object
-        SSHAccessGrantSecretStatus:
-            additionalProperties: false
-            properties:
-                logicalPath:
-                    minLength: 1
-                    type: string
-                storeRef:
-                    $ref: '#/components/schemas/ResourceReference'
-                version:
-                    format: int64
-                    minimum: 1
-                    type: integer
-            required:
-                - storeRef
-                - logicalPath
-                - version
-            type: object
-        SSHAccessGrantSecretStoreReference:
+        SSHKeyPairSecretStoreReference:
             additionalProperties: false
             properties:
                 name:
@@ -1492,37 +1450,29 @@ components:
             required:
                 - name
             type: object
-        SSHAccessGrantServerReference:
+        SSHKeyPairSpec:
             additionalProperties: false
             properties:
-                name:
+                algorithm:
+                    enum:
+                        - ed25519
+                    type: string
+                path:
                     minLength: 1
                     type: string
+                secretStoreRef:
+                    $ref: '#/components/schemas/SSHKeyPairSecretStoreReference'
             required:
-                - name
+                - algorithm
+                - secretStoreRef
+                - path
             type: object
-        SSHAccessGrantSpec:
-            additionalProperties: false
-            properties:
-                credential:
-                    $ref: '#/components/schemas/SSHAccessGrantCredential'
-                loginUser:
-                    minLength: 1
-                    pattern: ^[a-z_][a-z0-9_-]*[$]?$
-                    type: string
-                serverRef:
-                    $ref: '#/components/schemas/SSHAccessGrantServerReference'
-            required:
-                - serverRef
-                - loginUser
-                - credential
-            type: object
-        SSHAccessGrantStatus:
+        SSHKeyPairStatus:
             additionalProperties: false
             properties:
                 conditions:
                     items:
-                        $ref: '#/components/schemas/SSHAccessGrantCondition'
+                        $ref: '#/components/schemas/SSHKeyPairCondition'
                     type: array
                 fingerprint:
                     type: string
@@ -1539,9 +1489,7 @@ components:
                     type: string
                 publicKey:
                     type: string
-                secret:
-                    $ref: '#/components/schemas/SSHAccessGrantSecretStatus'
-                serverRef:
+                secretRef:
                     $ref: '#/components/schemas/ResourceReference'
             type: object
         Secret:
@@ -2145,11 +2093,11 @@ components:
         ServerSSHAuthorizedKeyStatus:
             additionalProperties: false
             properties:
-                accessGrantRef:
-                    $ref: '#/components/schemas/ResourceReference'
                 fingerprint:
                     minLength: 1
                     type: string
+                keyPairRef:
+                    $ref: '#/components/schemas/ResourceReference'
                 loginUser:
                     minLength: 1
                     type: string
@@ -2157,10 +2105,19 @@ components:
                     minLength: 1
                     type: string
             required:
-                - accessGrantRef
+                - keyPairRef
                 - loginUser
                 - publicKey
                 - fingerprint
+            type: object
+        ServerSSHKeyPairReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
             type: object
         ServerSSHStatus:
             additionalProperties: false
@@ -2277,8 +2234,20 @@ components:
                     type: string
                 shell:
                     type: string
+                ssh:
+                    $ref: '#/components/schemas/ServerUserSSHSpec'
             required:
                 - name
+            type: object
+        ServerUserSSHSpec:
+            additionalProperties: false
+            properties:
+                authorizedKeyRefs:
+                    items:
+                        $ref: '#/components/schemas/ServerSSHKeyPairReference'
+                    type: array
+            required:
+                - authorizedKeyRefs
             type: object
 info:
     description: Homelab API
@@ -4937,9 +4906,9 @@ paths:
             summary: Create or replace one Server
             tags:
                 - Servers
-    /api/v1alpha1/ssh-access-grants:
+    /api/v1alpha1/ssh-key-pairs:
         delete:
-            operationId: deleteSSHAccessGrants
+            operationId: deleteSSHKeyPairs
             responses:
                 "200":
                     content:
@@ -4953,17 +4922,17 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Delete all SSHAccessGrant resources
+            summary: Delete all SSHKeyPair resources
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
         get:
-            operationId: listSSHAccessGrants
+            operationId: listSSHKeyPairs
             responses:
                 "200":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrantList'
+                                $ref: '#/components/schemas/SSHKeyPairList'
                     description: Resource list at one storage revision
                     headers:
                         X-Resource-Version:
@@ -4976,29 +4945,29 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: List SSHAccessGrant resources
+            summary: List SSHKeyPair resources
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
         post:
-            operationId: createSSHAccessGrant
+            operationId: createSSHKeyPair
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                 required: true
             responses:
                 "201":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrant'
+                                $ref: '#/components/schemas/SSHKeyPair'
                     description: Resource
                     headers:
                         ETag:
@@ -5033,12 +5002,12 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Create a SSHAccessGrant
+            summary: Create a SSHKeyPair
             tags:
-                - SSHAccessGrants
-    /api/v1alpha1/ssh-access-grants/{name}:
+                - SSHKeyPairs
+    /api/v1alpha1/ssh-key-pairs/{name}:
         delete:
-            operationId: deleteSSHAccessGrant
+            operationId: deleteSSHKeyPair
             parameters:
                 - description: ETag or resourceVersion returned by the latest read
                   in: header
@@ -5081,17 +5050,17 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Delete one SSHAccessGrant
+            summary: Delete one SSHKeyPair
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
         get:
-            operationId: getSSHAccessGrant
+            operationId: getSSHKeyPair
             responses:
                 "200":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrant'
+                                $ref: '#/components/schemas/SSHKeyPair'
                     description: Resource
                     headers:
                         ETag:
@@ -5116,9 +5085,9 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Get one SSHAccessGrant
+            summary: Get one SSHKeyPair
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
         parameters:
             - in: path
               name: name
@@ -5129,7 +5098,7 @@ paths:
                 type: string
         patch:
             description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
-            operationId: patchSSHAccessGrant
+            operationId: patchSSHKeyPair
             parameters:
                 - description: ETag or resourceVersion returned by the latest read
                   in: header
@@ -5153,7 +5122,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrant'
+                                $ref: '#/components/schemas/SSHKeyPair'
                     description: Resource
                     headers:
                         ETag:
@@ -5196,12 +5165,12 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Merge-patch one SSHAccessGrant
+            summary: Merge-patch one SSHKeyPair
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
         put:
             description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
-            operationId: putSSHAccessGrant
+            operationId: putSSHKeyPair
             parameters:
                 - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
                   in: header
@@ -5213,20 +5182,20 @@ paths:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                     application/x-yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                     application/yaml:
                         schema:
-                            $ref: '#/components/schemas/SSHAccessGrantCreate'
+                            $ref: '#/components/schemas/SSHKeyPairCreate'
                 required: true
             responses:
                 "200":
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrant'
+                                $ref: '#/components/schemas/SSHKeyPair'
                     description: Resource
                     headers:
                         ETag:
@@ -5237,7 +5206,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/SSHAccessGrant'
+                                $ref: '#/components/schemas/SSHKeyPair'
                     description: Resource
                     headers:
                         ETag:
@@ -5272,9 +5241,9 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                     description: Resource store request failed
-            summary: Create or replace one SSHAccessGrant
+            summary: Create or replace one SSHKeyPair
             tags:
-                - SSHAccessGrants
+                - SSHKeyPairs
     /healthz:
         get:
             operationId: getLiveness
@@ -5319,5 +5288,5 @@ tags:
     - name: SecretStores
     - name: Secrets
     - name: Servers
-    - name: SSHAccessGrants
+    - name: SSHKeyPairs
 x-stigmergy-file-purpose: Generated, self-contained OpenAPI document used for code generation, validation, Swagger UI, and /openapi.json.

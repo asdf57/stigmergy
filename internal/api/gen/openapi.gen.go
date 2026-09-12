@@ -586,94 +586,124 @@ func (e MachineReportNetworkAddressFamily) Valid() bool {
 	}
 }
 
-// Defines values for SSHAccessGrantApiVersion.
+// Defines values for SSHKeyPairApiVersion.
 const (
-	SSHAccessGrantApiVersionHomelabIov1alpha1 SSHAccessGrantApiVersion = "homelab.io/v1alpha1"
+	SSHKeyPairApiVersionHomelabIov1alpha1 SSHKeyPairApiVersion = "homelab.io/v1alpha1"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantApiVersion enum.
-func (e SSHAccessGrantApiVersion) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairApiVersion enum.
+func (e SSHKeyPairApiVersion) Valid() bool {
 	switch e {
-	case SSHAccessGrantApiVersionHomelabIov1alpha1:
+	case SSHKeyPairApiVersionHomelabIov1alpha1:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for SSHAccessGrantKind.
+// Defines values for SSHKeyPairKind.
 const (
-	SSHAccessGrantKindSSHAccessGrant SSHAccessGrantKind = "SSHAccessGrant"
+	SSHKeyPairKindSSHKeyPair SSHKeyPairKind = "SSHKeyPair"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantKind enum.
-func (e SSHAccessGrantKind) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairKind enum.
+func (e SSHKeyPairKind) Valid() bool {
 	switch e {
-	case SSHAccessGrantKindSSHAccessGrant:
+	case SSHKeyPairKindSSHKeyPair:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for SSHAccessGrantConditionStatus.
+// Defines values for SSHKeyPairConditionStatus.
 const (
-	SSHAccessGrantConditionStatusFalse   SSHAccessGrantConditionStatus = "False"
-	SSHAccessGrantConditionStatusTrue    SSHAccessGrantConditionStatus = "True"
-	SSHAccessGrantConditionStatusUnknown SSHAccessGrantConditionStatus = "Unknown"
+	SSHKeyPairConditionStatusFalse   SSHKeyPairConditionStatus = "False"
+	SSHKeyPairConditionStatusTrue    SSHKeyPairConditionStatus = "True"
+	SSHKeyPairConditionStatusUnknown SSHKeyPairConditionStatus = "Unknown"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantConditionStatus enum.
-func (e SSHAccessGrantConditionStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairConditionStatus enum.
+func (e SSHKeyPairConditionStatus) Valid() bool {
 	switch e {
-	case SSHAccessGrantConditionStatusFalse:
+	case SSHKeyPairConditionStatusFalse:
 		return true
-	case SSHAccessGrantConditionStatusTrue:
+	case SSHKeyPairConditionStatusTrue:
 		return true
-	case SSHAccessGrantConditionStatusUnknown:
+	case SSHKeyPairConditionStatusUnknown:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for SSHAccessGrantCreateApiVersion.
+// Defines values for SSHKeyPairCreateApiVersion.
 const (
-	SSHAccessGrantCreateApiVersionHomelabIov1alpha1 SSHAccessGrantCreateApiVersion = "homelab.io/v1alpha1"
+	SSHKeyPairCreateApiVersionHomelabIov1alpha1 SSHKeyPairCreateApiVersion = "homelab.io/v1alpha1"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantCreateApiVersion enum.
-func (e SSHAccessGrantCreateApiVersion) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairCreateApiVersion enum.
+func (e SSHKeyPairCreateApiVersion) Valid() bool {
 	switch e {
-	case SSHAccessGrantCreateApiVersionHomelabIov1alpha1:
+	case SSHKeyPairCreateApiVersionHomelabIov1alpha1:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for SSHAccessGrantCreateKind.
+// Defines values for SSHKeyPairCreateKind.
 const (
-	SSHAccessGrantCreateKindSSHAccessGrant SSHAccessGrantCreateKind = "SSHAccessGrant"
+	SSHKeyPairCreateKindSSHKeyPair SSHKeyPairCreateKind = "SSHKeyPair"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantCreateKind enum.
-func (e SSHAccessGrantCreateKind) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairCreateKind enum.
+func (e SSHKeyPairCreateKind) Valid() bool {
 	switch e {
-	case SSHAccessGrantCreateKindSSHAccessGrant:
+	case SSHKeyPairCreateKindSSHKeyPair:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for SSHAccessGrantGeneratedKeyPairAlgorithm.
+// Defines values for SSHKeyPairListApiVersion.
 const (
-	Ed25519 SSHAccessGrantGeneratedKeyPairAlgorithm = "ed25519"
+	SSHKeyPairListApiVersionHomelabIov1alpha1 SSHKeyPairListApiVersion = "homelab.io/v1alpha1"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantGeneratedKeyPairAlgorithm enum.
-func (e SSHAccessGrantGeneratedKeyPairAlgorithm) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairListApiVersion enum.
+func (e SSHKeyPairListApiVersion) Valid() bool {
+	switch e {
+	case SSHKeyPairListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHKeyPairListKind.
+const (
+	SSHKeyPairListKindSSHKeyPairList SSHKeyPairListKind = "SSHKeyPairList"
+)
+
+// Valid indicates whether the value is a known member of the SSHKeyPairListKind enum.
+func (e SSHKeyPairListKind) Valid() bool {
+	switch e {
+	case SSHKeyPairListKindSSHKeyPairList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHKeyPairSpecAlgorithm.
+const (
+	Ed25519 SSHKeyPairSpecAlgorithm = "ed25519"
+)
+
+// Valid indicates whether the value is a known member of the SSHKeyPairSpecAlgorithm enum.
+func (e SSHKeyPairSpecAlgorithm) Valid() bool {
 	switch e {
 	case Ed25519:
 		return true
@@ -682,54 +712,24 @@ func (e SSHAccessGrantGeneratedKeyPairAlgorithm) Valid() bool {
 	}
 }
 
-// Defines values for SSHAccessGrantListApiVersion.
+// Defines values for SSHKeyPairStatusPhase.
 const (
-	SSHAccessGrantListApiVersionHomelabIov1alpha1 SSHAccessGrantListApiVersion = "homelab.io/v1alpha1"
+	SSHKeyPairStatusPhaseConflict SSHKeyPairStatusPhase = "Conflict"
+	SSHKeyPairStatusPhaseFailed   SSHKeyPairStatusPhase = "Failed"
+	SSHKeyPairStatusPhasePending  SSHKeyPairStatusPhase = "Pending"
+	SSHKeyPairStatusPhaseReady    SSHKeyPairStatusPhase = "Ready"
 )
 
-// Valid indicates whether the value is a known member of the SSHAccessGrantListApiVersion enum.
-func (e SSHAccessGrantListApiVersion) Valid() bool {
+// Valid indicates whether the value is a known member of the SSHKeyPairStatusPhase enum.
+func (e SSHKeyPairStatusPhase) Valid() bool {
 	switch e {
-	case SSHAccessGrantListApiVersionHomelabIov1alpha1:
+	case SSHKeyPairStatusPhaseConflict:
 		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for SSHAccessGrantListKind.
-const (
-	SSHAccessGrantListKindSSHAccessGrantList SSHAccessGrantListKind = "SSHAccessGrantList"
-)
-
-// Valid indicates whether the value is a known member of the SSHAccessGrantListKind enum.
-func (e SSHAccessGrantListKind) Valid() bool {
-	switch e {
-	case SSHAccessGrantListKindSSHAccessGrantList:
+	case SSHKeyPairStatusPhaseFailed:
 		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for SSHAccessGrantStatusPhase.
-const (
-	SSHAccessGrantStatusPhaseConflict SSHAccessGrantStatusPhase = "Conflict"
-	SSHAccessGrantStatusPhaseFailed   SSHAccessGrantStatusPhase = "Failed"
-	SSHAccessGrantStatusPhasePending  SSHAccessGrantStatusPhase = "Pending"
-	SSHAccessGrantStatusPhaseReady    SSHAccessGrantStatusPhase = "Ready"
-)
-
-// Valid indicates whether the value is a known member of the SSHAccessGrantStatusPhase enum.
-func (e SSHAccessGrantStatusPhase) Valid() bool {
-	switch e {
-	case SSHAccessGrantStatusPhaseConflict:
+	case SSHKeyPairStatusPhasePending:
 		return true
-	case SSHAccessGrantStatusPhaseFailed:
-		return true
-	case SSHAccessGrantStatusPhasePending:
-		return true
-	case SSHAccessGrantStatusPhaseReady:
+	case SSHKeyPairStatusPhaseReady:
 		return true
 	default:
 		return false
@@ -1838,113 +1838,88 @@ type ResourceReference struct {
 	Uid  string `json:"uid"`
 }
 
-// SSHAccessGrant defines model for SSHAccessGrant.
-type SSHAccessGrant struct {
-	ApiVersion SSHAccessGrantApiVersion `json:"apiVersion"`
-	Kind       SSHAccessGrantKind       `json:"kind"`
-	Metadata   Metadata                 `json:"metadata"`
-	Spec       SSHAccessGrantSpec       `json:"spec"`
-	Status     *SSHAccessGrantStatus    `json:"status,omitempty"`
+// SSHKeyPair defines model for SSHKeyPair.
+type SSHKeyPair struct {
+	ApiVersion SSHKeyPairApiVersion `json:"apiVersion"`
+	Kind       SSHKeyPairKind       `json:"kind"`
+	Metadata   Metadata             `json:"metadata"`
+	Spec       SSHKeyPairSpec       `json:"spec"`
+	Status     *SSHKeyPairStatus    `json:"status,omitempty"`
 }
 
-// SSHAccessGrantApiVersion defines model for SSHAccessGrant.ApiVersion.
-type SSHAccessGrantApiVersion string
+// SSHKeyPairApiVersion defines model for SSHKeyPair.ApiVersion.
+type SSHKeyPairApiVersion string
 
-// SSHAccessGrantKind defines model for SSHAccessGrant.Kind.
-type SSHAccessGrantKind string
+// SSHKeyPairKind defines model for SSHKeyPair.Kind.
+type SSHKeyPairKind string
 
-// SSHAccessGrantCondition defines model for SSHAccessGrantCondition.
-type SSHAccessGrantCondition struct {
-	Message            *string                       `json:"message,omitempty"`
-	ObservedGeneration *int64                        `json:"observedGeneration,omitempty"`
-	Reason             string                        `json:"reason"`
-	Status             SSHAccessGrantConditionStatus `json:"status"`
-	Type               string                        `json:"type"`
+// SSHKeyPairCondition defines model for SSHKeyPairCondition.
+type SSHKeyPairCondition struct {
+	Message            *string                   `json:"message,omitempty"`
+	ObservedGeneration *int64                    `json:"observedGeneration,omitempty"`
+	Reason             string                    `json:"reason"`
+	Status             SSHKeyPairConditionStatus `json:"status"`
+	Type               string                    `json:"type"`
 }
 
-// SSHAccessGrantConditionStatus defines model for SSHAccessGrantCondition.Status.
-type SSHAccessGrantConditionStatus string
+// SSHKeyPairConditionStatus defines model for SSHKeyPairCondition.Status.
+type SSHKeyPairConditionStatus string
 
-// SSHAccessGrantCreate defines model for SSHAccessGrantCreate.
-type SSHAccessGrantCreate struct {
-	ApiVersion SSHAccessGrantCreateApiVersion `json:"apiVersion"`
-	Kind       SSHAccessGrantCreateKind       `json:"kind"`
-	Metadata   Metadata                       `json:"metadata"`
-	Spec       SSHAccessGrantSpec             `json:"spec"`
+// SSHKeyPairCreate defines model for SSHKeyPairCreate.
+type SSHKeyPairCreate struct {
+	ApiVersion SSHKeyPairCreateApiVersion `json:"apiVersion"`
+	Kind       SSHKeyPairCreateKind       `json:"kind"`
+	Metadata   Metadata                   `json:"metadata"`
+	Spec       SSHKeyPairSpec             `json:"spec"`
 }
 
-// SSHAccessGrantCreateApiVersion defines model for SSHAccessGrantCreate.ApiVersion.
-type SSHAccessGrantCreateApiVersion string
+// SSHKeyPairCreateApiVersion defines model for SSHKeyPairCreate.ApiVersion.
+type SSHKeyPairCreateApiVersion string
 
-// SSHAccessGrantCreateKind defines model for SSHAccessGrantCreate.Kind.
-type SSHAccessGrantCreateKind string
+// SSHKeyPairCreateKind defines model for SSHKeyPairCreate.Kind.
+type SSHKeyPairCreateKind string
 
-// SSHAccessGrantCredential defines model for SSHAccessGrantCredential.
-type SSHAccessGrantCredential struct {
-	GeneratedKeyPair SSHAccessGrantGeneratedKeyPair `json:"generatedKeyPair"`
+// SSHKeyPairList defines model for SSHKeyPairList.
+type SSHKeyPairList struct {
+	ApiVersion SSHKeyPairListApiVersion `json:"apiVersion"`
+	Items      []SSHKeyPair             `json:"items"`
+	Kind       SSHKeyPairListKind       `json:"kind"`
+	Metadata   ListMetadata             `json:"metadata"`
 }
 
-// SSHAccessGrantGeneratedKeyPair defines model for SSHAccessGrantGeneratedKeyPair.
-type SSHAccessGrantGeneratedKeyPair struct {
-	Algorithm      SSHAccessGrantGeneratedKeyPairAlgorithm `json:"algorithm"`
-	KeyName        *string                                 `json:"keyName,omitempty"`
-	SecretStoreRef SSHAccessGrantSecretStoreReference      `json:"secretStoreRef"`
-}
+// SSHKeyPairListApiVersion defines model for SSHKeyPairList.ApiVersion.
+type SSHKeyPairListApiVersion string
 
-// SSHAccessGrantGeneratedKeyPairAlgorithm defines model for SSHAccessGrantGeneratedKeyPair.Algorithm.
-type SSHAccessGrantGeneratedKeyPairAlgorithm string
+// SSHKeyPairListKind defines model for SSHKeyPairList.Kind.
+type SSHKeyPairListKind string
 
-// SSHAccessGrantList defines model for SSHAccessGrantList.
-type SSHAccessGrantList struct {
-	ApiVersion SSHAccessGrantListApiVersion `json:"apiVersion"`
-	Items      []SSHAccessGrant             `json:"items"`
-	Kind       SSHAccessGrantListKind       `json:"kind"`
-	Metadata   ListMetadata                 `json:"metadata"`
-}
-
-// SSHAccessGrantListApiVersion defines model for SSHAccessGrantList.ApiVersion.
-type SSHAccessGrantListApiVersion string
-
-// SSHAccessGrantListKind defines model for SSHAccessGrantList.Kind.
-type SSHAccessGrantListKind string
-
-// SSHAccessGrantSecretStatus defines model for SSHAccessGrantSecretStatus.
-type SSHAccessGrantSecretStatus struct {
-	LogicalPath string            `json:"logicalPath"`
-	StoreRef    ResourceReference `json:"storeRef"`
-	Version     int64             `json:"version"`
-}
-
-// SSHAccessGrantSecretStoreReference defines model for SSHAccessGrantSecretStoreReference.
-type SSHAccessGrantSecretStoreReference struct {
+// SSHKeyPairSecretStoreReference defines model for SSHKeyPairSecretStoreReference.
+type SSHKeyPairSecretStoreReference struct {
 	Name string `json:"name"`
 }
 
-// SSHAccessGrantServerReference defines model for SSHAccessGrantServerReference.
-type SSHAccessGrantServerReference struct {
-	Name string `json:"name"`
+// SSHKeyPairSpec defines model for SSHKeyPairSpec.
+type SSHKeyPairSpec struct {
+	Algorithm      SSHKeyPairSpecAlgorithm        `json:"algorithm"`
+	Path           string                         `json:"path"`
+	SecretStoreRef SSHKeyPairSecretStoreReference `json:"secretStoreRef"`
 }
 
-// SSHAccessGrantSpec defines model for SSHAccessGrantSpec.
-type SSHAccessGrantSpec struct {
-	Credential SSHAccessGrantCredential      `json:"credential"`
-	LoginUser  string                        `json:"loginUser"`
-	ServerRef  SSHAccessGrantServerReference `json:"serverRef"`
+// SSHKeyPairSpecAlgorithm defines model for SSHKeyPairSpec.Algorithm.
+type SSHKeyPairSpecAlgorithm string
+
+// SSHKeyPairStatus defines model for SSHKeyPairStatus.
+type SSHKeyPairStatus struct {
+	Conditions         *[]SSHKeyPairCondition `json:"conditions,omitempty"`
+	Fingerprint        *string                `json:"fingerprint,omitempty"`
+	ObservedGeneration *int64                 `json:"observedGeneration,omitempty"`
+	Phase              *SSHKeyPairStatusPhase `json:"phase,omitempty"`
+	PublicKey          *string                `json:"publicKey,omitempty"`
+	SecretRef          *ResourceReference     `json:"secretRef,omitempty"`
 }
 
-// SSHAccessGrantStatus defines model for SSHAccessGrantStatus.
-type SSHAccessGrantStatus struct {
-	Conditions         *[]SSHAccessGrantCondition  `json:"conditions,omitempty"`
-	Fingerprint        *string                     `json:"fingerprint,omitempty"`
-	ObservedGeneration *int64                      `json:"observedGeneration,omitempty"`
-	Phase              *SSHAccessGrantStatusPhase  `json:"phase,omitempty"`
-	PublicKey          *string                     `json:"publicKey,omitempty"`
-	Secret             *SSHAccessGrantSecretStatus `json:"secret,omitempty"`
-	ServerRef          *ResourceReference          `json:"serverRef,omitempty"`
-}
-
-// SSHAccessGrantStatusPhase defines model for SSHAccessGrantStatus.Phase.
-type SSHAccessGrantStatusPhase string
+// SSHKeyPairStatusPhase defines model for SSHKeyPairStatus.Phase.
+type SSHKeyPairStatusPhase string
 
 // Secret defines model for Secret.
 type Secret struct {
@@ -2303,10 +2278,15 @@ type ServerResourceSummary struct {
 
 // ServerSSHAuthorizedKeyStatus defines model for ServerSSHAuthorizedKeyStatus.
 type ServerSSHAuthorizedKeyStatus struct {
-	AccessGrantRef ResourceReference `json:"accessGrantRef"`
-	Fingerprint    string            `json:"fingerprint"`
-	LoginUser      string            `json:"loginUser"`
-	PublicKey      string            `json:"publicKey"`
+	Fingerprint string            `json:"fingerprint"`
+	KeyPairRef  ResourceReference `json:"keyPairRef"`
+	LoginUser   string            `json:"loginUser"`
+	PublicKey   string            `json:"publicKey"`
+}
+
+// ServerSSHKeyPairReference defines model for ServerSSHKeyPairReference.
+type ServerSSHKeyPairReference struct {
+	Name string `json:"name"`
 }
 
 // ServerSSHStatus defines model for ServerSSHStatus.
@@ -2356,10 +2336,16 @@ type ServerSystemStats struct {
 
 // ServerUser defines model for ServerUser.
 type ServerUser struct {
-	Groups *[]string `json:"groups,omitempty"`
-	Locked *bool     `json:"locked,omitempty"`
-	Name   string    `json:"name"`
-	Shell  *string   `json:"shell,omitempty"`
+	Groups *[]string          `json:"groups,omitempty"`
+	Locked *bool              `json:"locked,omitempty"`
+	Name   string             `json:"name"`
+	Shell  *string            `json:"shell,omitempty"`
+	Ssh    *ServerUserSSHSpec `json:"ssh,omitempty"`
+}
+
+// ServerUserSSHSpec defines model for ServerUserSSHSpec.
+type ServerUserSSHSpec struct {
+	AuthorizedKeyRefs []ServerSSHKeyPairReference `json:"authorizedKeyRefs"`
 }
 
 // DeleteGitRepositoryParams defines parameters for DeleteGitRepository.
@@ -2521,23 +2507,23 @@ type PutServerParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
-// DeleteSSHAccessGrantParams defines parameters for DeleteSSHAccessGrant.
-type DeleteSSHAccessGrantParams struct {
+// DeleteSSHKeyPairParams defines parameters for DeleteSSHKeyPair.
+type DeleteSSHKeyPairParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
 	IfMatch string `json:"If-Match"`
 }
 
-// PatchSSHAccessGrantApplicationMergePatchPlusJSONBody defines parameters for PatchSSHAccessGrant.
-type PatchSSHAccessGrantApplicationMergePatchPlusJSONBody map[string]interface{}
+// PatchSSHKeyPairApplicationMergePatchPlusJSONBody defines parameters for PatchSSHKeyPair.
+type PatchSSHKeyPairApplicationMergePatchPlusJSONBody map[string]interface{}
 
-// PatchSSHAccessGrantParams defines parameters for PatchSSHAccessGrant.
-type PatchSSHAccessGrantParams struct {
+// PatchSSHKeyPairParams defines parameters for PatchSSHKeyPair.
+type PatchSSHKeyPairParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
 	IfMatch string `json:"If-Match"`
 }
 
-// PutSSHAccessGrantParams defines parameters for PutSSHAccessGrant.
-type PutSSHAccessGrantParams struct {
+// PutSSHKeyPairParams defines parameters for PutSSHKeyPair.
+type PutSSHKeyPairParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
 }
@@ -2611,141 +2597,139 @@ type PatchServerApplicationMergePatchPlusJSONRequestBody PatchServerApplicationM
 // PutServerJSONRequestBody defines body for PutServer for application/json ContentType.
 type PutServerJSONRequestBody = ServerCreate
 
-// CreateSSHAccessGrantJSONRequestBody defines body for CreateSSHAccessGrant for application/json ContentType.
-type CreateSSHAccessGrantJSONRequestBody = SSHAccessGrantCreate
+// CreateSSHKeyPairJSONRequestBody defines body for CreateSSHKeyPair for application/json ContentType.
+type CreateSSHKeyPairJSONRequestBody = SSHKeyPairCreate
 
-// PatchSSHAccessGrantApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHAccessGrant for application/merge-patch+json ContentType.
-type PatchSSHAccessGrantApplicationMergePatchPlusJSONRequestBody PatchSSHAccessGrantApplicationMergePatchPlusJSONBody
+// PatchSSHKeyPairApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHKeyPair for application/merge-patch+json ContentType.
+type PatchSSHKeyPairApplicationMergePatchPlusJSONRequestBody PatchSSHKeyPairApplicationMergePatchPlusJSONBody
 
-// PutSSHAccessGrantJSONRequestBody defines body for PutSSHAccessGrant for application/json ContentType.
-type PutSSHAccessGrantJSONRequestBody = SSHAccessGrantCreate
+// PutSSHKeyPairJSONRequestBody defines body for PutSSHKeyPair for application/json ContentType.
+type PutSSHKeyPairJSONRequestBody = SSHKeyPairCreate
 
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

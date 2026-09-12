@@ -1,0 +1,68 @@
+# SSHKeyPair declares one reusable SSH key pair backed by a Secret resource.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: SSHKeyPair
+  plural: ssh-key-pairs
+  spec-schema: SSHKeyPairSpec
+  status-schema: SSHKeyPairStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/ssh-key-pair-cleanup]
+
+SSHKeyPairSpec:
+  type: object
+  additionalProperties: false
+  required: [algorithm, secretStoreRef, path]
+  properties:
+    algorithm:
+      type: string
+      enum: [ed25519]
+    secretStoreRef:
+      $ref: '#/SSHKeyPairSecretStoreReference'
+    path:
+      type: string
+      minLength: 1
+
+SSHKeyPairSecretStoreReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+
+SSHKeyPairStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Conflict, Failed]
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
+    publicKey:
+      type: string
+    fingerprint:
+      type: string
+    secretRef:
+      $ref: '#/components/schemas/ResourceReference'
+    conditions:
+      type: array
+      items:
+        $ref: '#/SSHKeyPairCondition'
+
+SSHKeyPairCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

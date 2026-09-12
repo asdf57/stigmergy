@@ -19,7 +19,7 @@ import (
 	"github.com/asdf57/prov-controller-test/go/internal/controller/publication"
 	"github.com/asdf57/prov-controller-test/go/internal/controller/secret"
 	servercontroller "github.com/asdf57/prov-controller-test/go/internal/controller/server"
-	"github.com/asdf57/prov-controller-test/go/internal/controller/sshaccess"
+	"github.com/asdf57/prov-controller-test/go/internal/controller/sshkeypair"
 	etcdstore "github.com/asdf57/prov-controller-test/go/internal/store/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -76,10 +76,10 @@ func run() error {
 	inventoryController := controller.NewController(inventoryReconciler)
 	publicationReconciler := publication.NewReconciler(resourceStore)
 	publicationController := controller.NewController(publicationReconciler)
-	sshAccessReconciler := sshaccess.NewReconciler(resourceStore)
-	sshAccessController := controller.NewController(sshAccessReconciler)
 	secretReconciler := secret.NewReconciler(resourceStore)
 	secretController := controller.NewController(secretReconciler)
+	sshKeyPairReconciler := sshkeypair.NewReconciler(resourceStore)
+	sshKeyPairController := controller.NewController(sshKeyPairReconciler)
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
 	}
@@ -129,13 +129,13 @@ func run() error {
 				},
 			},
 			{
-				Name:       "ssh-access-controller",
-				Controller: sshAccessController,
+				Name:       "ssh-key-pair-controller",
+				Controller: sshKeyPairController,
 				Watches: []controller.Watch{
-					{Kind: registry.SSHAccessGrantResource.Kind, Mapper: controller.IdentityMapper},
-					{Kind: registry.ServerResource.Kind, Mapper: sshAccessReconciler.RequestsForServer},
-					{Kind: registry.SecretStoreResource.Kind, Mapper: sshAccessReconciler.RequestsForSecretStore},
-					{Kind: registry.SecretResource.Kind, Mapper: sshAccessReconciler.RequestsForSecret},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSSHKeyPair},
+					{Kind: registry.SecretResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSecret},
+					{Kind: registry.ServerResource.Kind, Mapper: controller.IdentityMapper},
 				},
 			},
 		},

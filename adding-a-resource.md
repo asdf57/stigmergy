@@ -152,7 +152,7 @@ Resource metadata has the following meaning:
 | `api-version` | Manifest API version and generated type identity. |
 | `path-prefix` | API prefix shared by the resource's collection and item paths. It must start, but not end, with `/`. |
 | `kind` | Exported Go-style resource name, such as `Secret`. |
-| `plural` | Lowercase kebab-case URL segment, such as `ssh-access-grants`. |
+| `plural` | Lowercase kebab-case URL segment, such as `ssh-key-pairs`. |
 | `spec-schema` | Required schema for client-owned desired state. |
 | `status-schema` | Optional schema used to validate controller-owned status when resources are read. |
 | `operations` | One or more of `create`, `list`, `get`, `put`, `patch`, `delete`, and `delete-collection`. |

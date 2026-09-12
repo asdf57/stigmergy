@@ -1,4 +1,4 @@
-package sshaccess
+package sshkey
 
 import (
 	"crypto/ed25519"
@@ -11,7 +11,9 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func generateEd25519KeyPair() (string, string, string, error) {
+// GenerateEd25519KeyPair returns an OpenSSH private key, authorized-key public
+// key, and SHA256 fingerprint for one newly generated key pair.
+func GenerateEd25519KeyPair() (string, string, string, error) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return "", "", "", fmt.Errorf("generate Ed25519 key: %w", err)

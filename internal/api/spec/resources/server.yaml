@@ -100,6 +100,27 @@ ServerUser:
       items: {type: string}
     shell: {type: string}
     locked: {type: boolean}
+    ssh:
+      $ref: '#/ServerUserSSHSpec'
+
+ServerUserSSHSpec:
+  type: object
+  additionalProperties: false
+  required: [authorizedKeyRefs]
+  properties:
+    authorizedKeyRefs:
+      type: array
+      items:
+        $ref: '#/ServerSSHKeyPairReference'
+
+ServerSSHKeyPairReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
 
 ServerFeatureFlags:
   type: object
@@ -310,9 +331,9 @@ ServerSSHStatus:
 ServerSSHAuthorizedKeyStatus:
   type: object
   additionalProperties: false
-  required: [accessGrantRef, loginUser, publicKey, fingerprint]
+  required: [keyPairRef, loginUser, publicKey, fingerprint]
   properties:
-    accessGrantRef:
+    keyPairRef:
       $ref: '#/components/schemas/ResourceReference'
     loginUser:
       type: string

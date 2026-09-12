@@ -350,22 +350,17 @@ spec:
 `,
 		},
 		{
-			name: "SSHAccessGrant",
-			path: "/api/v1alpha1/ssh-access-grants",
+			name: "SSHKeyPair",
+			path: "/api/v1alpha1/ssh-key-pairs",
 			body: `apiVersion: homelab.io/v1alpha1
-kind: SSHAccessGrant
+kind: SSHKeyPair
 metadata:
-  name: desktop-matt
+  name: ansible-homelab
 spec:
-  serverRef:
-    name: desktop
-  loginUser: matt
-  credential:
-    generatedKeyPair:
-      algorithm: ed25519
-      keyName: matt
-      secretStoreRef:
-        name: openbao
+  algorithm: ed25519
+  secretStoreRef:
+    name: openbao
+  path: automation/ansible-homelab
 `,
 		},
 	}
@@ -388,11 +383,11 @@ spec:
 			if created["kind"] != test.name {
 				t.Fatalf("created kind = %v, want %s", created["kind"], test.name)
 			}
-			if test.name == "SSHAccessGrant" {
+			if test.name == "SSHKeyPair" {
 				metadata := created["metadata"].(map[string]any)
 				finalizers := metadata["finalizers"].([]any)
-				if len(finalizers) != 1 || finalizers[0] != "homelab.io/ssh-access-cleanup" {
-					t.Fatalf("SSHAccessGrant finalizers = %#v", finalizers)
+				if len(finalizers) != 1 || finalizers[0] != "homelab.io/ssh-key-pair-cleanup" {
+					t.Fatalf("%s finalizers = %#v", test.name, finalizers)
 				}
 			}
 		})
@@ -403,17 +398,17 @@ func TestDeleteFinalizedResourceReturnsAccepted(t *testing.T) {
 	t.Parallel()
 
 	storage := &fakeStore{created: resource.Resource{
-		APIVersion: registry.SSHAccessGrantResource.APIVersion,
-		Kind:       registry.SSHAccessGrantResource.Kind,
+		APIVersion: registry.SSHKeyPairResource.APIVersion,
+		Kind:       registry.SSHKeyPairResource.Kind,
 		Metadata: resource.Metadata{
-			Name:            "desktop-matt",
+			Name:            "ansible-mgmt",
 			ResourceVersion: "7",
-			Finalizers:      []string{"homelab.io/ssh-access-cleanup"},
+			Finalizers:      []string{"homelab.io/ssh-key-pair-cleanup"},
 		},
 		Spec: map[string]any{},
 	}}
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
-	request := httptest.NewRequest(http.MethodDelete, "/api/v1alpha1/ssh-access-grants/desktop-matt", nil)
+	request := httptest.NewRequest(http.MethodDelete, "/api/v1alpha1/ssh-key-pairs/ansible-mgmt", nil)
 	request.Header.Set("If-Match", `"7"`)
 	response := httptest.NewRecorder()
 

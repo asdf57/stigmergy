@@ -360,42 +360,42 @@ func (definition ServerDefinition) Decode(value resource.Resource) (Server, erro
 	}, nil
 }
 
-// SSHAccessGrant is the concrete controller-facing resource for SSHAccessGrant.
-type SSHAccessGrant struct {
-	APIVersion string                    `json:"apiVersion"`
-	Kind       string                    `json:"kind"`
-	Metadata   resource.Metadata         `json:"metadata"`
-	Spec       apigen.SSHAccessGrantSpec `json:"spec"`
-	Status     map[string]any            `json:"status,omitempty"`
+// SSHKeyPair is the concrete controller-facing resource for SSHKeyPair.
+type SSHKeyPair struct {
+	APIVersion string                `json:"apiVersion"`
+	Kind       string                `json:"kind"`
+	Metadata   resource.Metadata     `json:"metadata"`
+	Spec       apigen.SSHKeyPairSpec `json:"spec"`
+	Status     map[string]any        `json:"status,omitempty"`
 }
 
-// NewSSHAccessGrant constructs a SSHAccessGrant with its generated type identity.
-func NewSSHAccessGrant(metadata resource.Metadata, spec apigen.SSHAccessGrantSpec) SSHAccessGrant {
-	return SSHAccessGrant{
-		APIVersion: SSHAccessGrantResource.APIVersion,
-		Kind:       SSHAccessGrantResource.Kind,
+// NewSSHKeyPair constructs a SSHKeyPair with its generated type identity.
+func NewSSHKeyPair(metadata resource.Metadata, spec apigen.SSHKeyPairSpec) SSHKeyPair {
+	return SSHKeyPair{
+		APIVersion: SSHKeyPairResource.APIVersion,
+		Kind:       SSHKeyPairResource.Kind,
 		Metadata:   metadata,
 		Spec:       spec,
 	}
 }
 
-// Encode converts the typed SSHAccessGrant into the generic storage representation.
-func (value SSHAccessGrant) Encode() (resource.Resource, error) {
-	return encodeResource(SSHAccessGrantResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+// Encode converts the typed SSHKeyPair into the generic storage representation.
+func (value SSHKeyPair) Encode() (resource.Resource, error) {
+	return encodeResource(SSHKeyPairResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
 }
 
-// SSHAccessGrantDefinition adds concrete SSHAccessGrant decoding to the shared API definition.
-type SSHAccessGrantDefinition struct {
+// SSHKeyPairDefinition adds concrete SSHKeyPair decoding to the shared API definition.
+type SSHKeyPairDefinition struct {
 	Definition
 }
 
-// Decode converts a generic storage resource into a typed SSHAccessGrant.
-func (definition SSHAccessGrantDefinition) Decode(value resource.Resource) (SSHAccessGrant, error) {
-	spec, err := decodeResourceSpec[apigen.SSHAccessGrantSpec](definition.Definition, value)
+// Decode converts a generic storage resource into a typed SSHKeyPair.
+func (definition SSHKeyPairDefinition) Decode(value resource.Resource) (SSHKeyPair, error) {
+	spec, err := decodeResourceSpec[apigen.SSHKeyPairSpec](definition.Definition, value)
 	if err != nil {
-		return SSHAccessGrant{}, err
+		return SSHKeyPair{}, err
 	}
-	return SSHAccessGrant{
+	return SSHKeyPair{
 		APIVersion: value.APIVersion,
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
@@ -412,7 +412,7 @@ var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.Machine
 var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
 var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
 var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
-var SSHAccessGrantResource = SSHAccessGrantDefinition{Definition: NewDefinition[apigen.SSHAccessGrantSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHAccessGrant", "ssh-access-grants", "SSHAccessGrantStatus", []string{"homelab.io/ssh-access-cleanup"})}
+var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.SSHKeyPairSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHKeyPair", "ssh-key-pairs", "SSHKeyPairStatus", []string{"homelab.io/ssh-key-pair-cleanup"})}
 
 var Definitions = []Definition{
 	GitRepositoryResource.Definition,
@@ -423,5 +423,5 @@ var Definitions = []Definition{
 	SecretStoreResource.Definition,
 	SecretResource.Definition,
 	ServerResource.Definition,
-	SSHAccessGrantResource.Definition,
+	SSHKeyPairResource.Definition,
 }

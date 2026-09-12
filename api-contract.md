@@ -144,18 +144,18 @@ object contract. The store assigns server-owned metadata and derives
 - `SecretStore.spec` describes how controllers reach an external secret store;
   authentication names either a process environment variable or an absolute
   Agent-managed token file and never contains the credential value itself.
-- `SSHAccessGrant.spec` associates one login user with one Server and requests a
-  generated key pair. The SSH access controller creates and owns a same-named
-  `Secret`, waits for its observed generation to become Ready, and checks the
-  stored Server and grant UIDs before adopting an existing Secret.
-- The Secret controller, rather than the SSH access controller, writes and
-  removes SSH key material in the configured external store. The grant status and
-  `Server.status.ssh.authorizedKeys` contain the public key and fingerprint for
-  homelabd. The Server controller does not create or store SSH credentials.
-- `SSHAccessGrant` receives `homelab.io/ssh-access-cleanup` at creation.
-  Deleting it immediately removes its public Server projection and requests
-  deletion of its owned Secret. The Secret finalizer removes the external
-  value; the grant finalizer is removed only after the Secret is gone.
+- `SSHKeyPair.spec` declares one reusable generated key pair and its backing
+  Secret destination. The SSH key-pair controller creates and owns a same-named
+  `Secret`, waits for it to become Ready, and publishes only the public key and
+  fingerprint in status. The private key remains in the Secret and external
+  secret store.
+- `Server.spec.users[].ssh.authorizedKeyRefs` explicitly authorizes Ready
+  `SSHKeyPair` resources for that login user. The SSH projection records
+  UID-qualified key-pair references in `Server.status.ssh.authorizedKeys`; an
+  SSHKeyPair never selects or mutates Servers itself.
+- `SSHKeyPair` receives `homelab.io/ssh-key-pair-cleanup` at creation. Deleting
+  it first requests deletion of its owned Secret and releases the finalizer
+  only after Secret cleanup completes.
 
 ## Reserved future capabilities
 
