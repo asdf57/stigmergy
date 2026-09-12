@@ -77,7 +77,9 @@ func (r *Reconciler) finalize(ctx context.Context, secretResource *registry.Secr
 		secretResource.Spec.SecretStoreRef.Name,
 	)
 	if errors.Is(err, store.ErrNotFound) {
-		return fmt.Errorf("secret store %s not found for secret %s: %w (cleanup is impossible)", secretResource.Spec.SecretStoreRef.Name, secretResource.Metadata.Name, err)
+		// The external value cannot be reached once its SecretStore is gone.
+		// Release the finalizer so API cleanup is not blocked indefinitely.
+		return r.removeFinalizer(ctx, secretResource)
 	} else if err != nil {
 		return fmt.Errorf("failed to get secret store %s for secret %s: %w", secretResource.Spec.SecretStoreRef.Name, secretResource.Metadata.Name, err)
 	}
