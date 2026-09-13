@@ -1,85 +1,4 @@
 services:
-  openbao:
-    image: ghcr.io/openbao/openbao:2.6.1
-    command:
-      - server
-      - -config=/openbao/config/openbao.hcl
-    cap_add:
-      - IPC_LOCK
-    ports:
-      - "127.0.0.1:8200:8200"
-    volumes:
-      - ./config/openbao.hcl:/openbao/config/openbao.hcl:ro
-      - openbao-data:/openbao/file
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - wget -q --spider 'http://127.0.0.1:8200/v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200'
-      interval: 3s
-      timeout: 2s
-      retries: 20
-      start_period: 3s
-
-  openbao-bootstrap:
-    image: ghcr.io/openbao/openbao:2.6.1
-    entrypoint:
-      - /bin/sh
-      - /openbao/bootstrap/openbao-bootstrap.sh
-    environment:
-      BAO_ADDR: http://openbao:8200
-    depends_on:
-      openbao:
-        condition: service_healthy
-      openbao-volume-init:
-        condition: service_completed_successfully
-    volumes:
-      - ./config/openbao-bootstrap.sh:/openbao/bootstrap/openbao-bootstrap.sh:ro
-      - ./config/openbao-api-policy.hcl:/openbao/bootstrap/openbao-api-policy.hcl:ro
-      - openbao-init:/run/openbao-init
-      - openbao-bootstrap:/run/openbao-bootstrap
-
-  # Docker creates new named-volume roots as root:root. OpenBao runs as
-  # 100:1000, so initialize the shared directories before either the
-  # bootstrap job or Agent tries to write to them.
-  openbao-volume-init:
-    image: ghcr.io/openbao/openbao:2.6.1
-    user: "0:0"
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        chown 100:1000 /run/openbao-init /run/openbao-bootstrap /run/openbao
-        chmod 0700 /run/openbao-init
-        chmod 0700 /run/openbao-bootstrap
-        chmod 0750 /run/openbao
-    volumes:
-      - openbao-init:/run/openbao-init
-      - openbao-bootstrap:/run/openbao-bootstrap
-      - openbao-runtime:/run/openbao
-
-  openbao-agent:
-    image: ghcr.io/openbao/openbao:2.6.1
-    command:
-      - agent
-      - -config=/openbao/agent/openbao-agent.hcl
-    depends_on:
-      openbao-bootstrap:
-        condition: service_completed_successfully
-    restart: unless-stopped
-    volumes:
-      - ./config/openbao-agent.hcl:/openbao/agent/openbao-agent.hcl:ro
-      - openbao-bootstrap:/run/openbao-bootstrap:ro
-      - openbao-runtime:/run/openbao
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - test -s /run/openbao/token
-      interval: 3s
-      timeout: 2s
-      retries: 20
-      start_period: 3s
-
   etcd:
     image: gcr.io/etcd-development/etcd:v3.6.13
     command:
@@ -121,17 +40,8 @@ services:
     depends_on:
       etcd:
         condition: service_healthy
-      openbao:
-        condition: service_healthy
-      openbao-agent:
-        condition: service_healthy
     ports:
       - "0.0.0.0:8080:8080"
-    volumes:
-      - openbao-runtime:/run/openbao:ro
-    group_add:
-      # OpenBao writes the 0640 Agent token as UID:GID 100:1000.
-      - "1000"
     init: true
 
   # Development-only etcd browser. Start it with `make up-tools`, then open
@@ -148,7 +58,3 @@ services:
 
 volumes:
   etcd-data:
-  openbao-data:
-  openbao-init:
-  openbao-bootstrap:
-  openbao-runtime:
