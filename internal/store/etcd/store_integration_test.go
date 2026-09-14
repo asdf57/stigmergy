@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
-	storage "github.com/asdf57/prov-controller-test/go/internal/store"
+	"github.com/asdf57/stigmergy/internal/resource"
+	storage "github.com/asdf57/stigmergy/internal/store"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

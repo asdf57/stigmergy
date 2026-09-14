@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
+	"github.com/asdf57/stigmergy/internal/resource"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

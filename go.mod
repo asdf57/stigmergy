@@ -1,4 +1,4 @@
-module github.com/asdf57/prov-controller-test/go
+module github.com/asdf57/stigmergy
 
 go 1.26.0
 

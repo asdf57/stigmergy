@@ -4,7 +4,7 @@ package api
 import (
 	"net/http"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 	"github.com/swaggest/swgui"
 	"github.com/swaggest/swgui/v5emb"
 )

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
+	"github.com/asdf57/stigmergy/internal/resource"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )

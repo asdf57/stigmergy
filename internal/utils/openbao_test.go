@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 )
 
 func TestOpenBaoKeyStoreWritesAndDeletesSecret(t *testing.T) {

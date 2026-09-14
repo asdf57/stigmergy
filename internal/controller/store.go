@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/asdf57/prov-controller-test/go/internal/store/etcd"
+	"github.com/asdf57/stigmergy/internal/store/etcd"
 )
 
 //	type Store interface {

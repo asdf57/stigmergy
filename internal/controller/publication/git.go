@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/store"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/store"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"

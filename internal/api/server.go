@@ -11,9 +11,9 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/store"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/store"
 )
 
 const maxRequestBody = 1 << 20

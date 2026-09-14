@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
+	"github.com/asdf57/stigmergy/internal/resource"
 )
 
 type Definition struct {

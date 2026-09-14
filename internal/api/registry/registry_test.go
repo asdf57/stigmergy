@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/resource"
 )
 
 func TestGeneratedResourceDefinitionDecodesTypedSpec(t *testing.T) {

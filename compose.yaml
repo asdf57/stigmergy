@@ -1,60 +1,13 @@
 services:
-  etcd:
-    image: gcr.io/etcd-development/etcd:v3.6.13
-    command:
-      - /usr/local/bin/etcd
-      - --name=etcd
-      - --data-dir=/etcd-data
-      - --listen-client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://etcd:2379
-      - --listen-peer-urls=http://0.0.0.0:2380
-      - --initial-advertise-peer-urls=http://etcd:2380
-      - --initial-cluster=etcd=http://etcd:2380
-      - --initial-cluster-state=new
-      - --auto-compaction-mode=periodic
-      - --auto-compaction-retention=1h
-    ports:
-      - "127.0.0.1:2379:2379"
-    volumes:
-      - etcd-data:/etcd-data
-    healthcheck:
-      test:
-        - CMD
-        - /usr/local/bin/etcdctl
-        - --endpoints=http://127.0.0.1:2379
-        - endpoint
-        - health
-      interval: 2s
-      timeout: 2s
-      retries: 15
-      start_period: 2s
-
   api:
     build:
       context: .
     environment:
       HTTP_ADDR: 0.0.0.0:8080
-      ETCD_ENDPOINTS: http://etcd:2379
-      # Refer to this name from GitRepository.spec.authentication.
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-    depends_on:
-      etcd:
-        condition: service_healthy
+      ETCD_ENDPOINTS: ${ETCD_ENDPOINTS:-http://etcd:2379}
+      # Available to an external SecretStore configured with
+      # tokenEnvironmentVariable: OPENBAO_TOKEN.
+      OPENBAO_TOKEN: ${OPENBAO_TOKEN:-}
     ports:
       - "0.0.0.0:8080:8080"
     init: true
-
-  # Development-only etcd browser. Start it with `make up-tools`, then open
-  # http://127.0.0.1:8002 and connect to etcd:2379 using etcd v3.
-  etcd-workbench:
-    image: docker.io/tzfun/etcd-workbench:1.1.4
-    profiles:
-      - tools
-    depends_on:
-      etcd:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8002:8002"
-
-volumes:
-  etcd-data:

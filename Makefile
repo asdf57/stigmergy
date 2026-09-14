@@ -1,8 +1,9 @@
 BINARY := build/homelab-controller
+COMPOSE_DEV := docker compose -f compose.yaml -f compose.etcd.yaml -f compose.openbao.yaml
 
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt test test-integration vet build run run-local up up-tools down logs clean
+.PHONY: generate fmt test test-integration vet build run run-api run-local up up-api up-tools down logs openbao-root-token clean
 
 generate:
 	go generate ./...
@@ -24,22 +25,31 @@ build:
 	go build -trimpath -o $(BINARY) ./cmd/homelab-controller
 
 run:
-	docker compose up --build
+	$(COMPOSE_DEV) up --build
+
+run-api:
+	docker compose up --build api
 
 run-local:
 	go run ./cmd/homelab-controller
 
 up:
-	docker compose up --build --detach
+	$(COMPOSE_DEV) up --build --detach
+
+up-api:
+	docker compose up --build --detach api
 
 up-tools:
-	docker compose --profile tools up --build --detach
+	$(COMPOSE_DEV) --profile tools up --build --detach
 
 down:
-	docker compose --profile tools down
+	$(COMPOSE_DEV) --profile tools down
 
 logs:
-	docker compose logs --follow
+	$(COMPOSE_DEV) logs --follow
+
+openbao-root-token:
+	$(COMPOSE_DEV) run --rm --no-deps --entrypoint /bin/sh openbao-bootstrap -c 'cat /run/openbao-init/root-token'
 
 clean:
 	rm -rf build

@@ -13,9 +13,9 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/resource"
 )
 
 type createResourceRequest struct {

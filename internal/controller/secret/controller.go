@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strconv"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/controller"
-	"github.com/asdf57/prov-controller-test/go/internal/store"
-	"github.com/asdf57/prov-controller-test/go/internal/utils"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/controller"
+	"github.com/asdf57/stigmergy/internal/store"
+	"github.com/asdf57/stigmergy/internal/utils"
 )
 
 const cleanupFinalizer = "homelab.io/secret-cleanup"

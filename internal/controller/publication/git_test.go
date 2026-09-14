@@ -10,7 +10,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 )
 
 func TestGitPublisherPublishesAndSkipsUnchangedContent(t *testing.T) {

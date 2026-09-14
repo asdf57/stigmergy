@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asdf57/prov-controller-test/go/internal/utils"
+	"github.com/asdf57/stigmergy/internal/utils"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

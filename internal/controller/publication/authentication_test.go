@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
-	"github.com/asdf57/prov-controller-test/go/internal/sshkey"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/resource"
+	"github.com/asdf57/stigmergy/internal/sshkey"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/api/registry"
 )
 
 func (s *Server) serveResource(w http.ResponseWriter, r *http.Request) {

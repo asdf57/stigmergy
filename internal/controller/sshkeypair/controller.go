@@ -11,12 +11,12 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
-	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
-	"github.com/asdf57/prov-controller-test/go/internal/controller"
-	"github.com/asdf57/prov-controller-test/go/internal/resource"
-	"github.com/asdf57/prov-controller-test/go/internal/sshkey"
-	"github.com/asdf57/prov-controller-test/go/internal/store"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
+	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/controller"
+	"github.com/asdf57/stigmergy/internal/resource"
+	"github.com/asdf57/stigmergy/internal/sshkey"
+	"github.com/asdf57/stigmergy/internal/store"
 )
 
 const (

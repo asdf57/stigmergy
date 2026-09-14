@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 )
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
