@@ -49,8 +49,9 @@ type Publisher interface {
 }
 
 type GitPublisher struct {
-	Store store.Store
-	Now   func() time.Time
+	Store           store.Store
+	Now             func() time.Time
+	KnownHostsFiles []string
 }
 
 func NewGitPublisher(store store.Store) *GitPublisher {
@@ -377,6 +378,11 @@ func (p *GitPublisher) authentication(ctx context.Context, repository apigen.Git
 	if fingerprint := cryptossh.FingerprintSHA256(auth.Signer.PublicKey()); fingerprint != *sshKeyPair.Status.Fingerprint {
 		return nil, fmt.Errorf("git authentication: Secret %q private key does not match SSHKeyPair %q fingerprint", secret.Metadata.Name, sshKeyPair.Metadata.Name)
 	}
+	hostKeyCallback, err := gitssh.NewKnownHostsCallback(p.KnownHostsFiles...)
+	if err != nil {
+		return nil, fmt.Errorf("git authentication: load SSH known hosts: %w", err)
+	}
+	auth.HostKeyCallback = hostKeyCallback
 	return auth, nil
 }
 

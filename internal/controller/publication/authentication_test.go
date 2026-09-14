@@ -2,6 +2,8 @@ package publication
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,13 +16,26 @@ import (
 
 func TestGitAuthenticationUsesReadySSHKeyPairSecret(t *testing.T) {
 	storage, repository := gitAuthenticationFixture(t)
+	publisher := NewGitPublisher(storage)
+	publisher.KnownHostsFiles = []string{gitAuthenticationKnownHostsFile(t)}
 
-	auth, err := NewGitPublisher(storage).authentication(context.Background(), repository)
+	auth, err := publisher.authentication(context.Background(), repository)
 	if err != nil {
 		t.Fatalf("authentication() error = %v", err)
 	}
 	if _, ok := auth.(*gitssh.PublicKeys); !ok {
 		t.Fatalf("authentication() type = %T, want *ssh.PublicKeys", auth)
+	}
+}
+
+func TestGitAuthenticationRejectsMissingKnownHosts(t *testing.T) {
+	storage, repository := gitAuthenticationFixture(t)
+	publisher := NewGitPublisher(storage)
+	publisher.KnownHostsFiles = []string{filepath.Join(t.TempDir(), "missing-known-hosts")}
+
+	_, err := publisher.authentication(context.Background(), repository)
+	if err == nil || !strings.Contains(err.Error(), "load SSH known hosts") {
+		t.Fatalf("authentication() error = %v, want known-hosts error", err)
 	}
 }
 
@@ -130,4 +145,17 @@ func gitAuthenticationFixture(t *testing.T) (*fakeStore, apigen.GitRepositorySpe
 	return newFakeStore(rawKeyPair, rawSecret), apigen.GitRepositorySpec{
 		Authentication: &apigen.GitRepositoryAuthentication{SshKeyPairRef: "git-ssh-key"},
 	}
+}
+
+func gitAuthenticationKnownHostsFile(t *testing.T) string {
+	t.Helper()
+	_, publicKey, _, err := sshkey.GenerateEd25519KeyPair()
+	if err != nil {
+		t.Fatalf("GenerateEd25519KeyPair() error = %v", err)
+	}
+	file := filepath.Join(t.TempDir(), "known_hosts")
+	if err := os.WriteFile(file, []byte("github.com "+strings.TrimSpace(publicKey)+"\n"), 0o600); err != nil {
+		t.Fatalf("write known_hosts: %v", err)
+	}
+	return file
 }
