@@ -73,23 +73,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return r.updateStatus(ctx, keyPair, failureStatus(keyPair, phase, reason, err.Error()))
 	}
 	if created || !secretReady(secretResource) {
-		phase, _ := secretResource.Status["phase"].(string)
-		if phase == "Failed" {
+		if secretResource.Status != nil && secretResource.Status.Phase != nil && *secretResource.Status.Phase == apigen.SecretStatusPhaseFailed {
 			return r.updateStatus(ctx, keyPair, failureStatus(keyPair, "Failed", "SecretReconciliationFailed", fmt.Sprintf("Secret %q failed reconciliation", secretResource.Metadata.Name)))
 		}
 		return r.updateStatus(ctx, keyPair, failureStatus(keyPair, "Pending", "SecretPending", fmt.Sprintf("Secret %q is waiting for reconciliation", secretResource.Metadata.Name)))
 	}
 
-	status := map[string]any{
-		"phase":              "Ready",
-		"observedGeneration": keyPair.Metadata.Generation,
-		"publicKey":          publicKey,
-		"fingerprint":        fingerprint,
-		"secretRef":          map[string]any{"name": secretResource.Metadata.Name, "uid": secretResource.Metadata.UID},
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "True", "reason": "KeyPairAvailable",
-			"message": "The generated key pair is managed by a Ready Secret resource", "observedGeneration": keyPair.Metadata.Generation,
-		}},
+	phase, message, observedGeneration := apigen.SSHKeyPairStatusPhaseReady, "The generated key pair is managed by a Ready Secret resource", keyPair.Metadata.Generation
+	conditions := []apigen.SSHKeyPairCondition{{
+		Type: "Ready", Status: apigen.SSHKeyPairConditionStatusTrue, Reason: "KeyPairAvailable",
+		Message: &message, ObservedGeneration: &observedGeneration,
+	}}
+	status := &apigen.SSHKeyPairStatus{
+		Phase: &phase, ObservedGeneration: &observedGeneration, PublicKey: &publicKey, Fingerprint: &fingerprint,
+		SecretRef: &apigen.ResourceReference{Name: secretResource.Metadata.Name, Uid: secretResource.Metadata.UID}, Conditions: &conditions,
 	}
 	return r.updateStatus(ctx, keyPair, status)
 }
@@ -172,34 +169,23 @@ func validateOwnedSecret(secretResource registry.Secret, keyPair registry.SSHKey
 }
 
 func secretReady(secretResource registry.Secret) bool {
-	observed, ok := numericInt64(secretResource.Status["observedGeneration"])
-	return secretResource.Status["phase"] == "Ready" && ok && observed == secretResource.Metadata.Generation
+	return secretResource.Status != nil && secretResource.Status.Phase != nil &&
+		*secretResource.Status.Phase == apigen.SecretStatusPhaseReady && secretResource.Status.ObservedGeneration != nil &&
+		*secretResource.Status.ObservedGeneration == secretResource.Metadata.Generation
 }
 
-func numericInt64(value any) (int64, bool) {
-	switch typed := value.(type) {
-	case int64:
-		return typed, true
-	case int:
-		return int64(typed), true
-	case float64:
-		return int64(typed), typed == float64(int64(typed))
-	default:
-		return 0, false
+func failureStatus(keyPair registry.SSHKeyPair, phase, reason, message string) *apigen.SSHKeyPairStatus {
+	statusPhase, observedGeneration := apigen.SSHKeyPairStatusPhase(phase), keyPair.Metadata.Generation
+	conditions := []apigen.SSHKeyPairCondition{{
+		Type: "Ready", Status: apigen.SSHKeyPairConditionStatusFalse, Reason: reason,
+		Message: &message, ObservedGeneration: &observedGeneration,
+	}}
+	return &apigen.SSHKeyPairStatus{
+		Phase: &statusPhase, ObservedGeneration: &observedGeneration, Conditions: &conditions,
 	}
 }
 
-func failureStatus(keyPair registry.SSHKeyPair, phase, reason, message string) map[string]any {
-	return map[string]any{
-		"phase": phase, "observedGeneration": keyPair.Metadata.Generation,
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "False", "reason": reason,
-			"message": message, "observedGeneration": keyPair.Metadata.Generation,
-		}},
-	}
-}
-
-func (r *Reconciler) updateStatus(ctx context.Context, keyPair registry.SSHKeyPair, status map[string]any) error {
+func (r *Reconciler) updateStatus(ctx context.Context, keyPair registry.SSHKeyPair, status *apigen.SSHKeyPairStatus) error {
 	if resource.EqualJSON(keyPair.Status, status) {
 		return nil
 	}
@@ -207,7 +193,11 @@ func (r *Reconciler) updateStatus(ctx context.Context, keyPair registry.SSHKeyPa
 	if err != nil {
 		return fmt.Errorf("parse SSHKeyPair %q resource version: %w", keyPair.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, keyPair.Kind, keyPair.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.SSHKeyPairResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, keyPair.Kind, keyPair.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update SSHKeyPair %q status: %w", keyPair.Metadata.Name, err)
 	}
 	return nil
@@ -319,16 +309,15 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 				if err != nil {
 					return fmt.Errorf("decode SSHKeyPair %q for Server %q: %w", reference.Name, server.Metadata.Name, err)
 				}
-				observedGeneration, observed := numericInt64(keyPair.Status["observedGeneration"])
-				if keyPair.Metadata.DeletionTimestamp != nil || keyPair.Status["phase"] != "Ready" || !observed || observedGeneration != keyPair.Metadata.Generation {
+				if keyPair.Metadata.DeletionTimestamp != nil || keyPair.Status == nil || keyPair.Status.Phase == nil ||
+					*keyPair.Status.Phase != apigen.SSHKeyPairStatusPhaseReady || keyPair.Status.ObservedGeneration == nil ||
+					*keyPair.Status.ObservedGeneration != keyPair.Metadata.Generation {
 					continue
 				}
-				publicKey, publicOK := keyPair.Status["publicKey"].(string)
-				fingerprint, fingerprintOK := keyPair.Status["fingerprint"].(string)
-				if !publicOK || !fingerprintOK || publicKey == "" || fingerprint == "" {
+				if keyPair.Status.PublicKey == nil || keyPair.Status.Fingerprint == nil || *keyPair.Status.PublicKey == "" || *keyPair.Status.Fingerprint == "" {
 					continue
 				}
-				keys = append(keys, resolvedKey{keyPair.Metadata.Name, keyPair.Metadata.UID, user.Name, publicKey, fingerprint})
+				keys = append(keys, resolvedKey{keyPair.Metadata.Name, keyPair.Metadata.UID, user.Name, *keyPair.Status.PublicKey, *keyPair.Status.Fingerprint})
 			}
 		}
 	}
@@ -338,15 +327,18 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 		}
 		return keys[left].keyPairName < keys[right].keyPairName
 	})
-	authorizedKeys := make([]any, 0, len(keys))
+	authorizedKeys := make([]apigen.ServerSSHAuthorizedKeyStatus, 0, len(keys))
 	for _, key := range keys {
-		authorizedKeys = append(authorizedKeys, map[string]any{
-			"keyPairRef": map[string]any{"name": key.keyPairName, "uid": key.keyPairUID},
-			"loginUser":  key.loginUser, "publicKey": key.publicKey, "fingerprint": key.fingerprint,
+		authorizedKeys = append(authorizedKeys, apigen.ServerSSHAuthorizedKeyStatus{
+			KeyPairRef: apigen.ResourceReference{Name: key.keyPairName, Uid: key.keyPairUID},
+			LoginUser:  key.loginUser, PublicKey: key.publicKey, Fingerprint: key.fingerprint,
 		})
 	}
-	status := cloneStatus(server.Status)
-	status["ssh"] = map[string]any{"authorizedKeys": authorizedKeys}
+	status := &apigen.ServerStatus{}
+	if server.Status != nil {
+		*status = *server.Status
+	}
+	status.Ssh = &apigen.ServerSSHStatus{AuthorizedKeys: authorizedKeys}
 	if resource.EqualJSON(server.Status, status) {
 		return nil
 	}
@@ -354,16 +346,12 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 	if err != nil {
 		return fmt.Errorf("parse Server %q resource version: %w", server.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, server.Kind, server.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.ServerResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, server.Kind, server.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update Server %q resolved SSH keys: %w", server.Metadata.Name, err)
 	}
 	return nil
-}
-
-func cloneStatus(status map[string]any) map[string]any {
-	cloned := make(map[string]any, len(status)+1)
-	for key, value := range status {
-		cloned[key] = value
-	}
-	return cloned
 }

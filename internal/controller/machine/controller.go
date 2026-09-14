@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -64,10 +63,7 @@ func (r *MachineReportReconciler) Reconcile(ctx context.Context, event controlle
 		machine = &created
 	}
 
-	inventory, err := reportStatus(report.Spec)
-	if err != nil {
-		return fmt.Errorf("build Machine status from report %q: %w", report.Metadata.Name, err)
-	}
+	inventory := report.Spec
 	if observedAt, ok := machineObservedAt(machine.Status); ok && observedAt.After(report.Spec.ObservedAt) {
 		slog.Info("discarding stale MachineReport", "name", report.Metadata.Name, "observedAt", report.Spec.ObservedAt, "machineObservedAt", observedAt)
 		return r.consumeReport(ctx, report, reportRevision)
@@ -78,7 +74,11 @@ func (r *MachineReportReconciler) Reconcile(ctx context.Context, event controlle
 		if err != nil {
 			return fmt.Errorf("parse Machine %q resource version: %w", machine.Metadata.Name, err)
 		}
-		updated, err := r.store.UpdateStatus(ctx, machine.Kind, machine.Metadata.Name, status, revision)
+		storedStatus, err := registry.MachineResource.EncodeStatus(status)
+		if err != nil {
+			return err
+		}
+		updated, err := r.store.UpdateStatus(ctx, machine.Kind, machine.Metadata.Name, storedStatus, revision)
 		if err != nil {
 			return fmt.Errorf("update Machine %q status: %w", machine.Metadata.Name, err)
 		}
@@ -150,41 +150,24 @@ func (r *MachineReportReconciler) consumeReport(ctx context.Context, report regi
 	return nil
 }
 
-func reportStatus(spec apigen.MachineReportSpec) (map[string]any, error) {
-	encoded, err := json.Marshal(spec)
-	if err != nil {
-		return nil, err
-	}
-	var status map[string]any
-	if err := json.Unmarshal(encoded, &status); err != nil {
-		return nil, err
-	}
-	return status, nil
-}
-
-func machineObservedAt(status map[string]any) (time.Time, bool) {
-	inventory, ok := status["inventory"].(map[string]any)
-	if !ok {
+func machineObservedAt(status *apigen.MachineStatus) (time.Time, bool) {
+	if status == nil || status.Inventory == nil {
 		return time.Time{}, false
 	}
-	value, ok := inventory["observed_at"].(string)
-	if !ok {
-		return time.Time{}, false
-	}
-	observedAt, err := time.Parse(time.RFC3339Nano, value)
-	return observedAt, err == nil
+	return status.Inventory.ObservedAt, true
 }
 
-func mergeInventoryStatus(status, inventory map[string]any) map[string]any {
+func mergeInventoryStatus(status *apigen.MachineStatus, inventory apigen.MachineReportSpec) *apigen.MachineStatus {
 	// Inventory is owned by this reconciler. Preserve status fields owned by
 	// provisioning, agent-health, and future feature controllers.
-	merged := make(map[string]any, len(status)+1)
-	for key, value := range status {
-		merged[key] = value
+	merged := &apigen.MachineStatus{}
+	if status != nil {
+		*merged = *status
 	}
-	merged["inventory"] = inventory
-	if _, hasPhase := merged["phase"]; !hasPhase {
-		merged["phase"] = "Available"
+	merged.Inventory = &inventory
+	if merged.Phase == nil {
+		phase := "Available"
+		merged.Phase = &phase
 	}
 	return merged
 }

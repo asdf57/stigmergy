@@ -190,12 +190,12 @@ func TestReconcileAllowsOverlappingPublicationRootsOnDifferentBranches(t *testin
 	}
 }
 
-func TestCredentialEnvironmentVariableIsRequiredWhenConfigured(t *testing.T) {
-	publisher := &GitPublisher{LookupEnv: func(string) (string, bool) { return "", false }}
-	_, err := publisher.authentication(apigen.GitRepositorySpec{
-		Authentication: &apigen.GitRepositoryAuthentication{PasswordEnvironmentVariable: "GITHUB_TOKEN"},
+func TestReferencedSSHKeyPairIsRequiredWhenConfigured(t *testing.T) {
+	publisher := NewGitPublisher(newFakeStore())
+	_, err := publisher.authentication(context.Background(), apigen.GitRepositorySpec{
+		Authentication: &apigen.GitRepositoryAuthentication{SshKeyPairRef: "git-ssh-key"},
 	})
-	if err == nil || !strings.Contains(err.Error(), "GITHUB_TOKEN") {
+	if err == nil || !strings.Contains(err.Error(), "SSHKeyPair") {
 		t.Fatalf("authentication() error = %v", err)
 	}
 }

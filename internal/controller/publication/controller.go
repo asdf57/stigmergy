@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -28,7 +29,7 @@ type Reconciler struct {
 }
 
 func NewReconciler(store store.Store) *Reconciler {
-	return &Reconciler{store: store, publisher: NewGitPublisher(), now: time.Now}
+	return &Reconciler{store: store, publisher: NewGitPublisher(store), now: time.Now}
 }
 
 func NewReconcilerWithPublisher(store store.Store, publisher Publisher) *Reconciler {
@@ -59,14 +60,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if err != nil {
 		return fmt.Errorf("decode InventoryCaptureGroup %q: %w", publication.Spec.InventoryCaptureGroupRef.Name, err)
 	}
-	if publicationRequiresReady(publication.Spec) && group.Status["phase"] != "Ready" {
-		return r.updateFailure(ctx, publication, "Pending", "InventoryNotReady", fmt.Sprintf("InventoryCaptureGroup %q phase is %v", group.Metadata.Name, group.Status["phase"]))
+	if publicationRequiresReady(publication.Spec) && (group.Status == nil || group.Status.Phase == nil || *group.Status.Phase != "Ready") {
+		return r.updateFailure(ctx, publication, "Pending", "InventoryNotReady", fmt.Sprintf("InventoryCaptureGroup %q is not Ready", group.Metadata.Name))
 	}
-	if numberAsInt64(group.Status["observedGeneration"]) != group.Metadata.Generation {
+	if group.Status == nil || group.Status.ObservedGeneration == nil || *group.Status.ObservedGeneration != group.Metadata.Generation {
 		return r.updateFailure(ctx, publication, "Pending", "InventoryNotObserved", fmt.Sprintf("InventoryCaptureGroup %q has not observed generation %d", group.Metadata.Name, group.Metadata.Generation))
 	}
+	if group.Status.Inventory == nil {
+		return r.updateFailure(ctx, publication, "Pending", "InventoryNotReady", fmt.Sprintf("InventoryCaptureGroup %q has no rendered inventory", group.Metadata.Name))
+	}
 
-	artifacts, err := renderAnsibleDirectory(group.Status["inventory"], publication.Spec.Target)
+	artifacts, err := renderAnsibleDirectory(*group.Status.Inventory, publication.Spec.Target)
 	if err != nil {
 		return r.updateFailure(ctx, publication, "Failed", "RenderFailed", err.Error())
 	}
@@ -181,30 +185,21 @@ func (r *Reconciler) requestsMatching(ctx context.Context, matches func(registry
 	return requests, nil
 }
 
-func renderAnsibleDirectory(value any, target apigen.InventoryPublicationTarget) ([]Artifact, error) {
+func renderAnsibleDirectory(inventory map[string]apigen.InventoryCaptureAnsibleGroup, target apigen.InventoryPublicationTarget) ([]Artifact, error) {
 	if string(target.Layout) != "ansible-directory" {
 		return nil, fmt.Errorf("unsupported publication layout %q", target.Layout)
 	}
-	inventory, ok := value.(map[string]any)
-	if !ok {
-		return nil, errors.New("InventoryCaptureGroup status does not contain inventory")
-	}
 	renderedInventory := make(map[string]any, len(inventory))
 	artifacts := make([]Artifact, 0, len(inventory)+1)
-	for groupName, rawGroup := range inventory {
-		group, ok := rawGroup.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("inventory group %q is not an object", groupName)
+	for groupName, group := range inventory {
+		renderedHosts, err := jsonObject(group.Hosts)
+		if err != nil {
+			return nil, fmt.Errorf("render inventory group %q hosts: %w", groupName, err)
 		}
-		renderedGroup := make(map[string]any, len(group))
-		for key, groupValue := range group {
-			if key != "vars" {
-				renderedGroup[key] = groupValue
-			}
-		}
+		renderedGroup := map[string]any{"hosts": renderedHosts}
 		renderedInventory[groupName] = renderedGroup
-		if variables, exists := group["vars"]; exists {
-			content, err := yaml.Marshal(variables)
+		if group.Vars != nil {
+			content, err := yaml.Marshal(*group.Vars)
 			if err != nil {
 				return nil, fmt.Errorf("render group_vars/%s.yaml: %w", groupName, err)
 			}
@@ -218,6 +213,18 @@ func renderAnsibleDirectory(value any, target apigen.InventoryPublicationTarget)
 	artifacts = append(artifacts, Artifact{Path: target.InventoryFile, Content: inventoryContent})
 	sort.Slice(artifacts, func(left, right int) bool { return artifacts[left].Path < artifacts[right].Path })
 	return artifacts, nil
+}
+
+func jsonObject(value any) (map[string]any, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var object map[string]any
+	if err := json.Unmarshal(encoded, &object); err != nil {
+		return nil, err
+	}
+	return object, nil
 }
 
 func artifactSetDigest(artifacts []Artifact) string {
@@ -241,84 +248,67 @@ func publicationRequiresReady(spec apigen.InventoryPublicationSpec) bool {
 }
 
 func publicationUpToDate(publication registry.InventoryPublication, group registry.InventoryCaptureGroup, repository registry.GitRepository, digest string) bool {
-	if publication.Status["phase"] != "Published" || publication.Status["observedArtifactDigest"] != digest {
+	status := publication.Status
+	if status == nil || status.Phase == nil || *status.Phase != "Published" || status.ObservedArtifactDigest == nil || *status.ObservedArtifactDigest != digest {
 		return false
 	}
-	if numberAsInt64(publication.Status["observedGeneration"]) != publication.Metadata.Generation {
+	if status.ObservedGeneration == nil || *status.ObservedGeneration != publication.Metadata.Generation {
 		return false
 	}
-	source, sourceOK := publication.Status["source"].(map[string]any)
-	destination, destinationOK := publication.Status["destination"].(map[string]any)
-	return sourceOK && destinationOK &&
-		source["inventoryCaptureGroupUID"] == group.Metadata.UID &&
-		numberAsInt64(source["observedGeneration"]) == group.Metadata.Generation &&
-		source["digest"] == digest &&
-		destination["repositoryUID"] == repository.Metadata.UID &&
-		numberAsInt64(destination["observedRepositoryGeneration"]) == repository.Metadata.Generation &&
-		destination["branch"] == publication.Spec.Target.Branch
-}
-
-func numberAsInt64(value any) int64 {
-	switch number := value.(type) {
-	case int:
-		return int64(number)
-	case int64:
-		return number
-	case float64:
-		return int64(number)
-	default:
-		return -1
-	}
+	return status.Source != nil && status.Destination != nil &&
+		status.Source.InventoryCaptureGroupUID == group.Metadata.UID &&
+		status.Source.ObservedGeneration == group.Metadata.Generation &&
+		status.Source.Digest == digest &&
+		status.Destination.RepositoryUID == repository.Metadata.UID &&
+		status.Destination.ObservedRepositoryGeneration == repository.Metadata.Generation &&
+		status.Destination.Branch == publication.Spec.Target.Branch
 }
 
 func (r *Reconciler) updateSuccess(ctx context.Context, publication registry.InventoryPublication, group registry.InventoryCaptureGroup, repository registry.GitRepository, digest string, artifacts []Artifact, result PublishResult) error {
-	now := r.now().UTC().Format(time.RFC3339Nano)
-	publishedArtifacts := make([]any, 0, len(artifacts))
+	now := r.now().UTC()
+	publishedArtifacts := make([]apigen.InventoryPublicationArtifactStatus, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		publishedArtifacts = append(publishedArtifacts, map[string]any{
-			"path":   path.Join(publication.Spec.Target.RootPath, artifact.Path),
-			"digest": contentDigest(artifact.Content),
+		publishedArtifacts = append(publishedArtifacts, apigen.InventoryPublicationArtifactStatus{
+			Path: path.Join(publication.Spec.Target.RootPath, artifact.Path), Digest: contentDigest(artifact.Content),
 		})
 	}
-	status := map[string]any{
-		"phase":                  "Published",
-		"observedGeneration":     publication.Metadata.Generation,
-		"observedArtifactDigest": digest,
-		"lastPublishedTime":      now,
-		"artifacts":              publishedArtifacts,
-		"source": map[string]any{
-			"inventoryCaptureGroupUID": group.Metadata.UID,
-			"observedGeneration":       group.Metadata.Generation,
-			"digest":                   digest,
+	phase, message, observedGeneration := "Published", "Inventory is published", publication.Metadata.Generation
+	conditions := []apigen.InventoryPublicationCondition{{
+		Type: "Ready", Status: apigen.InventoryPublicationConditionStatusTrue, Reason: "PublicationSucceeded",
+		Message: &message, ObservedGeneration: &observedGeneration,
+	}}
+	status := &apigen.InventoryPublicationStatus{
+		Phase: &phase, ObservedGeneration: &observedGeneration, ObservedArtifactDigest: &digest,
+		LastPublishedTime: &now, Artifacts: &publishedArtifacts,
+		Source: &apigen.InventoryPublicationSourceStatus{
+			InventoryCaptureGroupUID: group.Metadata.UID, ObservedGeneration: group.Metadata.Generation, Digest: digest,
 		},
-		"destination": map[string]any{
-			"repositoryUID":                repository.Metadata.UID,
-			"observedRepositoryGeneration": repository.Metadata.Generation,
-			"branch":                       publication.Spec.Target.Branch,
-			"revision":                     result.Revision,
-			"url":                          result.URL,
+		Destination: &apigen.InventoryPublicationDestinationStatus{
+			RepositoryUID: repository.Metadata.UID, ObservedRepositoryGeneration: repository.Metadata.Generation,
+			Branch: publication.Spec.Target.Branch, Revision: result.Revision, Url: &result.URL,
 		},
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "True", "reason": "PublicationSucceeded",
-			"message": "Inventory is published", "observedGeneration": publication.Metadata.Generation,
-		}},
+		Conditions: &conditions,
 	}
 	return r.writeStatus(ctx, publication, status)
 }
 
 func (r *Reconciler) updateFailure(ctx context.Context, publication registry.InventoryPublication, phase, reason, message string) error {
-	status := cloneStatus(publication.Status)
-	delete(status, "observedInventoryDigest")
-	status["phase"] = phase
-	status["observedGeneration"] = publication.Metadata.Generation
-	status["conditions"] = []any{map[string]any{
-		"type": "Ready", "status": "False", "reason": reason,
-		"message": message, "observedGeneration": publication.Metadata.Generation,
+	status := &apigen.InventoryPublicationStatus{}
+	if publication.Status != nil {
+		*status = *publication.Status
+	}
+	observedGeneration := publication.Metadata.Generation
+	conditions := []apigen.InventoryPublicationCondition{{
+		Type: "Ready", Status: apigen.InventoryPublicationConditionStatusFalse, Reason: reason,
+		Message: &message, ObservedGeneration: &observedGeneration,
 	}}
+	status.Phase = &phase
+	status.ObservedGeneration = &observedGeneration
+	status.Conditions = &conditions
 	return r.writeStatus(ctx, publication, status)
 }
 
-func (r *Reconciler) writeStatus(ctx context.Context, publication registry.InventoryPublication, status map[string]any) error {
+func (r *Reconciler) writeStatus(ctx context.Context, publication registry.InventoryPublication, status *apigen.InventoryPublicationStatus) error {
 	if resource.EqualJSON(publication.Status, status) {
 		return nil
 	}
@@ -326,16 +316,12 @@ func (r *Reconciler) writeStatus(ctx context.Context, publication registry.Inven
 	if err != nil {
 		return fmt.Errorf("parse InventoryPublication %q resource version: %w", publication.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, publication.Kind, publication.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.InventoryPublicationResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, publication.Kind, publication.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update InventoryPublication %q status: %w", publication.Metadata.Name, err)
 	}
 	return nil
-}
-
-func cloneStatus(status map[string]any) map[string]any {
-	cloned := make(map[string]any, len(status)+2)
-	for key, value := range status {
-		cloned[key] = value
-	}
-	return cloned
 }

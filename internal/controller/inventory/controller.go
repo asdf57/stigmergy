@@ -70,9 +70,9 @@ func (r *InventoryCaptureGroupReconciler) Reconcile(ctx context.Context, request
 		return 0
 	})
 
-	hosts := make(map[string]any, len(selected))
+	hosts := make(map[string]apigen.InventoryCaptureAnsibleHost, len(selected))
 	capturedResources := make([]resource.Resource, 0, len(selected))
-	omitted := make([]any, 0)
+	omitted := make([]apigen.InventoryCaptureOmittedResource, 0)
 	nameCounts := make(map[string]int, len(selected))
 	for _, candidate := range selected {
 		nameCounts[candidate.Metadata.Name]++
@@ -100,7 +100,11 @@ func (r *InventoryCaptureGroupReconciler) Reconcile(ctx context.Context, request
 	if err != nil {
 		return fmt.Errorf("parse InventoryCaptureGroup %q resource version: %w", group.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, group.Kind, group.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.InventoryCaptureGroupResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, group.Kind, group.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update InventoryCaptureGroup %q status: %w", group.Metadata.Name, err)
 	}
 	return nil
@@ -198,36 +202,33 @@ func selectorMatches(labels, required map[string]string, expressions *[]apigen.I
 	return true
 }
 
-func omittedResource(candidate resource.Resource, reason, message string) map[string]any {
-	return map[string]any{
-		"apiVersion": candidate.APIVersion,
-		"kind":       candidate.Kind,
-		"name":       candidate.Metadata.Name,
-		"reason":     reason,
-		"message":    message,
+func omittedResource(candidate resource.Resource, reason, message string) apigen.InventoryCaptureOmittedResource {
+	return apigen.InventoryCaptureOmittedResource{
+		ApiVersion: &candidate.APIVersion, Kind: &candidate.Kind, Name: candidate.Metadata.Name,
+		Reason: reason, Message: &message,
 	}
 }
 
-func captureHost(candidate resource.Resource) (map[string]any, string, string, bool) {
+func captureHost(candidate resource.Resource) (apigen.InventoryCaptureAnsibleHost, string, string, bool) {
 	networking, ok := candidate.Status["networking"].(map[string]any)
 	if !ok {
-		return nil, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
+		return apigen.InventoryCaptureAnsibleHost{}, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
 	}
 	management, ok := networking["management"].(map[string]any)
 	if !ok {
-		return nil, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
+		return apigen.InventoryCaptureAnsibleHost{}, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
 	}
 	address, ok := management["address"].(map[string]any)
 	if !ok {
-		return nil, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
+		return apigen.InventoryCaptureAnsibleHost{}, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
 	}
 	ansibleHost, ok := address["address"].(string)
 	if !ok || ansibleHost == "" {
-		return nil, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
+		return apigen.InventoryCaptureAnsibleHost{}, "ManagementAddressNotReady", managementConditionMessage(candidate.Status), false
 	}
-	host := map[string]any{"ansible_host": ansibleHost}
+	host := apigen.InventoryCaptureAnsibleHost{AnsibleHost: ansibleHost}
 	if fqdn, ok := candidate.Status["fqdn"].(string); ok && fqdn != "" {
-		host["fqdn"] = fqdn
+		host.Fqdn = &fqdn
 	}
 	return host, "", "", true
 }
@@ -249,7 +250,7 @@ func managementConditionMessage(status map[string]any) string {
 	return "Server does not have a resolved management address"
 }
 
-func buildInventory(spec apigen.InventoryCaptureGroupSpec, captured []resource.Resource, hosts map[string]any) (map[string]any, error) {
+func buildInventory(spec apigen.InventoryCaptureGroupSpec, captured []resource.Resource, hosts map[string]apigen.InventoryCaptureAnsibleHost) (map[string]apigen.InventoryCaptureAnsibleGroup, error) {
 	groups := []apigen.InventoryCaptureGroupGroup{}
 	if spec.Groups != nil {
 		groups = *spec.Groups
@@ -277,10 +278,10 @@ func buildInventory(spec apigen.InventoryCaptureGroupSpec, captured []resource.R
 		}
 	}
 
-	inventory := make(map[string]any, len(groups)+1)
-	all := map[string]any{"hosts": hosts}
+	inventory := make(map[string]apigen.InventoryCaptureAnsibleGroup, len(groups)+1)
+	all := apigen.InventoryCaptureAnsibleGroup{Hosts: hosts}
 	if variables, exists := groupVars["all"]; exists && len(variables) != 0 {
-		all["vars"] = variables
+		all.Vars = &variables
 	}
 	inventory["all"] = all
 	for _, group := range groups {
@@ -288,23 +289,23 @@ func buildInventory(spec apigen.InventoryCaptureGroupSpec, captured []resource.R
 		if group.Selector.MatchLabels != nil {
 			requiredLabels = *group.Selector.MatchLabels
 		}
-		groupHosts := make(map[string]any)
+		groupHosts := make(map[string]apigen.InventoryCaptureAnsibleHost)
 		for _, candidate := range captured {
 			if resourceKindMatches(candidate, group.Selector.MatchKinds) &&
 				selectorMatches(candidate.Metadata.Labels, requiredLabels, group.Selector.MatchExpressions) {
 				groupHosts[candidate.Metadata.Name] = hosts[candidate.Metadata.Name]
 			}
 		}
-		capturedGroup := map[string]any{"hosts": groupHosts}
+		capturedGroup := apigen.InventoryCaptureAnsibleGroup{Hosts: groupHosts}
 		if variables, exists := groupVars[group.Name]; exists && len(variables) != 0 {
-			capturedGroup["vars"] = variables
+			capturedGroup.Vars = &variables
 		}
 		inventory[group.Name] = capturedGroup
 	}
 	return inventory, nil
 }
 
-func inventoryStatus(generation int64, matched int, hosts map[string]any, omitted []any, inventory map[string]any, configurationErr error) map[string]any {
+func inventoryStatus(generation int64, matched int, hosts map[string]apigen.InventoryCaptureAnsibleHost, omitted []apigen.InventoryCaptureOmittedResource, inventory map[string]apigen.InventoryCaptureAnsibleGroup, configurationErr error) *apigen.InventoryCaptureGroupStatus {
 	captured := len(hosts)
 	phase := "Ready"
 	conditionStatus := "True"
@@ -330,22 +331,16 @@ func inventoryStatus(generation int64, matched int, hosts map[string]any, omitte
 		reason = "ResourcesOmitted"
 		message = fmt.Sprintf("Captured %d of %d matching resource(s)", captured, matched)
 	}
-	status := map[string]any{
-		"phase":              phase,
-		"matchedResources":   matched,
-		"capturedResources":  captured,
-		"omittedResources":   omitted,
-		"observedGeneration": generation,
-		"conditions": []any{map[string]any{
-			"type":               "Ready",
-			"status":             conditionStatus,
-			"reason":             reason,
-			"message":            message,
-			"observedGeneration": generation,
-		}},
+	conditions := []apigen.InventoryCaptureGroupCondition{{
+		Type: "Ready", Status: apigen.InventoryCaptureGroupConditionStatus(conditionStatus), Reason: reason,
+		Message: &message, ObservedGeneration: &generation,
+	}}
+	status := &apigen.InventoryCaptureGroupStatus{
+		Phase: &phase, MatchedResources: &matched, CapturedResources: &captured,
+		OmittedResources: &omitted, ObservedGeneration: &generation, Conditions: &conditions,
 	}
 	if inventory != nil {
-		status["inventory"] = inventory
+		status.Inventory = &inventory
 	}
 	return status
 }

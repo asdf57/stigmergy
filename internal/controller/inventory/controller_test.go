@@ -81,7 +81,7 @@ func TestReconcileCapturesReadyServersAndReportsOmittedServers(t *testing.T) {
 		t.Fatalf("Reconcile() error = %v", err)
 	}
 	status := storage.resources["InventoryCaptureGroup/servers"].Status
-	if status["phase"] != "Partial" || status["matchedResources"] != 2 || status["capturedResources"] != 1 {
+	if status["phase"] != "Partial" || status["matchedResources"] != float64(2) || status["capturedResources"] != float64(1) {
 		t.Fatalf("capture summary = %#v", status)
 	}
 	inventory := status["inventory"].(map[string]any)

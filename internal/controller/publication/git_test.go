@@ -19,8 +19,7 @@ func TestGitPublisherPublishesAndSkipsUnchangedContent(t *testing.T) {
 		t.Fatalf("initialize bare remote: %v", err)
 	}
 	publisher := &GitPublisher{
-		LookupEnv: os.LookupEnv,
-		Now:       func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
+		Now: func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
 	}
 	request := PublishRequest{
 		Repository:      apigen.GitRepositorySpec{Url: remotePath, Branch: "main"},
@@ -92,8 +91,7 @@ func TestGitPublisherCreatesPublicationBranchFromBaseAndOwnsRepositoryRoot(t *te
 		t.Fatalf("initialize bare remote: %v", err)
 	}
 	publisher := &GitPublisher{
-		LookupEnv: os.LookupEnv,
-		Now:       func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
+		Now: func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
 	}
 	repository := apigen.GitRepositorySpec{Url: remotePath, Branch: "main"}
 	if _, err := publisher.Publish(context.Background(), PublishRequest{

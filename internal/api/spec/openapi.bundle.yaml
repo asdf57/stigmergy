@@ -42,6 +42,9 @@ components:
                     $ref: '#/components/schemas/Metadata'
                 spec:
                     $ref: '#/components/schemas/GitRepositorySpec'
+                status:
+                    $ref: '#/components/schemas/GitRepositoryStatus'
+                    readOnly: true
             required:
                 - apiVersion
                 - kind
@@ -51,14 +54,11 @@ components:
         GitRepositoryAuthentication:
             additionalProperties: false
             properties:
-                passwordEnvironmentVariable:
-                    minLength: 1
-                    type: string
-                username:
+                sshKeyPairRef:
                     minLength: 1
                     type: string
             required:
-                - passwordEnvironmentVariable
+                - sshKeyPairRef
             type: object
         GitRepositoryCommitSpec:
             additionalProperties: false
@@ -72,6 +72,32 @@ components:
                 messageTemplate:
                     minLength: 1
                     type: string
+            type: object
+        GitRepositoryCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
             type: object
         GitRepositoryCreate:
             additionalProperties: false
@@ -129,6 +155,20 @@ components:
             required:
                 - url
                 - branch
+            type: object
+        GitRepositoryStatus:
+            additionalProperties: false
+            properties:
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/GitRepositoryCondition'
+                    type: array
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    type: string
             type: object
         Health:
             additionalProperties: false

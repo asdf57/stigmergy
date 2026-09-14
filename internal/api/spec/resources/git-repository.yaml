@@ -5,6 +5,7 @@ x-stigmergy-resource:
   kind: GitRepository
   plural: git-repositories
   spec-schema: GitRepositorySpec
+  status-schema: GitRepositoryStatus
   operations: [create, list, get, put, patch, delete, delete-collection]
 
 GitRepositorySpec:
@@ -26,12 +27,9 @@ GitRepositorySpec:
 GitRepositoryAuthentication:
   type: object
   additionalProperties: false
-  required: [passwordEnvironmentVariable]
+  required: [sshKeyPairRef]
   properties:
-    username:
-      type: string
-      minLength: 1
-    passwordEnvironmentVariable:
+    sshKeyPairRef:
       type: string
       minLength: 1
 
@@ -42,3 +40,27 @@ GitRepositoryCommitSpec:
     authorName: {type: string, minLength: 1}
     authorEmail: {type: string, minLength: 1}
     messageTemplate: {type: string, minLength: 1}
+
+GitRepositoryStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/GitRepositoryCondition'
+
+GitRepositoryCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

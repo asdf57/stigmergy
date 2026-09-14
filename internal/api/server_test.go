@@ -304,11 +304,10 @@ kind: GitRepository
 metadata:
   name: ansible-inventory
 spec:
-  url: https://github.com/example/inventory.git
+  url: "git@github.com:example/inventory.git"
   branch: main
   authentication:
-    username: x-access-token
-    passwordEnvironmentVariable: GITHUB_TOKEN
+    sshKeyPairRef: git-ssh-key
 `,
 		},
 		{

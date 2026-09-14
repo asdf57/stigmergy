@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -53,15 +52,16 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, request controller.Req
 		if err != nil {
 			return fmt.Errorf("decode Machine %q: %w", rawMachine.Metadata.Name, err)
 		}
-		reference, hasReference := resourceReference(machine.Status["serverRef"])
+		reference, hasReference := resourceReference(machineServerRef(machine))
 		staleSameNameReference := hasReference && reference.Name == server.Metadata.Name && reference.UID != server.Metadata.UID && canonicalLocation(machine.Spec.Location) != location
-		if staleSameNameReference || (refMatches(machine.Status["serverRef"], server.Metadata.Name, server.Metadata.UID) && canonicalLocation(machine.Spec.Location) != location) {
+		if staleSameNameReference || (refMatches(machineServerRef(machine), server.Metadata.Name, server.Metadata.UID) && canonicalLocation(machine.Spec.Location) != location) {
 			if err := r.releaseMachine(ctx, machine); err != nil {
 				return err
 			}
-			machine.Status = cloneStatus(machine.Status)
-			delete(machine.Status, "serverRef")
-			machine.Status["phase"] = "Available"
+			machine.Status = cloneMachineStatus(machine.Status)
+			machine.Status.ServerRef = nil
+			phase := "Available"
+			machine.Status.Phase = &phase
 		}
 		if canonicalLocation(machine.Spec.Location) == location {
 			matches = append(matches, machine)
@@ -78,7 +78,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, request controller.Req
 	}
 
 	machine := matches[0]
-	if reference, ok := resourceReference(machine.Status["serverRef"]); ok && (reference.Name != server.Metadata.Name || reference.UID != server.Metadata.UID) {
+	if reference, ok := resourceReference(machineServerRef(machine)); ok && (reference.Name != server.Metadata.Name || reference.UID != server.Metadata.UID) {
 		active, err := r.serverReferenceActive(ctx, reference)
 		if err != nil {
 			return err
@@ -87,7 +87,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, request controller.Req
 			return r.updateServerBinding(ctx, server, nil, "Conflict", "False", "MachineAlreadyBound", fmt.Sprintf("Machine %q is bound to Server %q", machine.Metadata.Name, reference.Name))
 		}
 	}
-	if !refMatches(machine.Status["serverRef"], server.Metadata.Name, server.Metadata.UID) {
+	if !refMatches(machineServerRef(machine), server.Metadata.Name, server.Metadata.UID) {
 		if err := r.bindMachine(ctx, machine, server); err != nil {
 			return err
 		}
@@ -122,16 +122,18 @@ func (r *ServerReconciler) RequestsForMachine(ctx context.Context, _ controller.
 }
 
 func (r *ServerReconciler) bindMachine(ctx context.Context, machine registry.Machine, server registry.Server) error {
-	status := cloneStatus(machine.Status)
-	status["serverRef"] = map[string]any{"name": server.Metadata.Name, "uid": server.Metadata.UID}
-	status["phase"] = "Bound"
+	status := cloneMachineStatus(machine.Status)
+	status.ServerRef = &apigen.ResourceReference{Name: server.Metadata.Name, Uid: server.Metadata.UID}
+	phase := "Bound"
+	status.Phase = &phase
 	return r.writeMachineStatus(ctx, machine, status)
 }
 
 func (r *ServerReconciler) releaseMachine(ctx context.Context, machine registry.Machine) error {
-	status := cloneStatus(machine.Status)
-	delete(status, "serverRef")
-	status["phase"] = "Available"
+	status := cloneMachineStatus(machine.Status)
+	status.ServerRef = nil
+	phase := "Available"
+	status.Phase = &phase
 	return r.writeMachineStatus(ctx, machine, status)
 }
 
@@ -145,7 +147,7 @@ func (r *ServerReconciler) releaseMachines(ctx context.Context, serverName, serv
 		if err != nil {
 			return fmt.Errorf("decode Machine %q: %w", raw.Metadata.Name, err)
 		}
-		if !refMatches(machine.Status["serverRef"], serverName, serverUID) {
+		if !refMatches(machineServerRef(machine), serverName, serverUID) {
 			continue
 		}
 		if except != nil && canonicalLocation(machine.Spec.Location) == canonicalLocation(*except) {
@@ -158,7 +160,7 @@ func (r *ServerReconciler) releaseMachines(ctx context.Context, serverName, serv
 	return nil
 }
 
-func (r *ServerReconciler) writeMachineStatus(ctx context.Context, machine registry.Machine, status map[string]any) error {
+func (r *ServerReconciler) writeMachineStatus(ctx context.Context, machine registry.Machine, status *apigen.MachineStatus) error {
 	if resource.EqualJSON(machine.Status, status) {
 		return nil
 	}
@@ -166,7 +168,11 @@ func (r *ServerReconciler) writeMachineStatus(ctx context.Context, machine regis
 	if err != nil {
 		return fmt.Errorf("parse Machine %q resource version: %w", machine.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, machine.Kind, machine.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.MachineResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, machine.Kind, machine.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update Machine %q binding status: %w", machine.Metadata.Name, err)
 	}
 	slog.Info("updated Machine binding", "machine", machine.Metadata.Name)
@@ -174,21 +180,19 @@ func (r *ServerReconciler) writeMachineStatus(ctx context.Context, machine regis
 }
 
 func (r *ServerReconciler) updateServerBinding(ctx context.Context, server registry.Server, machine *registry.Machine, phase, conditionStatus, reason, message string) error {
-	status := cloneStatus(server.Status)
+	status := cloneServerStatus(server.Status)
 	if machine == nil {
-		delete(status, "machineRef")
+		status.MachineRef = nil
 	} else {
-		status["machineRef"] = map[string]any{"name": machine.Metadata.Name, "uid": machine.Metadata.UID}
+		status.MachineRef = &apigen.ResourceReference{Name: machine.Metadata.Name, Uid: machine.Metadata.UID}
 	}
-	if current, _ := status["phase"].(string); current == "" || current == "Pending" || current == "Conflict" || phase != "Bound" {
-		status["phase"] = phase
+	if status.Phase == nil || *status.Phase == "" || *status.Phase == "Pending" || *status.Phase == "Conflict" || phase != "Bound" {
+		status.Phase = &phase
 	}
-	status["conditions"] = upsertCondition(status["conditions"], map[string]any{
-		"type":               "MachineBound",
-		"status":             conditionStatus,
-		"reason":             reason,
-		"message":            message,
-		"observedGeneration": server.Metadata.Generation,
+	observedGeneration := server.Metadata.Generation
+	status.Conditions = upsertCondition(status.Conditions, apigen.ServerCondition{
+		Type: "MachineBound", Status: apigen.ServerConditionStatus(conditionStatus), Reason: reason,
+		Message: &message, ObservedGeneration: &observedGeneration,
 	})
 	applyManagementNetworkStatus(status, server, machine)
 	if server.Spec.HostName != nil {
@@ -196,7 +200,7 @@ func (r *ServerReconciler) updateServerBinding(ctx context.Context, server regis
 		if server.Spec.DomainName != nil && *server.Spec.DomainName != "" {
 			fqdn += "." + *server.Spec.DomainName
 		}
-		status["fqdn"] = fqdn
+		status.Fqdn = &fqdn
 	}
 	if resource.EqualJSON(server.Status, status) {
 		return nil
@@ -205,29 +209,33 @@ func (r *ServerReconciler) updateServerBinding(ctx context.Context, server regis
 	if err != nil {
 		return fmt.Errorf("parse Server %q resource version: %w", server.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, server.Kind, server.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.ServerResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, server.Kind, server.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update Server %q binding status: %w", server.Metadata.Name, err)
 	}
 	return nil
 }
 
-func applyManagementNetworkStatus(status map[string]any, server registry.Server, machine *registry.Machine) {
+func applyManagementNetworkStatus(status *apigen.ServerStatus, server registry.Server, machine *registry.Machine) {
 	if server.Spec.Networking == nil || server.Spec.Networking.Management == nil {
-		delete(status, "networking")
-		status["conditions"] = removeCondition(status["conditions"], "ManagementAddressReady")
+		status.Networking = nil
+		status.Conditions = removeCondition(status.Conditions, "ManagementAddressReady")
 		return
 	}
 
-	condition := map[string]any{
-		"type":               "ManagementAddressReady",
-		"status":             "False",
-		"observedGeneration": server.Metadata.Generation,
+	observedGeneration := server.Metadata.Generation
+	condition := apigen.ServerCondition{
+		Type: "ManagementAddressReady", Status: apigen.ServerConditionStatusFalse,
+		ObservedGeneration: &observedGeneration,
 	}
 	fail := func(reason, message string) {
-		delete(status, "networking")
-		condition["reason"] = reason
-		condition["message"] = message
-		status["conditions"] = upsertCondition(status["conditions"], condition)
+		status.Networking = nil
+		condition.Reason = reason
+		condition.Message = &message
+		status.Conditions = upsertCondition(status.Conditions, condition)
 	}
 	if machine == nil {
 		fail("MachineNotBound", "Management address cannot be resolved until the Server is bound to a Machine")
@@ -240,11 +248,11 @@ func applyManagementNetworkStatus(status map[string]any, server registry.Server,
 		fail("InvalidSubnet", fmt.Sprintf("Management address subnet %q is invalid", management.AddressSelector.Subnet))
 		return
 	}
-	inventory, err := decodeInventory(machine.Status["inventory"])
-	if err != nil {
+	if machine.Status == nil || machine.Status.Inventory == nil {
 		fail("InventoryNotAvailable", "The bound Machine does not have usable inventory")
 		return
 	}
+	inventory := *machine.Status.Inventory
 
 	interfaceName := interfaceAtLocation(inventory.LLDPInfo, machine.Spec.Location)
 	if interfaceName == "" {
@@ -282,36 +290,20 @@ func applyManagementNetworkStatus(status map[string]any, server registry.Server,
 	}
 
 	match := matches[0]
-	status["networking"] = map[string]any{
-		"management": map[string]any{
-			"interface": map[string]any{"name": selectedInterface.Name, "mac": selectedInterface.Mac},
-			"address": map[string]any{
-				"address":      match.Address,
-				"family":       string(match.Family),
-				"prefixLength": match.PrefixLength,
+	status.Networking = &apigen.ServerNetworkingStatus{
+		Management: &apigen.ServerManagementNetworkStatus{
+			Interface: apigen.ServerManagementInterfaceStatus{Name: selectedInterface.Name, Mac: selectedInterface.Mac},
+			Address: apigen.ServerManagementAddressStatus{
+				Address: match.Address, Family: apigen.ServerManagementAddressStatusFamily(match.Family), PrefixLength: match.PrefixLength,
 			},
-			"reason": "AttachedAtMachineLocation",
+			Reason: "AttachedAtMachineLocation",
 		},
 	}
-	condition["status"] = "True"
-	condition["reason"] = "ManagementAddressResolved"
-	condition["message"] = fmt.Sprintf("Resolved %s on interface %s", match.Address, selectedInterface.Name)
-	status["conditions"] = upsertCondition(status["conditions"], condition)
-}
-
-func decodeInventory(value any) (apigen.MachineReportSpec, error) {
-	var inventory apigen.MachineReportSpec
-	if value == nil {
-		return inventory, errors.New("inventory is absent")
-	}
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return inventory, err
-	}
-	if err := json.Unmarshal(encoded, &inventory); err != nil {
-		return inventory, err
-	}
-	return inventory, nil
+	condition.Status = apigen.ServerConditionStatusTrue
+	condition.Reason = "ManagementAddressResolved"
+	message := fmt.Sprintf("Resolved %s on interface %s", match.Address, selectedInterface.Name)
+	condition.Message = &message
+	status.Conditions = upsertCondition(status.Conditions, condition)
 }
 
 func interfaceAtLocation(groups []apigen.MachineReportLLDPInterfaceGroup, location apigen.MachineLocation) string {
@@ -347,17 +339,21 @@ type reference struct {
 	UID  string
 }
 
-func resourceReference(value any) (reference, bool) {
-	object, ok := value.(map[string]any)
-	if !ok {
-		return reference{}, false
+func machineServerRef(machine registry.Machine) *apigen.ResourceReference {
+	if machine.Status == nil {
+		return nil
 	}
-	name, nameOK := object["name"].(string)
-	uid, uidOK := object["uid"].(string)
-	return reference{Name: name, UID: uid}, nameOK && uidOK && name != "" && uid != ""
+	return machine.Status.ServerRef
 }
 
-func refMatches(value any, name, uid string) bool {
+func resourceReference(value *apigen.ResourceReference) (reference, bool) {
+	if value == nil || value.Name == "" || value.Uid == "" {
+		return reference{}, false
+	}
+	return reference{Name: value.Name, UID: value.Uid}, true
+}
+
+func refMatches(value *apigen.ResourceReference, name, uid string) bool {
 	reference, ok := resourceReference(value)
 	if !ok || reference.Name != name {
 		return false
@@ -367,38 +363,51 @@ func refMatches(value any, name, uid string) bool {
 	return uid == "" || reference.UID == uid
 }
 
-func cloneStatus(status map[string]any) map[string]any {
-	cloned := make(map[string]any, len(status)+2)
-	for key, value := range status {
-		cloned[key] = value
+func cloneMachineStatus(status *apigen.MachineStatus) *apigen.MachineStatus {
+	cloned := &apigen.MachineStatus{}
+	if status != nil {
+		*cloned = *status
 	}
 	return cloned
 }
 
-func upsertCondition(value any, desired map[string]any) []any {
-	conditions, _ := value.([]any)
-	updated := make([]any, 0, len(conditions)+1)
-	for _, condition := range conditions {
-		object, ok := condition.(map[string]any)
-		if ok && object["type"] == desired["type"] {
-			continue
-		}
-		updated = append(updated, condition)
+func cloneServerStatus(status *apigen.ServerStatus) *apigen.ServerStatus {
+	cloned := &apigen.ServerStatus{}
+	if status != nil {
+		*cloned = *status
 	}
-	return append(updated, desired)
+	return cloned
 }
 
-func removeCondition(value any, conditionType string) []any {
-	conditions, _ := value.([]any)
-	updated := make([]any, 0, len(conditions))
+func upsertCondition(value *[]apigen.ServerCondition, desired apigen.ServerCondition) *[]apigen.ServerCondition {
+	var conditions []apigen.ServerCondition
+	if value != nil {
+		conditions = *value
+	}
+	updated := make([]apigen.ServerCondition, 0, len(conditions)+1)
 	for _, condition := range conditions {
-		object, ok := condition.(map[string]any)
-		if ok && object["type"] == conditionType {
+		if condition.Type == desired.Type {
 			continue
 		}
 		updated = append(updated, condition)
 	}
-	return updated
+	updated = append(updated, desired)
+	return &updated
+}
+
+func removeCondition(value *[]apigen.ServerCondition, conditionType string) *[]apigen.ServerCondition {
+	var conditions []apigen.ServerCondition
+	if value != nil {
+		conditions = *value
+	}
+	updated := make([]apigen.ServerCondition, 0, len(conditions))
+	for _, condition := range conditions {
+		if condition.Type == conditionType {
+			continue
+		}
+		updated = append(updated, condition)
+	}
+	return &updated
 }
 
 func canonicalLocation(location apigen.MachineLocation) apigen.MachineLocation {

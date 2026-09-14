@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 
+	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
 	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
 	"github.com/asdf57/prov-controller-test/go/internal/controller"
 	"github.com/asdf57/prov-controller-test/go/internal/store"
@@ -123,7 +124,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return r.finalize(ctx, &secretResource)
 	}
 
-	if observedGeneration, ok := statusInt64(secretResource.Status["observedGeneration"]); secretResource.Status["phase"] == "Ready" && ok && observedGeneration == secretResource.Metadata.Generation {
+	if secretResource.Status != nil &&
+		secretResource.Status.Phase != nil && *secretResource.Status.Phase == apigen.SecretStatusPhaseReady &&
+		secretResource.Status.ObservedGeneration != nil && *secretResource.Status.ObservedGeneration == secretResource.Metadata.Generation {
 		return nil
 	}
 
@@ -154,37 +157,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	return r.fail(ctx, secretResource, "UnsupportedProvider", errors.New("SecretStore does not configure a supported provider"))
 }
 
-func statusInt64(value any) (int64, bool) {
-	switch typed := value.(type) {
-	case int64:
-		return typed, true
-	case int:
-		return int64(typed), true
-	case float64:
-		return int64(typed), typed == float64(int64(typed))
-	default:
-		return 0, false
-	}
-}
-
 func (r *Reconciler) ready(ctx context.Context, secretResource registry.Secret) error {
-	status := map[string]any{
-		"phase": "Ready", "observedGeneration": secretResource.Metadata.Generation, "externalVersion": int64(1),
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "True", "reason": "SecretWritten",
-			"message": "The secret is present in the external store", "observedGeneration": secretResource.Metadata.Generation,
-		}},
+	phase, externalVersion := apigen.SecretStatusPhaseReady, int64(1)
+	message, observedGeneration := "The secret is present in the external store", secretResource.Metadata.Generation
+	conditions := []apigen.SecretCondition{{
+		Type: "Ready", Status: apigen.SecretConditionStatusTrue, Reason: "SecretWritten",
+		Message: &message, ObservedGeneration: &observedGeneration,
+	}}
+	status := &apigen.SecretStatus{
+		Phase: &phase, ObservedGeneration: &observedGeneration, ExternalVersion: &externalVersion, Conditions: &conditions,
 	}
 	return r.updateStatus(ctx, secretResource, status)
 }
 
 func (r *Reconciler) fail(ctx context.Context, secretResource registry.Secret, reason string, reconcileErr error) error {
-	status := map[string]any{
-		"phase": "Failed", "observedGeneration": secretResource.Metadata.Generation,
-		"conditions": []any{map[string]any{
-			"type": "Ready", "status": "False", "reason": reason,
-			"message": reconcileErr.Error(), "observedGeneration": secretResource.Metadata.Generation,
-		}},
+	phase := apigen.SecretStatusPhaseFailed
+	message, observedGeneration := reconcileErr.Error(), secretResource.Metadata.Generation
+	conditions := []apigen.SecretCondition{{
+		Type: "Ready", Status: apigen.SecretConditionStatusFalse, Reason: reason,
+		Message: &message, ObservedGeneration: &observedGeneration,
+	}}
+	status := &apigen.SecretStatus{
+		Phase: &phase, ObservedGeneration: &observedGeneration, Conditions: &conditions,
 	}
 	if err := r.updateStatus(ctx, secretResource, status); err != nil {
 		return err
@@ -192,12 +186,16 @@ func (r *Reconciler) fail(ctx context.Context, secretResource registry.Secret, r
 	return reconcileErr
 }
 
-func (r *Reconciler) updateStatus(ctx context.Context, secretResource registry.Secret, status map[string]any) error {
+func (r *Reconciler) updateStatus(ctx context.Context, secretResource registry.Secret, status *apigen.SecretStatus) error {
 	revision, err := strconv.ParseInt(secretResource.Metadata.ResourceVersion, 10, 64)
 	if err != nil {
 		return fmt.Errorf("parse resource version for Secret %q: %w", secretResource.Metadata.Name, err)
 	}
-	if _, err := r.store.UpdateStatus(ctx, secretResource.Kind, secretResource.Metadata.Name, status, revision); err != nil {
+	storedStatus, err := registry.SecretResource.EncodeStatus(status)
+	if err != nil {
+		return err
+	}
+	if _, err := r.store.UpdateStatus(ctx, secretResource.Kind, secretResource.Metadata.Name, storedStatus, revision); err != nil {
 		return fmt.Errorf("update Secret %q status: %w", secretResource.Metadata.Name, err)
 	}
 	return nil

@@ -73,7 +73,34 @@ func decodeStoredSpec[T any](kind string, stored map[string]any) (T, error) {
 	return spec, nil
 }
 
-func encodeResource[T any](d Definition, apiVersion, kind string, metadata resource.Metadata, typedSpec T, status map[string]any) (resource.Resource, error) {
+func decodeStoredStatus[T any](kind string, stored map[string]any) (*T, error) {
+	if len(stored) == 0 {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(stored)
+	if err != nil {
+		return nil, fmt.Errorf("encode stored %s status: %w", kind, err)
+	}
+	var status T
+	if err := json.Unmarshal(encoded, &status); err != nil {
+		return nil, fmt.Errorf("decode %s status: %w", kind, err)
+	}
+	return &status, nil
+}
+
+func encodeStatus[T any](kind string, status *T) (map[string]any, error) {
+	encoded, err := json.Marshal(status)
+	if err != nil {
+		return nil, fmt.Errorf("encode %s status: %w", kind, err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(encoded, &stored); err != nil {
+		return nil, fmt.Errorf("convert %s status for storage: %w", kind, err)
+	}
+	return stored, nil
+}
+
+func encodeResource[T any](d Definition, apiVersion, kind string, metadata resource.Metadata, typedSpec T, typedStatus any) (resource.Resource, error) {
 	if apiVersion != "" && apiVersion != d.APIVersion {
 		return resource.Resource{}, fmt.Errorf("expected apiVersion %q, got %q", d.APIVersion, apiVersion)
 	}
@@ -88,6 +115,16 @@ func encodeResource[T any](d Definition, apiVersion, kind string, metadata resou
 	var spec map[string]any
 	if err := json.Unmarshal(encoded, &spec); err != nil {
 		return resource.Resource{}, fmt.Errorf("convert %s spec for storage: %w", d.Kind, err)
+	}
+	var status map[string]any
+	if typedStatus != nil {
+		encoded, err := json.Marshal(typedStatus)
+		if err != nil {
+			return resource.Resource{}, fmt.Errorf("encode %s status: %w", d.Kind, err)
+		}
+		if err := json.Unmarshal(encoded, &status); err != nil {
+			return resource.Resource{}, fmt.Errorf("convert %s status for storage: %w", d.Kind, err)
+		}
 	}
 
 	return resource.Resource{

@@ -514,72 +514,62 @@ func writeRegistry(path, modelsImport, resourceImport string, modules []resource
 	source.WriteString(")\n\n")
 	for _, module := range modules {
 		metadata := module.Metadata
-		fmt.Fprintf(
-			&source,
-			"// %s is the concrete controller-facing resource for %s.\n"+
-				"type %s struct {\n"+
-				"\tAPIVersion string `json:\"apiVersion\"`\n"+
-				"\tKind string `json:\"kind\"`\n"+
-				"\tMetadata resource.Metadata `json:\"metadata\"`\n"+
-				"\tSpec apigen.%s `json:\"spec\"`\n"+
-				"\tStatus map[string]any `json:\"status,omitempty\"`\n"+
-				"}\n\n"+
-				"// New%s constructs a %s with its generated type identity.\n"+
-				"func New%s(metadata resource.Metadata, spec apigen.%s) %s {\n"+
-				"\treturn %s{\n"+
-				"\t\tAPIVersion: %sResource.APIVersion,\n"+
-				"\t\tKind: %sResource.Kind,\n"+
-				"\t\tMetadata: metadata,\n"+
-				"\t\tSpec: spec,\n"+
-				"\t}\n"+
-				"}\n\n"+
-				"// Encode converts the typed %s into the generic storage representation.\n"+
-				"func (value %s) Encode() (resource.Resource, error) {\n"+
-				"\treturn encodeResource(%sResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)\n"+
-				"}\n\n"+
-				"// %sDefinition adds concrete %s decoding to the shared API definition.\n"+
-				"type %sDefinition struct {\n"+
-				"\tDefinition\n"+
-				"}\n\n"+
-				"// Decode converts a generic storage resource into a typed %s.\n"+
-				"func (definition %sDefinition) Decode(value resource.Resource) (%s, error) {\n"+
-				"\tspec, err := decodeResourceSpec[apigen.%s](definition.Definition, value)\n"+
-				"\tif err != nil {\n"+
-				"\t\treturn %s{}, err\n"+
-				"\t}\n"+
-				"\treturn %s{\n"+
-				"\t\tAPIVersion: value.APIVersion,\n"+
-				"\t\tKind: value.Kind,\n"+
-				"\t\tMetadata: value.Metadata,\n"+
-				"\t\tSpec: spec,\n"+
-				"\t\tStatus: value.Status,\n"+
-				"\t}, nil\n"+
-				"}\n\n",
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.SpecSchema,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.SpecSchema,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.Kind,
-			metadata.SpecSchema,
-			metadata.Kind,
-			metadata.Kind,
-		)
+		fmt.Fprintf(&source, "// %s is the concrete controller-facing resource for %s.\n", metadata.Kind, metadata.Kind)
+		fmt.Fprintf(&source, "type %s struct {\n", metadata.Kind)
+		source.WriteString("\tAPIVersion string `json:\"apiVersion\"`\n")
+		source.WriteString("\tKind string `json:\"kind\"`\n")
+		source.WriteString("\tMetadata resource.Metadata `json:\"metadata\"`\n")
+		fmt.Fprintf(&source, "\tSpec apigen.%s `json:\"spec\"`\n", metadata.SpecSchema)
+		if metadata.StatusSchema != "" {
+			fmt.Fprintf(&source, "\tStatus *apigen.%s `json:\"status,omitempty\"`\n", metadata.StatusSchema)
+		}
+		source.WriteString("}\n\n")
+
+		fmt.Fprintf(&source, "// New%s constructs a %s with its generated type identity.\n", metadata.Kind, metadata.Kind)
+		fmt.Fprintf(&source, "func New%s(metadata resource.Metadata, spec apigen.%s) %s {\n", metadata.Kind, metadata.SpecSchema, metadata.Kind)
+		fmt.Fprintf(&source, "\treturn %s{\n", metadata.Kind)
+		fmt.Fprintf(&source, "\t\tAPIVersion: %sResource.APIVersion,\n", metadata.Kind)
+		fmt.Fprintf(&source, "\t\tKind: %sResource.Kind,\n", metadata.Kind)
+		source.WriteString("\t\tMetadata: metadata,\n")
+		source.WriteString("\t\tSpec: spec,\n")
+		source.WriteString("\t}\n")
+		source.WriteString("}\n\n")
+
+		fmt.Fprintf(&source, "// Encode converts the typed %s into the generic storage representation.\n", metadata.Kind)
+		fmt.Fprintf(&source, "func (value %s) Encode() (resource.Resource, error) {\n", metadata.Kind)
+		statusArgument := "nil"
+		if metadata.StatusSchema != "" {
+			statusArgument = "value.Status"
+		}
+		fmt.Fprintf(&source, "\treturn encodeResource(%sResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, %s)\n", metadata.Kind, statusArgument)
+		source.WriteString("}\n\n")
+
+		fmt.Fprintf(&source, "// %sDefinition adds concrete %s decoding to the shared API definition.\n", metadata.Kind, metadata.Kind)
+		fmt.Fprintf(&source, "type %sDefinition struct {\n\tDefinition\n}\n\n", metadata.Kind)
+		if metadata.StatusSchema != "" {
+			fmt.Fprintf(&source, "// EncodeStatus converts a typed %s status to the generic storage representation.\n", metadata.Kind)
+			fmt.Fprintf(&source, "func (definition %sDefinition) EncodeStatus(status *apigen.%s) (map[string]any, error) {\n", metadata.Kind, metadata.StatusSchema)
+			source.WriteString("\treturn encodeStatus(definition.Kind, status)\n")
+			source.WriteString("}\n\n")
+		}
+		fmt.Fprintf(&source, "// Decode converts a generic storage resource into a typed %s.\n", metadata.Kind)
+		fmt.Fprintf(&source, "func (definition %sDefinition) Decode(value resource.Resource) (%s, error) {\n", metadata.Kind, metadata.Kind)
+		fmt.Fprintf(&source, "\tspec, err := decodeResourceSpec[apigen.%s](definition.Definition, value)\n", metadata.SpecSchema)
+		fmt.Fprintf(&source, "\tif err != nil {\n\t\treturn %s{}, err\n\t}\n", metadata.Kind)
+		if metadata.StatusSchema != "" {
+			fmt.Fprintf(&source, "\tstatus, err := decodeStoredStatus[apigen.%s](definition.Kind, value.Status)\n", metadata.StatusSchema)
+			fmt.Fprintf(&source, "\tif err != nil {\n\t\treturn %s{}, err\n\t}\n", metadata.Kind)
+		}
+		fmt.Fprintf(&source, "\treturn %s{\n", metadata.Kind)
+		source.WriteString("\t\tAPIVersion: value.APIVersion,\n")
+		source.WriteString("\t\tKind: value.Kind,\n")
+		source.WriteString("\t\tMetadata: value.Metadata,\n")
+		source.WriteString("\t\tSpec: spec,\n")
+		if metadata.StatusSchema != "" {
+			source.WriteString("\t\tStatus: status,\n")
+		}
+		source.WriteString("\t}, nil\n")
+		source.WriteString("}\n\n")
 	}
 	for _, module := range modules {
 		metadata := module.Metadata

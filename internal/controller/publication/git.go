@@ -11,15 +11,19 @@ import (
 	"strings"
 	"time"
 
+	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	"github.com/asdf57/prov-controller-test/go/internal/api/registry"
+	"github.com/asdf57/prov-controller-test/go/internal/store"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
-
-	apigen "github.com/asdf57/prov-controller-test/go/internal/api/gen"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	cryptossh "golang.org/x/crypto/ssh"
 )
+
+const sshKeyPairOwnerUIDAnnotation = "homelab.io/ssh-key-pair-uid"
 
 type PublishRequest struct {
 	Repository      apigen.GitRepositorySpec
@@ -45,12 +49,12 @@ type Publisher interface {
 }
 
 type GitPublisher struct {
-	LookupEnv func(string) (string, bool)
-	Now       func() time.Time
+	Store store.Store
+	Now   func() time.Time
 }
 
-func NewGitPublisher() *GitPublisher {
-	return &GitPublisher{LookupEnv: os.LookupEnv, Now: time.Now}
+func NewGitPublisher(store store.Store) *GitPublisher {
+	return &GitPublisher{Store: store, Now: time.Now}
 }
 
 func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (PublishResult, error) {
@@ -66,7 +70,7 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 	if err != nil {
 		return PublishResult{}, err
 	}
-	auth, err := p.authentication(request.Repository)
+	auth, err := p.authentication(ctx, request.Repository)
 	if err != nil {
 		return PublishResult{}, err
 	}
@@ -284,19 +288,96 @@ func rejectSymlinkParents(repositoryRoot, repositoryPath string) error {
 	return nil
 }
 
-func (p *GitPublisher) authentication(repository apigen.GitRepositorySpec) (transport.AuthMethod, error) {
+// overall, this git client is repugnant. It needs to be abstracted at some point, but since GitRepository
+// is the only consumer it's fine... for now.
+func (p *GitPublisher) authentication(ctx context.Context, repository apigen.GitRepositorySpec) (transport.AuthMethod, error) {
 	if repository.Authentication == nil {
 		return nil, nil
 	}
-	password, found := p.LookupEnv(repository.Authentication.PasswordEnvironmentVariable)
-	if !found || password == "" {
-		return nil, fmt.Errorf("Git credential environment variable %q is not set", repository.Authentication.PasswordEnvironmentVariable)
+
+	if repository.Authentication.SshKeyPairRef == "" {
+		return nil, fmt.Errorf("Git sshKeyPairRef %q is not set", repository.Authentication.SshKeyPairRef)
 	}
-	username := "x-access-token"
-	if repository.Authentication.Username != nil {
-		username = *repository.Authentication.Username
+
+	raw, err := p.Store.Get(ctx, registry.SSHKeyPairResource.Kind, repository.Authentication.SshKeyPairRef)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, fmt.Errorf("git authentication: SSHKeyPair %q does not exist", repository.Authentication.SshKeyPairRef)
 	}
-	return &githttp.BasicAuth{Username: username, Password: password}, nil
+	if err != nil {
+		return nil, fmt.Errorf("git authentication: get SSHKeyPair %q: %w", repository.Authentication.SshKeyPairRef, err)
+	}
+
+	sshKeyPair, err := registry.SSHKeyPairResource.Decode(raw)
+	if err != nil {
+		return nil, fmt.Errorf("decode SSHKeyPairResource %q: %w", repository.Authentication.SshKeyPairRef, err)
+	}
+
+	if sshKeyPair.Metadata.DeletionTimestamp != nil {
+		return nil, fmt.Errorf("git authentication: SSHKeyPair resource is pending deletion")
+	}
+
+	if sshKeyPair.Status == nil {
+		return nil, fmt.Errorf("git authentication: SSHKeyPair %q has no status", repository.Authentication.SshKeyPairRef)
+	}
+	if sshKeyPair.Status.ObservedGeneration == nil || *sshKeyPair.Status.ObservedGeneration != sshKeyPair.Metadata.Generation {
+		return nil, fmt.Errorf("git authentication: SSHKeyPair controller has not observed the latest generation of %q yet", repository.Authentication.SshKeyPairRef)
+	}
+
+	if sshKeyPair.Status.Phase == nil || *sshKeyPair.Status.Phase != apigen.SSHKeyPairStatusPhaseReady {
+		return nil, fmt.Errorf("git authentication: SSHKeyPair %q is not in phase 'Ready'", repository.Authentication.SshKeyPairRef)
+	}
+	if sshKeyPair.Status.SecretRef == nil || sshKeyPair.Status.SecretRef.Name == "" || sshKeyPair.Status.SecretRef.Uid == "" {
+		return nil, fmt.Errorf("git authentication: Ready SSHKeyPair %q has no Secret reference", repository.Authentication.SshKeyPairRef)
+	}
+
+	secretRef := sshKeyPair.Status.SecretRef
+	rawSecret, err := p.Store.Get(ctx, registry.SecretResource.Kind, secretRef.Name)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, fmt.Errorf("git authentication: Secret %q referenced by SSHKeyPair %q does not exist", secretRef.Name, sshKeyPair.Metadata.Name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git authentication: get Secret %q: %w", secretRef.Name, err)
+	}
+
+	secret, err := registry.SecretResource.Decode(rawSecret)
+	if err != nil {
+		return nil, fmt.Errorf("decode Secret %q: %w", secretRef.Name, err)
+	}
+
+	if secret.Metadata.UID != secretRef.Uid {
+		return nil, fmt.Errorf("git authentication: Secret %q UID %q does not match SSHKeyPair reference UID %q", secret.Metadata.Name, secret.Metadata.UID, secretRef.Uid)
+	}
+	if secret.Metadata.Annotations[sshKeyPairOwnerUIDAnnotation] != sshKeyPair.Metadata.UID ||
+		secret.Spec.Data["sshKeyPairUID"] != sshKeyPair.Metadata.UID {
+		return nil, fmt.Errorf("git authentication: Secret %q is not owned by SSHKeyPair %q", secret.Metadata.Name, sshKeyPair.Metadata.Name)
+	}
+	if secret.Spec.SecretStoreRef.Name != sshKeyPair.Spec.SecretStoreRef.Name || secret.Spec.Path != sshKeyPair.Spec.Path {
+		return nil, fmt.Errorf("git authentication: Secret %q destination does not match SSHKeyPair %q", secret.Metadata.Name, sshKeyPair.Metadata.Name)
+	}
+	if secret.Metadata.DeletionTimestamp != nil {
+		return nil, fmt.Errorf("git authentication: Secret %q is pending deletion", secret.Metadata.Name)
+	}
+	if secret.Status == nil || secret.Status.Phase == nil || *secret.Status.Phase != apigen.SecretStatusPhaseReady ||
+		secret.Status.ObservedGeneration == nil || *secret.Status.ObservedGeneration != secret.Metadata.Generation {
+		return nil, fmt.Errorf("git authentication: Secret %q is not Ready at generation %d", secret.Metadata.Name, secret.Metadata.Generation)
+	}
+
+	privateKey := secret.Spec.Data["privateKey"]
+	if strings.TrimSpace(privateKey) == "" {
+		return nil, fmt.Errorf("git authentication: Secret %q does not contain privateKey", secret.Metadata.Name)
+	}
+	if sshKeyPair.Status.Fingerprint == nil || *sshKeyPair.Status.Fingerprint == "" {
+		return nil, fmt.Errorf("git authentication: Ready SSHKeyPair %q has no fingerprint", sshKeyPair.Metadata.Name)
+	}
+	auth, err := gitssh.NewPublicKeys("git", []byte(privateKey), "")
+	if err != nil {
+		return nil, fmt.Errorf("parse SSH private key from Secret %q: %w",
+			secret.Metadata.Name, err)
+	}
+	if fingerprint := cryptossh.FingerprintSHA256(auth.Signer.PublicKey()); fingerprint != *sshKeyPair.Status.Fingerprint {
+		return nil, fmt.Errorf("git authentication: Secret %q private key does not match SSHKeyPair %q fingerprint", secret.Metadata.Name, sshKeyPair.Metadata.Name)
+	}
+	return auth, nil
 }
 
 func safeRepositoryPath(value string) (string, error) {

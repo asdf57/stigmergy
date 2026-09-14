@@ -86,10 +86,15 @@ func TestGeneratedResourceLiteralDefaultsIdentityWhenEncoded(t *testing.T) {
 }
 
 func TestGeneratedResourceRoundTrip(t *testing.T) {
+	phase := "Bound"
 	original := NewMachine(
 		resource.Metadata{Name: "lab-node"},
 		apigen.MachineSpec{Location: apigen.MachineLocation{}},
 	)
+	original.Status = &apigen.MachineStatus{
+		Phase:     &phase,
+		ServerRef: &apigen.ResourceReference{Name: "desktop", Uid: "server-uid"},
+	}
 	stored, err := original.Encode()
 	if err != nil {
 		t.Fatalf("Encode() error = %v", err)
@@ -104,6 +109,12 @@ func TestGeneratedResourceRoundTrip(t *testing.T) {
 	}
 	if decoded.Spec.Location != original.Spec.Location {
 		t.Fatalf("Decode() location = %#v, want %#v", decoded.Spec.Location, original.Spec.Location)
+	}
+	if decoded.Status == nil || decoded.Status.Phase == nil || *decoded.Status.Phase != phase {
+		t.Fatalf("Decode() status = %#v, want phase %q", decoded.Status, phase)
+	}
+	if decoded.Status.ServerRef == nil || decoded.Status.ServerRef.Name != "desktop" || decoded.Status.ServerRef.Uid != "server-uid" {
+		t.Fatalf("Decode() serverRef = %#v, want desktop/server-uid", decoded.Status.ServerRef)
 	}
 }
 

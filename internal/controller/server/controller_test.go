@@ -93,7 +93,7 @@ func TestReconcileBindsServerAndMachineByLocation(t *testing.T) {
 	if serverRef["name"] != "desktop" || serverRef["uid"] != "server-uid" || machine.Status["phase"] != "Bound" {
 		t.Fatalf("Machine status = %#v", machine.Status)
 	}
-	if machine.Status["inventory"] != "preserved" {
+	if _, preserved := machine.Status["inventory"].(map[string]any); !preserved {
 		t.Fatalf("binding replaced Machine inventory: %#v", machine.Status)
 	}
 	updates := len(storage.statusUpdates)
@@ -310,7 +310,7 @@ func testMachine(name, uid, port string) resource.Resource {
 		Spec: map[string]any{"location": map[string]any{
 			"lldp_port": port, "switch_mac": "00:11:22:33:44:55",
 		}},
-		Status: map[string]any{"inventory": "preserved", "phase": "Available"},
+		Status: map[string]any{"inventory": map[string]any{}, "phase": "Available"},
 	}
 }
 

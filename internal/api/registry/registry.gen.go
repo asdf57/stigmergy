@@ -10,11 +10,11 @@ import (
 
 // GitRepository is the concrete controller-facing resource for GitRepository.
 type GitRepository struct {
-	APIVersion string                   `json:"apiVersion"`
-	Kind       string                   `json:"kind"`
-	Metadata   resource.Metadata        `json:"metadata"`
-	Spec       apigen.GitRepositorySpec `json:"spec"`
-	Status     map[string]any           `json:"status,omitempty"`
+	APIVersion string                      `json:"apiVersion"`
+	Kind       string                      `json:"kind"`
+	Metadata   resource.Metadata           `json:"metadata"`
+	Spec       apigen.GitRepositorySpec    `json:"spec"`
+	Status     *apigen.GitRepositoryStatus `json:"status,omitempty"`
 }
 
 // NewGitRepository constructs a GitRepository with its generated type identity.
@@ -37,9 +37,18 @@ type GitRepositoryDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed GitRepository status to the generic storage representation.
+func (definition GitRepositoryDefinition) EncodeStatus(status *apigen.GitRepositoryStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed GitRepository.
 func (definition GitRepositoryDefinition) Decode(value resource.Resource) (GitRepository, error) {
 	spec, err := decodeResourceSpec[apigen.GitRepositorySpec](definition.Definition, value)
+	if err != nil {
+		return GitRepository{}, err
+	}
+	status, err := decodeStoredStatus[apigen.GitRepositoryStatus](definition.Kind, value.Status)
 	if err != nil {
 		return GitRepository{}, err
 	}
@@ -48,17 +57,17 @@ func (definition GitRepositoryDefinition) Decode(value resource.Resource) (GitRe
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
 // InventoryCaptureGroup is the concrete controller-facing resource for InventoryCaptureGroup.
 type InventoryCaptureGroup struct {
-	APIVersion string                           `json:"apiVersion"`
-	Kind       string                           `json:"kind"`
-	Metadata   resource.Metadata                `json:"metadata"`
-	Spec       apigen.InventoryCaptureGroupSpec `json:"spec"`
-	Status     map[string]any                   `json:"status,omitempty"`
+	APIVersion string                              `json:"apiVersion"`
+	Kind       string                              `json:"kind"`
+	Metadata   resource.Metadata                   `json:"metadata"`
+	Spec       apigen.InventoryCaptureGroupSpec    `json:"spec"`
+	Status     *apigen.InventoryCaptureGroupStatus `json:"status,omitempty"`
 }
 
 // NewInventoryCaptureGroup constructs a InventoryCaptureGroup with its generated type identity.
@@ -81,9 +90,18 @@ type InventoryCaptureGroupDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed InventoryCaptureGroup status to the generic storage representation.
+func (definition InventoryCaptureGroupDefinition) EncodeStatus(status *apigen.InventoryCaptureGroupStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed InventoryCaptureGroup.
 func (definition InventoryCaptureGroupDefinition) Decode(value resource.Resource) (InventoryCaptureGroup, error) {
 	spec, err := decodeResourceSpec[apigen.InventoryCaptureGroupSpec](definition.Definition, value)
+	if err != nil {
+		return InventoryCaptureGroup{}, err
+	}
+	status, err := decodeStoredStatus[apigen.InventoryCaptureGroupStatus](definition.Kind, value.Status)
 	if err != nil {
 		return InventoryCaptureGroup{}, err
 	}
@@ -92,17 +110,17 @@ func (definition InventoryCaptureGroupDefinition) Decode(value resource.Resource
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
 // InventoryPublication is the concrete controller-facing resource for InventoryPublication.
 type InventoryPublication struct {
-	APIVersion string                          `json:"apiVersion"`
-	Kind       string                          `json:"kind"`
-	Metadata   resource.Metadata               `json:"metadata"`
-	Spec       apigen.InventoryPublicationSpec `json:"spec"`
-	Status     map[string]any                  `json:"status,omitempty"`
+	APIVersion string                             `json:"apiVersion"`
+	Kind       string                             `json:"kind"`
+	Metadata   resource.Metadata                  `json:"metadata"`
+	Spec       apigen.InventoryPublicationSpec    `json:"spec"`
+	Status     *apigen.InventoryPublicationStatus `json:"status,omitempty"`
 }
 
 // NewInventoryPublication constructs a InventoryPublication with its generated type identity.
@@ -125,9 +143,18 @@ type InventoryPublicationDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed InventoryPublication status to the generic storage representation.
+func (definition InventoryPublicationDefinition) EncodeStatus(status *apigen.InventoryPublicationStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed InventoryPublication.
 func (definition InventoryPublicationDefinition) Decode(value resource.Resource) (InventoryPublication, error) {
 	spec, err := decodeResourceSpec[apigen.InventoryPublicationSpec](definition.Definition, value)
+	if err != nil {
+		return InventoryPublication{}, err
+	}
+	status, err := decodeStoredStatus[apigen.InventoryPublicationStatus](definition.Kind, value.Status)
 	if err != nil {
 		return InventoryPublication{}, err
 	}
@@ -136,7 +163,7 @@ func (definition InventoryPublicationDefinition) Decode(value resource.Resource)
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
@@ -146,7 +173,6 @@ type MachineReport struct {
 	Kind       string                   `json:"kind"`
 	Metadata   resource.Metadata        `json:"metadata"`
 	Spec       apigen.MachineReportSpec `json:"spec"`
-	Status     map[string]any           `json:"status,omitempty"`
 }
 
 // NewMachineReport constructs a MachineReport with its generated type identity.
@@ -161,7 +187,7 @@ func NewMachineReport(metadata resource.Metadata, spec apigen.MachineReportSpec)
 
 // Encode converts the typed MachineReport into the generic storage representation.
 func (value MachineReport) Encode() (resource.Resource, error) {
-	return encodeResource(MachineReportResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+	return encodeResource(MachineReportResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, nil)
 }
 
 // MachineReportDefinition adds concrete MachineReport decoding to the shared API definition.
@@ -180,17 +206,16 @@ func (definition MachineReportDefinition) Decode(value resource.Resource) (Machi
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
 	}, nil
 }
 
 // Machine is the concrete controller-facing resource for Machine.
 type Machine struct {
-	APIVersion string             `json:"apiVersion"`
-	Kind       string             `json:"kind"`
-	Metadata   resource.Metadata  `json:"metadata"`
-	Spec       apigen.MachineSpec `json:"spec"`
-	Status     map[string]any     `json:"status,omitempty"`
+	APIVersion string                `json:"apiVersion"`
+	Kind       string                `json:"kind"`
+	Metadata   resource.Metadata     `json:"metadata"`
+	Spec       apigen.MachineSpec    `json:"spec"`
+	Status     *apigen.MachineStatus `json:"status,omitempty"`
 }
 
 // NewMachine constructs a Machine with its generated type identity.
@@ -213,9 +238,18 @@ type MachineDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed Machine status to the generic storage representation.
+func (definition MachineDefinition) EncodeStatus(status *apigen.MachineStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed Machine.
 func (definition MachineDefinition) Decode(value resource.Resource) (Machine, error) {
 	spec, err := decodeResourceSpec[apigen.MachineSpec](definition.Definition, value)
+	if err != nil {
+		return Machine{}, err
+	}
+	status, err := decodeStoredStatus[apigen.MachineStatus](definition.Kind, value.Status)
 	if err != nil {
 		return Machine{}, err
 	}
@@ -224,7 +258,7 @@ func (definition MachineDefinition) Decode(value resource.Resource) (Machine, er
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
@@ -234,7 +268,6 @@ type SecretStore struct {
 	Kind       string                 `json:"kind"`
 	Metadata   resource.Metadata      `json:"metadata"`
 	Spec       apigen.SecretStoreSpec `json:"spec"`
-	Status     map[string]any         `json:"status,omitempty"`
 }
 
 // NewSecretStore constructs a SecretStore with its generated type identity.
@@ -249,7 +282,7 @@ func NewSecretStore(metadata resource.Metadata, spec apigen.SecretStoreSpec) Sec
 
 // Encode converts the typed SecretStore into the generic storage representation.
 func (value SecretStore) Encode() (resource.Resource, error) {
-	return encodeResource(SecretStoreResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+	return encodeResource(SecretStoreResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, nil)
 }
 
 // SecretStoreDefinition adds concrete SecretStore decoding to the shared API definition.
@@ -268,17 +301,16 @@ func (definition SecretStoreDefinition) Decode(value resource.Resource) (SecretS
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
 	}, nil
 }
 
 // Secret is the concrete controller-facing resource for Secret.
 type Secret struct {
-	APIVersion string            `json:"apiVersion"`
-	Kind       string            `json:"kind"`
-	Metadata   resource.Metadata `json:"metadata"`
-	Spec       apigen.SecretSpec `json:"spec"`
-	Status     map[string]any    `json:"status,omitempty"`
+	APIVersion string               `json:"apiVersion"`
+	Kind       string               `json:"kind"`
+	Metadata   resource.Metadata    `json:"metadata"`
+	Spec       apigen.SecretSpec    `json:"spec"`
+	Status     *apigen.SecretStatus `json:"status,omitempty"`
 }
 
 // NewSecret constructs a Secret with its generated type identity.
@@ -301,9 +333,18 @@ type SecretDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed Secret status to the generic storage representation.
+func (definition SecretDefinition) EncodeStatus(status *apigen.SecretStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed Secret.
 func (definition SecretDefinition) Decode(value resource.Resource) (Secret, error) {
 	spec, err := decodeResourceSpec[apigen.SecretSpec](definition.Definition, value)
+	if err != nil {
+		return Secret{}, err
+	}
+	status, err := decodeStoredStatus[apigen.SecretStatus](definition.Kind, value.Status)
 	if err != nil {
 		return Secret{}, err
 	}
@@ -312,17 +353,17 @@ func (definition SecretDefinition) Decode(value resource.Resource) (Secret, erro
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
 // Server is the concrete controller-facing resource for Server.
 type Server struct {
-	APIVersion string            `json:"apiVersion"`
-	Kind       string            `json:"kind"`
-	Metadata   resource.Metadata `json:"metadata"`
-	Spec       apigen.ServerSpec `json:"spec"`
-	Status     map[string]any    `json:"status,omitempty"`
+	APIVersion string               `json:"apiVersion"`
+	Kind       string               `json:"kind"`
+	Metadata   resource.Metadata    `json:"metadata"`
+	Spec       apigen.ServerSpec    `json:"spec"`
+	Status     *apigen.ServerStatus `json:"status,omitempty"`
 }
 
 // NewServer constructs a Server with its generated type identity.
@@ -345,9 +386,18 @@ type ServerDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed Server status to the generic storage representation.
+func (definition ServerDefinition) EncodeStatus(status *apigen.ServerStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed Server.
 func (definition ServerDefinition) Decode(value resource.Resource) (Server, error) {
 	spec, err := decodeResourceSpec[apigen.ServerSpec](definition.Definition, value)
+	if err != nil {
+		return Server{}, err
+	}
+	status, err := decodeStoredStatus[apigen.ServerStatus](definition.Kind, value.Status)
 	if err != nil {
 		return Server{}, err
 	}
@@ -356,17 +406,17 @@ func (definition ServerDefinition) Decode(value resource.Resource) (Server, erro
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
 // SSHKeyPair is the concrete controller-facing resource for SSHKeyPair.
 type SSHKeyPair struct {
-	APIVersion string                `json:"apiVersion"`
-	Kind       string                `json:"kind"`
-	Metadata   resource.Metadata     `json:"metadata"`
-	Spec       apigen.SSHKeyPairSpec `json:"spec"`
-	Status     map[string]any        `json:"status,omitempty"`
+	APIVersion string                   `json:"apiVersion"`
+	Kind       string                   `json:"kind"`
+	Metadata   resource.Metadata        `json:"metadata"`
+	Spec       apigen.SSHKeyPairSpec    `json:"spec"`
+	Status     *apigen.SSHKeyPairStatus `json:"status,omitempty"`
 }
 
 // NewSSHKeyPair constructs a SSHKeyPair with its generated type identity.
@@ -389,9 +439,18 @@ type SSHKeyPairDefinition struct {
 	Definition
 }
 
+// EncodeStatus converts a typed SSHKeyPair status to the generic storage representation.
+func (definition SSHKeyPairDefinition) EncodeStatus(status *apigen.SSHKeyPairStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
 // Decode converts a generic storage resource into a typed SSHKeyPair.
 func (definition SSHKeyPairDefinition) Decode(value resource.Resource) (SSHKeyPair, error) {
 	spec, err := decodeResourceSpec[apigen.SSHKeyPairSpec](definition.Definition, value)
+	if err != nil {
+		return SSHKeyPair{}, err
+	}
+	status, err := decodeStoredStatus[apigen.SSHKeyPairStatus](definition.Kind, value.Status)
 	if err != nil {
 		return SSHKeyPair{}, err
 	}
@@ -400,11 +459,11 @@ func (definition SSHKeyPairDefinition) Decode(value resource.Resource) (SSHKeyPa
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
 		Spec:       spec,
-		Status:     value.Status,
+		Status:     status,
 	}, nil
 }
 
-var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "", []string(nil))}
+var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
