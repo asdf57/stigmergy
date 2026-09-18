@@ -463,6 +463,59 @@ func (definition SSHKeyPairDefinition) Decode(value resource.Resource) (SSHKeyPa
 	}, nil
 }
 
+// UsernamePasswordCredential is the concrete controller-facing resource for UsernamePasswordCredential.
+type UsernamePasswordCredential struct {
+	APIVersion string                                   `json:"apiVersion"`
+	Kind       string                                   `json:"kind"`
+	Metadata   resource.Metadata                        `json:"metadata"`
+	Spec       apigen.UsernamePasswordCredentialSpec    `json:"spec"`
+	Status     *apigen.UsernamePasswordCredentialStatus `json:"status,omitempty"`
+}
+
+// NewUsernamePasswordCredential constructs a UsernamePasswordCredential with its generated type identity.
+func NewUsernamePasswordCredential(metadata resource.Metadata, spec apigen.UsernamePasswordCredentialSpec) UsernamePasswordCredential {
+	return UsernamePasswordCredential{
+		APIVersion: UsernamePasswordCredentialResource.APIVersion,
+		Kind:       UsernamePasswordCredentialResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed UsernamePasswordCredential into the generic storage representation.
+func (value UsernamePasswordCredential) Encode() (resource.Resource, error) {
+	return encodeResource(UsernamePasswordCredentialResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// UsernamePasswordCredentialDefinition adds concrete UsernamePasswordCredential decoding to the shared API definition.
+type UsernamePasswordCredentialDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed UsernamePasswordCredential status to the generic storage representation.
+func (definition UsernamePasswordCredentialDefinition) EncodeStatus(status *apigen.UsernamePasswordCredentialStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed UsernamePasswordCredential.
+func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Resource) (UsernamePasswordCredential, error) {
+	spec, err := decodeResourceSpec[apigen.UsernamePasswordCredentialSpec](definition.Definition, value)
+	if err != nil {
+		return UsernamePasswordCredential{}, err
+	}
+	status, err := decodeStoredStatus[apigen.UsernamePasswordCredentialStatus](definition.Kind, value.Status)
+	if err != nil {
+		return UsernamePasswordCredential{}, err
+	}
+	return UsernamePasswordCredential{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
@@ -472,6 +525,7 @@ var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen
 var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
 var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
 var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.SSHKeyPairSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHKeyPair", "ssh-key-pairs", "SSHKeyPairStatus", []string{"homelab.io/ssh-key-pair-cleanup"})}
+var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"})}
 
 var Definitions = []Definition{
 	GitRepositoryResource.Definition,
@@ -483,4 +537,5 @@ var Definitions = []Definition{
 	SecretResource.Definition,
 	ServerResource.Definition,
 	SSHKeyPairResource.Definition,
+	UsernamePasswordCredentialResource.Definition,
 }
