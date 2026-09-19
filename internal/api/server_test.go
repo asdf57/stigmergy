@@ -362,6 +362,20 @@ spec:
   path: automation/ansible-homelab
 `,
 		},
+		{
+			name: "UsernamePasswordCredential",
+			path: "/api/v1alpha1/username-password-credentials",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: UsernamePasswordCredential
+metadata:
+  name: ansible-login
+spec:
+  username: ansible
+  password: secret
+  secretStoreRef:
+    name: openbao
+`,
+		},
 	}
 
 	for _, test := range tests {
@@ -382,14 +396,34 @@ spec:
 			if created["kind"] != test.name {
 				t.Fatalf("created kind = %v, want %s", created["kind"], test.name)
 			}
-			if test.name == "SSHKeyPair" {
+			expectedFinalizers := map[string]string{
+				"SSHKeyPair":                 "homelab.io/ssh-key-pair-cleanup",
+				"UsernamePasswordCredential": "homelab.io/username-password-cleanup",
+			}
+			if expectedFinalizer, found := expectedFinalizers[test.name]; found {
 				metadata := created["metadata"].(map[string]any)
 				finalizers := metadata["finalizers"].([]any)
-				if len(finalizers) != 1 || finalizers[0] != "homelab.io/ssh-key-pair-cleanup" {
+				if len(finalizers) != 1 || finalizers[0] != expectedFinalizer {
 					t.Fatalf("%s finalizers = %#v", test.name, finalizers)
 				}
 			}
 		})
+	}
+}
+
+func TestCreateUsernamePasswordCredentialRequiresPassword(t *testing.T) {
+	t.Parallel()
+
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeStore{}, time.Second)
+	body := `{"apiVersion":"homelab.io/v1alpha1","kind":"UsernamePasswordCredential","metadata":{"name":"ansible-login"},"spec":{"username":"ansible","secretStoreRef":{"name":"openbao"}}}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/username-password-credentials", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusBadRequest, response.Body.String())
 	}
 }
 

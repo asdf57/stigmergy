@@ -2396,6 +2396,7 @@ components:
                     default: username-password-creds
                     minLength: 1
                     type: string
+                    x-go-type-skip-optional-pointer: true
                 secretStoreRef:
                     $ref: '#/components/schemas/UsernamePasswordCredentialSecretStoreReference'
                 username:
@@ -2403,7 +2404,7 @@ components:
                     type: string
             required:
                 - username
-                - pasword
+                - password
                 - secretStoreRef
             type: object
         UsernamePasswordCredentialStatus:

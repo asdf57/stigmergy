@@ -20,6 +20,7 @@ import (
 	"github.com/asdf57/stigmergy/internal/controller/secret"
 	servercontroller "github.com/asdf57/stigmergy/internal/controller/server"
 	"github.com/asdf57/stigmergy/internal/controller/sshkeypair"
+	usernamepassword "github.com/asdf57/stigmergy/internal/controller/usernamepassword"
 	etcdstore "github.com/asdf57/stigmergy/internal/store/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -80,6 +81,9 @@ func run() error {
 	secretController := controller.NewController(secretReconciler)
 	sshKeyPairReconciler := sshkeypair.NewReconciler(resourceStore)
 	sshKeyPairController := controller.NewController(sshKeyPairReconciler)
+	usernamePasswordReconciler := usernamepassword.NewReconciler(resourceStore)
+	usernamePasswordController := controller.NewController(usernamePasswordReconciler)
+
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
 	}
@@ -136,6 +140,14 @@ func run() error {
 					{Kind: registry.SSHKeyPairResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSSHKeyPair},
 					{Kind: registry.SecretResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSecret},
 					{Kind: registry.ServerResource.Kind, Mapper: controller.IdentityMapper},
+				},
+			},
+			{
+				Name:       "username-password-controller",
+				Controller: usernamePasswordController,
+				Watches: []controller.Watch{
+					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SecretResource.Kind, Mapper: usernamePasswordReconciler.RequestsForSecret},
 				},
 			},
 		},
