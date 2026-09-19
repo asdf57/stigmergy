@@ -1698,6 +1698,9 @@ components:
             properties:
                 authentication:
                     $ref: '#/components/schemas/RouterAuthenticationReference'
+                mgmtAddr:
+                    minLength: 1
+                    type: string
                 type:
                     enum:
                         - Mikrotik
@@ -1706,6 +1709,7 @@ components:
                         - RouterTypeMikrotik
             required:
                 - authentication
+                - mgmtAddr
                 - type
             type: object
         RouterStatus:

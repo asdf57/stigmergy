@@ -4,6 +4,7 @@
 # metadata:
 #   name: mikrotik-1
 # spec:
+#   mgmtAddr: 10.0.0.1
 #   authentication:
 #     type: UsernamePasswordCredential
 #     name: mikrotik-creds
@@ -22,10 +23,13 @@ x-stigmergy-resource:
 RouterSpec:
   type: object
   additionalProperties: false
-  required: [authentication, type]
+  required: [authentication, mgmtAddr, type]
   properties:
     authentication:
       $ref: '#/RouterAuthenticationReference'
+    mgmtAddr:
+      type: string
+      minLength: 1
     type:
       type: string
       enum: [Mikrotik]

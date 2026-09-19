@@ -236,6 +236,7 @@ spec:
   authentication:
     type: UsernamePasswordCredential
     name: mikrotik-creds
+  mgmtAddr: 10.0.0.1
   type: Mikrotik
 `,
 			wantStatus: http.StatusCreated,
@@ -243,13 +244,19 @@ spec:
 		{
 			name:        "unsupported router type",
 			contentType: "application/json",
-			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"UsernamePasswordCredential","name":"router-creds"},"type":"Unsupported"}}`,
+			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"UsernamePasswordCredential","name":"router-creds"},"mgmtAddr":"10.0.0.1","type":"Unsupported"}}`,
 			wantStatus:  http.StatusBadRequest,
 		},
 		{
 			name:        "unsupported authentication type",
 			contentType: "application/json",
-			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"Token","name":"router-token"},"type":"Mikrotik"}}`,
+			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"Token","name":"router-token"},"mgmtAddr":"10.0.0.1","type":"Mikrotik"}}`,
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "missing management address",
+			contentType: "application/json",
+			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"UsernamePasswordCredential","name":"router-creds"},"type":"Mikrotik"}}`,
 			wantStatus:  http.StatusBadRequest,
 		},
 	}
