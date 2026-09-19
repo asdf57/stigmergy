@@ -173,18 +173,35 @@ func TestReconcileUpdatesOwnedSecretWhenCredentialsChange(t *testing.T) {
 	}
 }
 
-func TestReconcileUsesDefaultSecretPath(t *testing.T) {
-	credential := testCredential()
-	delete(credential.Spec, "path")
-	storage := newFakeStore(credential)
+func TestReconcileUsesResourceNameUnderDefaultSecretBasePath(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		specPath *string
+	}{
+		{name: "omitted path"},
+		{name: "schema default", specPath: ptrTo(defaultSecretBasePath)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			credential := testCredential()
+			if test.specPath == nil {
+				delete(credential.Spec, "path")
+			} else {
+				credential.Spec["path"] = *test.specPath
+			}
+			storage := newFakeStore(credential)
 
-	if err := NewReconciler(storage).Reconcile(context.Background(), controller.Request{Kind: registry.UsernamePasswordCredentialResource.Kind, Name: "ansible-login"}); err != nil {
-		t.Fatalf("Reconcile() error = %v", err)
-	}
-	if path := storage.resources["Secret/ansible-login"].Spec["path"]; path != defaultSecretPath {
-		t.Fatalf("Secret path = %#v, want %q", path, defaultSecretPath)
+			if err := NewReconciler(storage).Reconcile(context.Background(), controller.Request{Kind: registry.UsernamePasswordCredentialResource.Kind, Name: "ansible-login"}); err != nil {
+				t.Fatalf("Reconcile() error = %v", err)
+			}
+			want := defaultSecretBasePath + "/ansible-login"
+			if path := storage.resources["Secret/ansible-login"].Spec["path"]; path != want {
+				t.Fatalf("Secret path = %#v, want %q", path, want)
+			}
+		})
 	}
 }
+
+func ptrTo[T any](value T) *T { return &value }
 
 func TestReconcileDoesNotAdoptUnownedSecret(t *testing.T) {
 	unowned := readySecret()

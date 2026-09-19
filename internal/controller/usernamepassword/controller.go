@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"slices"
 	"strconv"
 
@@ -15,11 +16,11 @@ import (
 )
 
 const (
-	cleanupFinalizer   = "homelab.io/username-password-cleanup"
-	secretFinalizer    = "homelab.io/secret-cleanup"
-	ownerUIDAnnotation = "homelab.io/username-password-uid"
-	ownerUIDDataKey    = "usernamePasswordUid"
-	defaultSecretPath  = "username-password-creds"
+	cleanupFinalizer      = "homelab.io/username-password-cleanup"
+	secretFinalizer       = "homelab.io/secret-cleanup"
+	ownerUIDAnnotation    = "homelab.io/username-password-uid"
+	ownerUIDDataKey       = "usernamePasswordUid"
+	defaultSecretBasePath = "username-password-creds"
 )
 
 var errSecretOwnershipConflict = errors.New("Secret ownership conflict")
@@ -141,13 +142,13 @@ func (r *Reconciler) updateSecretIfNeeded(ctx context.Context, secretResource re
 }
 
 func desiredSecret(credential registry.UsernamePasswordCredential, metadata resource.Metadata) registry.Secret {
-	path := credential.Spec.Path
-	if path == "" {
-		path = defaultSecretPath
+	secretPath := credential.Spec.Path
+	if secretPath == "" || secretPath == defaultSecretBasePath {
+		secretPath = path.Join(defaultSecretBasePath, credential.Metadata.Name)
 	}
 	return registry.NewSecret(metadata, apigen.SecretSpec{
 		SecretStoreRef: apigen.SecretStoreReference{Name: credential.Spec.SecretStoreRef.Name},
-		Path:           path,
+		Path:           secretPath,
 		Data: map[string]string{
 			"username": credential.Spec.Username, "password": credential.Spec.Password, ownerUIDDataKey: credential.Metadata.UID,
 		},
