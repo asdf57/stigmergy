@@ -59,42 +59,10 @@ RouterStatus:
       type: integer
       format: int64
       minimum: 0
-    fqdn:
-      type: string
-      minLength: 1
-    networking:
-      $ref: '#/RouterNetworkingStatus'
     conditions:
       type: array
       items:
         $ref: '#/RouterCondition'
-
-RouterNetworkingStatus:
-  type: object
-  additionalProperties: false
-  properties:
-    management:
-      $ref: '#/RouterManagementNetworkStatus'
-
-RouterManagementNetworkStatus:
-  type: object
-  additionalProperties: false
-  required: [address]
-  properties:
-    address:
-      $ref: '#/RouterManagementAddressStatus'
-
-RouterManagementAddressStatus:
-  type: object
-  additionalProperties: false
-  required: [address]
-  properties:
-    address:
-      type: string
-      minLength: 1
-    family:
-      type: string
-      enum: [ipv4, ipv6]
 
 RouterCondition:
   type: object

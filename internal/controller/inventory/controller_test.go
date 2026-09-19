@@ -123,21 +123,29 @@ func TestRequestsForResourceReturnsEveryCaptureGroup(t *testing.T) {
 }
 
 func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
+	originalDefinitions := registry.Definitions
+	registry.Definitions = append(registry.Definitions, registry.Definition{
+		APIVersion:   "homelab.io/v1alpha1",
+		Kind:         "NetworkDevice",
+		StatusSchema: "NetworkDeviceStatus",
+	})
+	defer func() { registry.Definitions = originalDefinitions }()
+
 	group := testGroup()
 	group.Spec = map[string]any{"selector": map[string]any{
 		"matchKinds": []any{map[string]any{
-			"apiVersion": registry.RouterResource.APIVersion, "kind": registry.RouterResource.Kind,
+			"apiVersion": "homelab.io/v1alpha1", "kind": "NetworkDevice",
 		}},
 		"matchLabels": map[string]any{"homelab.io/environment": "lab"},
 		"matchExpressions": []any{map[string]any{
 			"key": "homelab.io/managed", "operator": "Exists",
 		}},
 	}}
-	router := resource.Resource{
-		APIVersion: registry.RouterResource.APIVersion,
-		Kind:       registry.RouterResource.Kind,
+	networkDevice := resource.Resource{
+		APIVersion: "homelab.io/v1alpha1",
+		Kind:       "NetworkDevice",
 		Metadata: resource.Metadata{
-			Name: "gateway", UID: "router-uid", ResourceVersion: "1", Generation: 1,
+			Name: "gateway", UID: "network-device-uid", ResourceVersion: "1", Generation: 1,
 			Labels: map[string]string{"homelab.io/environment": "lab", "homelab.io/managed": "true"},
 		},
 		Spec: map[string]any{},
@@ -145,7 +153,7 @@ func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
 			"address": map[string]any{"address": "10.1.1.1"},
 		}}},
 	}
-	storage := newFakeStore(group, router)
+	storage := newFakeStore(group, networkDevice)
 
 	if err := NewInventoryCaptureGroupReconciler(storage).Reconcile(context.Background(), controller.Request{Kind: group.Kind, Name: group.Metadata.Name}); err != nil {
 		t.Fatalf("Reconcile() error = %v", err)
@@ -153,7 +161,7 @@ func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
 	status := storage.resources["InventoryCaptureGroup/servers"].Status
 	hosts := status["inventory"].(map[string]any)["all"].(map[string]any)["hosts"].(map[string]any)
 	if hosts["gateway"].(map[string]any)["ansible_host"] != "10.1.1.1" {
-		t.Fatalf("Router host = %#v", hosts["gateway"])
+		t.Fatalf("NetworkDevice host = %#v", hosts["gateway"])
 	}
 }
 

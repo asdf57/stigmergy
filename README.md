@@ -263,8 +263,8 @@ status:
 The controller considers registered durable resource kinds generically. A
 selected object is capturable when it exposes the small management contract:
 `status.networking.management.address.address` plus optional `status.fqdn`.
-Resources such as `Router` require no inventory-specific schema marker or
-inventory-controller change.
+Resources that expose this contract require no inventory-specific schema
+marker or inventory-controller change.
 
 Selected resources without a resolved management address are not guessed or
 silently included. They appear in `status.omittedResources`, and the group

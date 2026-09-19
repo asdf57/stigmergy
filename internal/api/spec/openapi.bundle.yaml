@@ -1665,34 +1665,6 @@ components:
                 - metadata
                 - items
             type: object
-        RouterManagementAddressStatus:
-            additionalProperties: false
-            properties:
-                address:
-                    minLength: 1
-                    type: string
-                family:
-                    enum:
-                        - ipv4
-                        - ipv6
-                    type: string
-            required:
-                - address
-            type: object
-        RouterManagementNetworkStatus:
-            additionalProperties: false
-            properties:
-                address:
-                    $ref: '#/components/schemas/RouterManagementAddressStatus'
-            required:
-                - address
-            type: object
-        RouterNetworkingStatus:
-            additionalProperties: false
-            properties:
-                management:
-                    $ref: '#/components/schemas/RouterManagementNetworkStatus'
-            type: object
         RouterSpec:
             additionalProperties: false
             properties:
@@ -1719,11 +1691,6 @@ components:
                     items:
                         $ref: '#/components/schemas/RouterCondition'
                     type: array
-                fqdn:
-                    minLength: 1
-                    type: string
-                networking:
-                    $ref: '#/components/schemas/RouterNetworkingStatus'
                 observedGeneration:
                     format: int64
                     minimum: 0
