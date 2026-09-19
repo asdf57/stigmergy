@@ -315,6 +315,59 @@ func (definition MachineDefinition) Decode(value resource.Resource) (Machine, er
 	}, nil
 }
 
+// Router is the concrete controller-facing resource for Router.
+type Router struct {
+	APIVersion string               `json:"apiVersion"`
+	Kind       string               `json:"kind"`
+	Metadata   resource.Metadata    `json:"metadata"`
+	Spec       apigen.RouterSpec    `json:"spec"`
+	Status     *apigen.RouterStatus `json:"status,omitempty"`
+}
+
+// NewRouter constructs a Router with its generated type identity.
+func NewRouter(metadata resource.Metadata, spec apigen.RouterSpec) Router {
+	return Router{
+		APIVersion: RouterResource.APIVersion,
+		Kind:       RouterResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Router into the generic storage representation.
+func (value Router) Encode() (resource.Resource, error) {
+	return encodeResource(RouterResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// RouterDefinition adds concrete Router decoding to the shared API definition.
+type RouterDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed Router status to the generic storage representation.
+func (definition RouterDefinition) EncodeStatus(status *apigen.RouterStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed Router.
+func (definition RouterDefinition) Decode(value resource.Resource) (Router, error) {
+	spec, err := decodeResourceSpec[apigen.RouterSpec](definition.Definition, value)
+	if err != nil {
+		return Router{}, err
+	}
+	status, err := decodeStoredStatus[apigen.RouterStatus](definition.Kind, value.Status)
+	if err != nil {
+		return Router{}, err
+	}
+	return Router{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // SecretStore is the concrete controller-facing resource for SecretStore.
 type SecretStore struct {
 	APIVersion string                 `json:"apiVersion"`
@@ -575,6 +628,7 @@ var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: 
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil))}
+var RouterResource = RouterDefinition{Definition: NewDefinition[apigen.RouterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Router", "routers", "RouterStatus", []string(nil))}
 var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
 var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
 var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
@@ -588,6 +642,7 @@ var Definitions = []Definition{
 	InventoryPublicationResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
+	RouterResource.Definition,
 	SecretStoreResource.Definition,
 	SecretResource.Definition,
 	ServerResource.Definition,

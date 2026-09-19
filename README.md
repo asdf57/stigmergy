@@ -216,8 +216,8 @@ spec:
 ```
 
 Omitting `matchKinds` selects across every manageable kind. To select every
-Server regardless of labels while remaining precise after kinds such as
-`Router` are added, use:
+Server regardless of labels while remaining precise now that kinds such as
+`Router` are registered, use:
 
 ```yaml
 spec:
@@ -263,8 +263,8 @@ status:
 The controller considers registered durable resource kinds generically. A
 selected object is capturable when it exposes the small management contract:
 `status.networking.management.address.address` plus optional `status.fqdn`.
-Future resources such as `Router` require no inventory-specific schema marker
-or inventory-controller change.
+Resources such as `Router` require no inventory-specific schema marker or
+inventory-controller change.
 
 Selected resources without a resolved management address are not guessed or
 silently included. They appear in `status.omittedResources`, and the group

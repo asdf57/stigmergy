@@ -1,0 +1,106 @@
+# ---
+# apiVersion: homelab.io/v1alpha1
+# kind: Router
+# metadata:
+#   name: mikrotik-1
+# spec:
+#   authentication:
+#     type: UsernamePasswordCredential
+#     name: mikrotik-creds
+#   type: Mikrotik
+
+# Router declares a network router managed by a provider-specific controller.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: Router
+  plural: routers
+  spec-schema: RouterSpec
+  status-schema: RouterStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+RouterSpec:
+  type: object
+  additionalProperties: false
+  required: [authentication, type]
+  properties:
+    authentication:
+      $ref: '#/RouterAuthenticationReference'
+    type:
+      type: string
+      enum: [Mikrotik]
+      x-enum-varnames: [RouterTypeMikrotik]
+
+RouterAuthenticationReference:
+  type: object
+  additionalProperties: false
+  required: [type, name]
+  properties:
+    type:
+      type: string
+      enum: [UsernamePasswordCredential]
+      x-enum-varnames: [RouterAuthenticationTypeUsernamePasswordCredential]
+    name:
+      type: string
+      minLength: 1
+
+RouterStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Failed]
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
+    fqdn:
+      type: string
+      minLength: 1
+    networking:
+      $ref: '#/RouterNetworkingStatus'
+    conditions:
+      type: array
+      items:
+        $ref: '#/RouterCondition'
+
+RouterNetworkingStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    management:
+      $ref: '#/RouterManagementNetworkStatus'
+
+RouterManagementNetworkStatus:
+  type: object
+  additionalProperties: false
+  required: [address]
+  properties:
+    address:
+      $ref: '#/RouterManagementAddressStatus'
+
+RouterManagementAddressStatus:
+  type: object
+  additionalProperties: false
+  required: [address]
+  properties:
+    address:
+      type: string
+      minLength: 1
+    family:
+      type: string
+      enum: [ipv4, ipv6]
+
+RouterCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

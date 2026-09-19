@@ -123,18 +123,10 @@ func TestRequestsForResourceReturnsEveryCaptureGroup(t *testing.T) {
 }
 
 func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
-	originalDefinitions := registry.Definitions
-	registry.Definitions = append(registry.Definitions, registry.Definition{
-		APIVersion:   "homelab.io/v1alpha1",
-		Kind:         "Router",
-		StatusSchema: "RouterStatus",
-	})
-	defer func() { registry.Definitions = originalDefinitions }()
-
 	group := testGroup()
 	group.Spec = map[string]any{"selector": map[string]any{
 		"matchKinds": []any{map[string]any{
-			"apiVersion": "homelab.io/v1alpha1", "kind": "Router",
+			"apiVersion": registry.RouterResource.APIVersion, "kind": registry.RouterResource.Kind,
 		}},
 		"matchLabels": map[string]any{"homelab.io/environment": "lab"},
 		"matchExpressions": []any{map[string]any{
@@ -142,8 +134,8 @@ func TestReconcileCapturesAnyRegisteredManageableKind(t *testing.T) {
 		}},
 	}}
 	router := resource.Resource{
-		APIVersion: "homelab.io/v1alpha1",
-		Kind:       "Router",
+		APIVersion: registry.RouterResource.APIVersion,
+		Kind:       registry.RouterResource.Kind,
 		Metadata: resource.Metadata{
 			Name: "gateway", UID: "router-uid", ResourceVersion: "1", Generation: 1,
 			Labels: map[string]string{"homelab.io/environment": "lab", "homelab.io/managed": "true"},

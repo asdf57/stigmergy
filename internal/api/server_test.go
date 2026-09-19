@@ -216,6 +216,60 @@ func TestDNSRecordSchemaValidation(t *testing.T) {
 	}
 }
 
+func TestRouterSchemaValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		contentType string
+		body        string
+		wantStatus  int
+	}{
+		{
+			name:        "valid Mikrotik router",
+			contentType: "application/yaml",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: Router
+metadata:
+  name: mikrotik-1
+spec:
+  authentication:
+    type: UsernamePasswordCredential
+    name: mikrotik-creds
+  type: Mikrotik
+`,
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:        "unsupported router type",
+			contentType: "application/json",
+			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"UsernamePasswordCredential","name":"router-creds"},"type":"Unsupported"}}`,
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "unsupported authentication type",
+			contentType: "application/json",
+			body:        `{"apiVersion":"homelab.io/v1alpha1","kind":"Router","metadata":{"name":"router-1"},"spec":{"authentication":{"type":"Token","name":"router-token"},"type":"Mikrotik"}}`,
+			wantStatus:  http.StatusBadRequest,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeStore{}, time.Second)
+			request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/routers", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", test.contentType)
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestCreateMachineWithDeclaredLocation(t *testing.T) {
 	t.Parallel()
 
