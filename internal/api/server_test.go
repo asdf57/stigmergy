@@ -188,8 +188,8 @@ func TestDNSRecordSchemaValidation(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "lowercase record type",
-			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"a","value":"10.0.2.42","ttl":300}`,
+			name:       "unsupported record type",
+			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"BOGUS","value":"10.0.2.42","ttl":300}`,
 			wantStatus: http.StatusBadRequest,
 		},
 		{

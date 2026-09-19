@@ -117,8 +117,27 @@ components:
                     minimum: 0
                     type: integer
                 type:
-                    pattern: ^[A-Z][A-Z0-9-]*$
+                    enum:
+                        - A
+                        - AAAA
+                        - CAA
+                        - CNAME
+                        - MX
+                        - NS
+                        - PTR
+                        - SRV
+                        - TXT
                     type: string
+                    x-enum-varnames:
+                        - DNSRecordTypeA
+                        - DNSRecordTypeAAAA
+                        - DNSRecordTypeCAA
+                        - DNSRecordTypeCNAME
+                        - DNSRecordTypeMX
+                        - DNSRecordTypeNS
+                        - DNSRecordTypePTR
+                        - DNSRecordTypeSRV
+                        - DNSRecordTypeTXT
                 value:
                     minLength: 1
                     type: string
