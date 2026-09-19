@@ -1,0 +1,75 @@
+# DNSRecord declares a DNS record managed through an external backing store.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: DNSRecord
+  plural: dns-records
+  spec-schema: DNSRecordSpec
+  status-schema: DNSRecordStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+DNSRecordSpec:
+  type: object
+  additionalProperties: false
+  required: [backingStoreRef, name, zone, type, value, ttl]
+  properties:
+    backingStoreRef:
+      $ref: '#/DNSRecordBackingStoreReference'
+    name:
+      type: string
+      minLength: 1
+    zone:
+      type: string
+      minLength: 1
+    type:
+      type: string
+      pattern: '^[A-Z][A-Z0-9-]*$'
+    value:
+      type: string
+      minLength: 1
+    ttl:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 2147483647
+
+DNSRecordBackingStoreReference:
+  type: object
+  additionalProperties: false
+  required: [kind, name]
+  properties:
+    kind:
+      type: string
+      minLength: 1
+    name:
+      type: string
+      minLength: 1
+
+DNSRecordStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Failed]
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
+    conditions:
+      type: array
+      items:
+        $ref: '#/DNSRecordCondition'
+
+DNSRecordCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

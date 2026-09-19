@@ -169,6 +169,53 @@ func TestMachineReportSchemaValidation(t *testing.T) {
 	}
 }
 
+func TestDNSRecordSchemaValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		spec       string
+		wantStatus int
+	}{
+		{
+			name:       "valid A record",
+			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"A","value":"10.0.2.42","ttl":300}`,
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "missing value",
+			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"A","ttl":300}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "lowercase record type",
+			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"a","value":"10.0.2.42","ttl":300}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "negative TTL",
+			spec:       `{"backingStoreRef":{"kind":"Router","name":"mikrotik-1"},"name":"ansible","zone":"homelab.example.com","type":"A","value":"10.0.2.42","ttl":-1}`,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeStore{}, time.Second)
+			body := `{"apiVersion":"homelab.io/v1alpha1","kind":"DNSRecord","metadata":{"name":"ansible-inventory"},"spec":` + test.spec + `}`
+			request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/dns-records", strings.NewReader(body))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestCreateMachineWithDeclaredLocation(t *testing.T) {
 	t.Parallel()
 

@@ -8,6 +8,59 @@ import (
 	"github.com/asdf57/stigmergy/internal/resource"
 )
 
+// DNSRecord is the concrete controller-facing resource for DNSRecord.
+type DNSRecord struct {
+	APIVersion string                  `json:"apiVersion"`
+	Kind       string                  `json:"kind"`
+	Metadata   resource.Metadata       `json:"metadata"`
+	Spec       apigen.DNSRecordSpec    `json:"spec"`
+	Status     *apigen.DNSRecordStatus `json:"status,omitempty"`
+}
+
+// NewDNSRecord constructs a DNSRecord with its generated type identity.
+func NewDNSRecord(metadata resource.Metadata, spec apigen.DNSRecordSpec) DNSRecord {
+	return DNSRecord{
+		APIVersion: DNSRecordResource.APIVersion,
+		Kind:       DNSRecordResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed DNSRecord into the generic storage representation.
+func (value DNSRecord) Encode() (resource.Resource, error) {
+	return encodeResource(DNSRecordResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// DNSRecordDefinition adds concrete DNSRecord decoding to the shared API definition.
+type DNSRecordDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed DNSRecord status to the generic storage representation.
+func (definition DNSRecordDefinition) EncodeStatus(status *apigen.DNSRecordStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed DNSRecord.
+func (definition DNSRecordDefinition) Decode(value resource.Resource) (DNSRecord, error) {
+	spec, err := decodeResourceSpec[apigen.DNSRecordSpec](definition.Definition, value)
+	if err != nil {
+		return DNSRecord{}, err
+	}
+	status, err := decodeStoredStatus[apigen.DNSRecordStatus](definition.Kind, value.Status)
+	if err != nil {
+		return DNSRecord{}, err
+	}
+	return DNSRecord{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // GitRepository is the concrete controller-facing resource for GitRepository.
 type GitRepository struct {
 	APIVersion string                      `json:"apiVersion"`
@@ -516,6 +569,7 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 	}, nil
 }
 
+var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string(nil))}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
@@ -528,6 +582,7 @@ var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.S
 var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"})}
 
 var Definitions = []Definition{
+	DNSRecordResource.Definition,
 	GitRepositoryResource.Definition,
 	InventoryCaptureGroupResource.Definition,
 	InventoryPublicationResource.Definition,

@@ -2,6 +2,155 @@
 # This self-contained contract drives code generation, request validation, Swagger UI, and /openapi.json.
 components:
     schemas:
+        DNSRecord:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: DNSRecord
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/DNSRecordSpec'
+                status:
+                    $ref: '#/components/schemas/DNSRecordStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        DNSRecordBackingStoreReference:
+            additionalProperties: false
+            properties:
+                kind:
+                    minLength: 1
+                    type: string
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - kind
+                - name
+            type: object
+        DNSRecordCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
+            type: object
+        DNSRecordCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: DNSRecord
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/DNSRecordSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        DNSRecordList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/DNSRecord'
+                    type: array
+                kind:
+                    const: DNSRecordList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        DNSRecordSpec:
+            additionalProperties: false
+            properties:
+                backingStoreRef:
+                    $ref: '#/components/schemas/DNSRecordBackingStoreReference'
+                name:
+                    minLength: 1
+                    type: string
+                ttl:
+                    format: int64
+                    maximum: 2147483647
+                    minimum: 0
+                    type: integer
+                type:
+                    pattern: ^[A-Z][A-Z0-9-]*$
+                    type: string
+                value:
+                    minLength: 1
+                    type: string
+                zone:
+                    minLength: 1
+                    type: string
+            required:
+                - backingStoreRef
+                - name
+                - zone
+                - type
+                - value
+                - ttl
+            type: object
+        DNSRecordStatus:
+            additionalProperties: false
+            properties:
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/DNSRecordCondition'
+                    type: array
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Ready
+                        - Failed
+                    type: string
+            type: object
         DeleteCollectionResult:
             additionalProperties: false
             properties:
@@ -2434,6 +2583,344 @@ info:
     version: 0.1.0
 openapi: 3.1.0
 paths:
+    /api/v1alpha1/dns-records:
+        delete:
+            operationId: deleteDNSRecords
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all DNSRecord resources
+            tags:
+                - DNSRecords
+        get:
+            operationId: listDNSRecords
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecordList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List DNSRecord resources
+            tags:
+                - DNSRecords
+        post:
+            operationId: createDNSRecord
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecord'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a DNSRecord
+            tags:
+                - DNSRecords
+    /api/v1alpha1/dns-records/{name}:
+        delete:
+            operationId: deleteDNSRecord
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one DNSRecord
+            tags:
+                - DNSRecords
+        get:
+            operationId: getDNSRecord
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecord'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one DNSRecord
+            tags:
+                - DNSRecords
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchDNSRecord
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecord'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one DNSRecord
+            tags:
+                - DNSRecords
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putDNSRecord
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/DNSRecordCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecord'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DNSRecord'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one DNSRecord
+            tags:
+                - DNSRecords
     /api/v1alpha1/git-repositories:
         delete:
             operationId: deleteGitRepositorys
@@ -5797,6 +6284,7 @@ servers:
     - url: /
 tags:
     - name: System
+    - name: DNSRecords
     - name: GitRepositorys
     - name: InventoryCaptureGroups
     - name: InventoryPublications
