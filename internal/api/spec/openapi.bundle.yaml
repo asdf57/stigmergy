@@ -37,6 +37,32 @@ components:
                 - kind
                 - name
             type: object
+        DNSRecordBackingStoreStatus:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    minLength: 1
+                    type: string
+                kind:
+                    minLength: 1
+                    type: string
+                name:
+                    minLength: 1
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                uid:
+                    minLength: 1
+                    type: string
+            required:
+                - apiVersion
+                - kind
+                - name
+                - uid
+                - observedGeneration
+            type: object
         DNSRecordCondition:
             additionalProperties: false
             properties:
@@ -155,6 +181,8 @@ components:
         DNSRecordStatus:
             additionalProperties: false
             properties:
+                backingStore:
+                    $ref: '#/components/schemas/DNSRecordBackingStoreStatus'
                 conditions:
                     items:
                         $ref: '#/components/schemas/DNSRecordCondition'

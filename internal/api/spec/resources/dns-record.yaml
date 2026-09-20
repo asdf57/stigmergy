@@ -66,10 +66,34 @@ DNSRecordStatus:
       type: integer
       format: int64
       minimum: 0
+    backingStore:
+      $ref: '#/DNSRecordBackingStoreStatus'
     conditions:
       type: array
       items:
         $ref: '#/DNSRecordCondition'
+
+DNSRecordBackingStoreStatus:
+  type: object
+  additionalProperties: false
+  required: [apiVersion, kind, name, uid, observedGeneration]
+  properties:
+    apiVersion:
+      type: string
+      minLength: 1
+    kind:
+      type: string
+      minLength: 1
+    name:
+      type: string
+      minLength: 1
+    uid:
+      type: string
+      minLength: 1
+    observedGeneration:
+      type: integer
+      format: int64
+      minimum: 0
 
 DNSRecordCondition:
   type: object
