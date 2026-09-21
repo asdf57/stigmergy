@@ -7,6 +7,7 @@ x-stigmergy-resource:
   spec-schema: DNSRecordSpec
   status-schema: DNSRecordStatus
   operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/dns-record-cleanup]
 
 DNSRecordSpec:
   type: object

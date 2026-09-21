@@ -14,9 +14,11 @@ import (
 	"github.com/asdf57/stigmergy/internal/api/registry"
 	"github.com/asdf57/stigmergy/internal/config"
 	"github.com/asdf57/stigmergy/internal/controller"
+	"github.com/asdf57/stigmergy/internal/controller/dns"
 	"github.com/asdf57/stigmergy/internal/controller/inventory"
 	"github.com/asdf57/stigmergy/internal/controller/machine"
 	"github.com/asdf57/stigmergy/internal/controller/publication"
+	routercontroller "github.com/asdf57/stigmergy/internal/controller/router"
 	"github.com/asdf57/stigmergy/internal/controller/secret"
 	servercontroller "github.com/asdf57/stigmergy/internal/controller/server"
 	"github.com/asdf57/stigmergy/internal/controller/sshkeypair"
@@ -83,6 +85,10 @@ func run() error {
 	sshKeyPairController := controller.NewController(sshKeyPairReconciler)
 	usernamePasswordReconciler := usernamepassword.NewReconciler(resourceStore)
 	usernamePasswordController := controller.NewController(usernamePasswordReconciler)
+	routerReconciler := routercontroller.NewReconciler(resourceStore)
+	routerController := controller.NewController(routerReconciler)
+	dnsReconciler := dns.NewReconciler(resourceStore)
+	dnsController := controller.NewController(dnsReconciler)
 
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
@@ -148,6 +154,22 @@ func run() error {
 				Watches: []controller.Watch{
 					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: controller.IdentityMapper},
 					{Kind: registry.SecretResource.Kind, Mapper: usernamePasswordReconciler.RequestsForSecret},
+				},
+			},
+			{
+				Name:       "router-controller",
+				Controller: routerController,
+				Watches: []controller.Watch{
+					{Kind: registry.RouterResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: routerReconciler.RequestsForCredential},
+				},
+			},
+			{
+				Name:       "dns-record-controller",
+				Controller: dnsController,
+				Watches: []controller.Watch{
+					{Kind: registry.DNSRecordResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.RouterResource.Kind, Mapper: dnsReconciler.RequestsForRouter},
 				},
 			},
 		},

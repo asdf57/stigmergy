@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/getkin/kin-openapi v0.142.0
 	github.com/go-git/go-git/v5 v5.19.2
+	github.com/go-routeros/routeros/v3 v3.0.1
 	github.com/oapi-codegen/nethttp-middleware v1.2.0
 	github.com/swaggest/swgui v1.8.9
 	go.etcd.io/etcd/api/v3 v3.6.13

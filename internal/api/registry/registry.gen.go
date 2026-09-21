@@ -622,7 +622,7 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 	}, nil
 }
 
-var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string(nil))}
+var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"})}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
