@@ -167,6 +167,13 @@ func (r *Reconciler) RequestsForGitRepository(ctx context.Context, request contr
 	})
 }
 
+// RequestsForSSHKeyPair retries publications when generated Git credentials
+// become ready. Repository authentication is resolved during publication, so
+// every publication is conservatively requeued.
+func (r *Reconciler) RequestsForSSHKeyPair(ctx context.Context, _ controller.Request) ([]controller.Request, error) {
+	return r.requestsMatching(ctx, func(registry.InventoryPublication) bool { return true })
+}
+
 func (r *Reconciler) requestsMatching(ctx context.Context, matches func(registry.InventoryPublication) bool) ([]controller.Request, error) {
 	publications, err := r.store.List(ctx, registry.InventoryPublicationResource.Kind)
 	if err != nil {

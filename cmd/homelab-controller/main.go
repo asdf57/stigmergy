@@ -128,6 +128,7 @@ func run() error {
 					{Kind: registry.InventoryPublicationResource.Kind, Mapper: controller.IdentityMapper},
 					{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: publicationReconciler.RequestsForCaptureGroup},
 					{Kind: registry.GitRepositoryResource.Kind, Mapper: publicationReconciler.RequestsForGitRepository},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: publicationReconciler.RequestsForSSHKeyPair},
 				},
 			},
 			{

@@ -200,6 +200,24 @@ func TestReferencedSSHKeyPairIsRequiredWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestSSHKeyPairChangeRequeuesPublications(t *testing.T) {
+	first := publicationTestResource()
+	second := publicationTestResource()
+	second.Metadata.Name = "other-publication"
+	second.Metadata.UID = "other-publication-uid"
+	reconciler := NewReconciler(newFakeStore(first, second))
+
+	requests, err := reconciler.RequestsForSSHKeyPair(context.Background(), controller.Request{
+		Kind: registry.SSHKeyPairResource.Kind, Name: "git-ssh-key",
+	})
+	if err != nil {
+		t.Fatalf("RequestsForSSHKeyPair() error = %v", err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("RequestsForSSHKeyPair() returned %d requests, want 2", len(requests))
+	}
+}
+
 func publicationTestGroup(phase string) resource.Resource {
 	return resource.Resource{
 		APIVersion: registry.InventoryCaptureGroupResource.APIVersion,
