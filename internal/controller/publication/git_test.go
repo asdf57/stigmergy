@@ -143,6 +143,46 @@ func TestGitPublisherCreatesPublicationBranchFromBaseAndOwnsRepositoryRoot(t *te
 	}
 }
 
+func TestGitPublisherPreservesUnmanagedFiles(t *testing.T) {
+	remotePath := filepath.Join(t.TempDir(), "commands.git")
+	if _, err := git.PlainInit(remotePath, true); err != nil {
+		t.Fatalf("initialize bare remote: %v", err)
+	}
+	publisher := &GitPublisher{Now: func() time.Time {
+		return time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	}}
+	repository := apigen.GitRepositorySpec{Url: remotePath}
+	if _, err := publisher.Publish(context.Background(), PublishRequest{
+		Repository: repository, PublicationName: "seed", Branch: "servers", RootPath: ".",
+		Artifacts: []Artifact{{Path: "README.md", Content: []byte("commands\n")}},
+	}); err != nil {
+		t.Fatalf("seed branch: %v", err)
+	}
+	request := PublishRequest{
+		Repository: repository, PublicationName: "servers", Branch: "servers", RootPath: ".", PreserveUnmanaged: true,
+		Artifacts: []Artifact{{Path: "servers.sh", Content: []byte("#!/bin/sh\nps aux\n")}},
+	}
+	if result, err := publisher.Publish(context.Background(), request); err != nil || !result.Changed {
+		t.Fatalf("Publish() = %#v, error = %v", result, err)
+	}
+	if result, err := publisher.Publish(context.Background(), request); err != nil || result.Changed {
+		t.Fatalf("unchanged Publish() = %#v, error = %v", result, err)
+	}
+
+	checkoutPath := filepath.Join(t.TempDir(), "checkout")
+	if _, err := git.PlainClone(checkoutPath, false, &git.CloneOptions{
+		URL: remotePath, ReferenceName: plumbing.NewBranchReferenceName("servers"), SingleBranch: true,
+	}); err != nil {
+		t.Fatalf("clone commands branch: %v", err)
+	}
+	for path, want := range map[string]string{"README.md": "commands\n", "servers.sh": "#!/bin/sh\nps aux\n"} {
+		content, err := os.ReadFile(filepath.Join(checkoutPath, path))
+		if err != nil || string(content) != want {
+			t.Fatalf("%s = %q, error = %v", path, content, err)
+		}
+	}
+}
+
 func TestSafeRepositoryPathRejectsTraversalAndGitMetadata(t *testing.T) {
 	for _, value := range []string{"../inventory.yaml", "dir/../inventory.yaml", "/inventory.yaml", ".git/config"} {
 		if _, err := safeRepositoryPath(value); err == nil {

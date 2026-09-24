@@ -53,12 +53,12 @@ func TestSafeCommandPath(t *testing.T) {
 	value := registry.NewCommandsPipeline(resource.Metadata{Name: "servers"}, apigen.CommandsPipelineSpec{
 		InventoryCaptureGroupRef: apigen.CommandsPipelineInventoryCaptureGroupReference{Name: "servers"},
 	})
-	if got, err := safeCommandPath(value); err != nil || got != "servers.sh" {
+	if got, err := SafeCommandPath(value); err != nil || got != "servers.sh" {
 		t.Fatalf("default path = %q, %v", got, err)
 	}
 	for _, invalid := range []string{"../secret", "/tmp/run.sh", "commands/../run.sh", "."} {
 		value.Spec.CommandPath = &invalid
-		if _, err := safeCommandPath(value); err == nil {
+		if _, err := SafeCommandPath(value); err == nil {
 			t.Errorf("safeCommandPath(%q) accepted an unsafe path", invalid)
 		}
 	}

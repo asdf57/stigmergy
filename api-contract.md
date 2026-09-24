@@ -141,6 +141,12 @@ object contract. The store assigns server-owned metadata and derives
   and the resulting Git revision.
 - Publication requires a Ready capture group unless explicitly disabled. Git
   updates are ordinary non-forced commits to the target branch.
+- `CommandsPipeline.spec` binds one inventory capture group to its commands
+  repository, provider, and command-file path.
+- `Command.spec` contains one multiline script and names its inventory capture
+  group. Its controller resolves the matching `CommandsPipeline`, preserves
+  unrelated branch files, and commits the script through the referenced
+  `GitRepository`. A capture group has at most one `Command` owner.
 - `SecretStore.spec` describes how controllers reach an external secret store;
   authentication names either a process environment variable or an absolute
   Agent-managed token file and never contains the credential value itself.

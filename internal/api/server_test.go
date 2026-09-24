@@ -405,6 +405,22 @@ func TestCreateInventoryPublicationResourcesFromYAML(t *testing.T) {
 		body string
 	}{
 		{
+			name: "Command",
+			path: "/api/v1alpha1/commands",
+			body: `apiVersion: homelab.io/v1alpha1
+kind: Command
+metadata:
+  name: servers
+spec:
+  inventoryCaptureGroupRef:
+    name: servers
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ansible all -m ping
+`,
+		},
+		{
 			name: "GitRepository",
 			path: "/api/v1alpha1/git-repositories",
 			body: `apiVersion: homelab.io/v1alpha1

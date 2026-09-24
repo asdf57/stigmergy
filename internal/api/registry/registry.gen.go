@@ -8,6 +8,59 @@ import (
 	"github.com/asdf57/stigmergy/internal/resource"
 )
 
+// Command is the concrete controller-facing resource for Command.
+type Command struct {
+	APIVersion string                `json:"apiVersion"`
+	Kind       string                `json:"kind"`
+	Metadata   resource.Metadata     `json:"metadata"`
+	Spec       apigen.CommandSpec    `json:"spec"`
+	Status     *apigen.CommandStatus `json:"status,omitempty"`
+}
+
+// NewCommand constructs a Command with its generated type identity.
+func NewCommand(metadata resource.Metadata, spec apigen.CommandSpec) Command {
+	return Command{
+		APIVersion: CommandResource.APIVersion,
+		Kind:       CommandResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Command into the generic storage representation.
+func (value Command) Encode() (resource.Resource, error) {
+	return encodeResource(CommandResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// CommandDefinition adds concrete Command decoding to the shared API definition.
+type CommandDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed Command status to the generic storage representation.
+func (definition CommandDefinition) EncodeStatus(status *apigen.CommandStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed Command.
+func (definition CommandDefinition) Decode(value resource.Resource) (Command, error) {
+	spec, err := decodeResourceSpec[apigen.CommandSpec](definition.Definition, value)
+	if err != nil {
+		return Command{}, err
+	}
+	status, err := decodeStoredStatus[apigen.CommandStatus](definition.Kind, value.Status)
+	if err != nil {
+		return Command{}, err
+	}
+	return Command{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // CommandsPipeline is the concrete controller-facing resource for CommandsPipeline.
 type CommandsPipeline struct {
 	APIVersion string                         `json:"apiVersion"`
@@ -781,6 +834,7 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 	}, nil
 }
 
+var CommandResource = CommandDefinition{Definition: NewDefinition[apigen.CommandSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Command", "commands", "CommandStatus", []string(nil))}
 var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"})}
 var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"})}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
@@ -798,6 +852,7 @@ var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.S
 var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"})}
 
 var Definitions = []Definition{
+	CommandResource.Definition,
 	CommandsPipelineResource.Definition,
 	DNSRecordResource.Definition,
 	GitRepositoryResource.Definition,

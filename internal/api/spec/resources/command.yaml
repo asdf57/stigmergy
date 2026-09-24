@@ -1,0 +1,57 @@
+# Command publishes one multiline shell script to the commands repository branch
+# owned by an inventory capture group's CommandsPipeline.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: Command
+  plural: commands
+  spec-schema: CommandSpec
+  status-schema: CommandStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+CommandSpec:
+  type: object
+  additionalProperties: false
+  required: [inventoryCaptureGroupRef, script]
+  properties:
+    inventoryCaptureGroupRef:
+      $ref: '#/components/schemas/CommandInventoryCaptureGroupReference'
+    script:
+      type: string
+      minLength: 1
+
+CommandInventoryCaptureGroupReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+CommandStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Published, Conflict, Failed]
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    commandsPipelineRef:
+      $ref: '#/components/schemas/ResourceReference'
+    revision: {type: string}
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/CommandCondition'
+
+CommandCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

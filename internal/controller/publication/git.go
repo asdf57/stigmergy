@@ -26,11 +26,12 @@ import (
 const sshKeyPairOwnerUIDAnnotation = "homelab.io/ssh-key-pair-uid"
 
 type PublishRequest struct {
-	Repository      apigen.GitRepositorySpec
-	PublicationName string
-	Branch          string
-	RootPath        string
-	Artifacts       []Artifact
+	Repository        apigen.GitRepositorySpec
+	PublicationName   string
+	Branch            string
+	RootPath          string
+	Artifacts         []Artifact
+	PreserveUnmanaged bool
 }
 
 type Artifact struct {
@@ -140,7 +141,7 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 		return PublishResult{}, fmt.Errorf("open Git worktree: %w", err)
 	}
 	rootPath := filepath.Join(temporaryDirectory, filepath.FromSlash(repositoryPath))
-	unchanged, err := directoryMatches(rootPath, artifacts, repositoryPath == ".")
+	unchanged, err := directoryMatches(rootPath, artifacts, repositoryPath == ".", request.PreserveUnmanaged)
 	if err != nil {
 		return PublishResult{}, err
 	}
@@ -154,14 +155,24 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 	if err := rejectSymlinkParents(temporaryDirectory, repositoryPath); err != nil {
 		return PublishResult{}, err
 	}
-	if err := clearPublicationRoot(temporaryDirectory, rootPath, repositoryPath); err != nil {
-		return PublishResult{}, fmt.Errorf("clear owned publication directory: %w", err)
+	if !request.PreserveUnmanaged {
+		if err := clearPublicationRoot(temporaryDirectory, rootPath, repositoryPath); err != nil {
+			return PublishResult{}, fmt.Errorf("clear owned publication directory: %w", err)
+		}
 	}
 	if err := os.MkdirAll(rootPath, 0o755); err != nil {
 		return PublishResult{}, fmt.Errorf("create publication directory: %w", err)
 	}
 	for _, artifact := range artifacts {
+		if err := rejectSymlinkParents(temporaryDirectory, path.Join(repositoryPath, artifact.Path)); err != nil {
+			return PublishResult{}, err
+		}
 		filePath := filepath.Join(rootPath, filepath.FromSlash(artifact.Path))
+		if info, err := os.Lstat(filePath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return PublishResult{}, fmt.Errorf("artifact path %q is a symbolic link", artifact.Path)
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return PublishResult{}, fmt.Errorf("inspect artifact path %q: %w", artifact.Path, err)
+		}
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 			return PublishResult{}, fmt.Errorf("create artifact directory for %q: %w", artifact.Path, err)
 		}
@@ -207,7 +218,7 @@ func validateArtifacts(artifacts []Artifact) ([]Artifact, error) {
 	return validated, nil
 }
 
-func directoryMatches(root string, artifacts []Artifact, repositoryRoot bool) (bool, error) {
+func directoryMatches(root string, artifacts []Artifact, repositoryRoot, preserveUnmanaged bool) (bool, error) {
 	desired := make(map[string][]byte, len(artifacts))
 	for _, artifact := range artifacts {
 		desired[artifact.Path] = artifact.Content
@@ -234,6 +245,9 @@ func directoryMatches(root string, artifacts []Artifact, repositoryRoot bool) (b
 		relative = filepath.ToSlash(relative)
 		expected, exists := desired[relative]
 		if !exists {
+			if preserveUnmanaged {
+				return nil
+			}
 			matches = false
 			found++
 			return nil
@@ -296,8 +310,7 @@ func rejectSymlinkParents(repositoryRoot, repositoryPath string) error {
 	return nil
 }
 
-// overall, this git client is repugnant. It needs to be abstracted at some point, but since GitRepository
-// is the only consumer it's fine... for now.
+// GitRepository authentication is shared by inventory and command publication.
 func (p *GitPublisher) authentication(ctx context.Context, repository apigen.GitRepositorySpec) (transport.AuthMethod, error) {
 	if repository.Authentication == nil {
 		return nil, nil

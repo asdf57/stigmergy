@@ -364,6 +364,31 @@ This replaces the initial single-file `format` and `path` contract. Existing
 fields are intentionally rejected rather than interpreted ambiguously as a
 file or directory.
 
+### Publishing commands to Git
+
+A `Command` supplies the multiline shell file consumed by the single
+`CommandsPipeline` for an inventory capture group:
+
+```yaml
+apiVersion: homelab.io/v1alpha1
+kind: Command
+metadata:
+  name: servers
+spec:
+  inventoryCaptureGroupRef:
+    name: servers
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ansible all --module-name ansible.builtin.command --args 'ps aux'
+```
+
+The controller inherits the repository and command path from the matching
+`CommandsPipeline`, publishes to the branch named after the capture group, and
+uses the `GitRepository` authentication and commit identity. It preserves other
+files on that branch and does not create a commit when the script is unchanged.
+Only one `Command` and one `CommandsPipeline` may target a capture group.
+
 Machine and Server resources support two update styles:
 
 - `PUT /api/v1alpha1/machines/{name}` accepts a complete manifest and creates

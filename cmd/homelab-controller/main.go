@@ -14,6 +14,7 @@ import (
 	"github.com/asdf57/stigmergy/internal/api/registry"
 	"github.com/asdf57/stigmergy/internal/config"
 	"github.com/asdf57/stigmergy/internal/controller"
+	"github.com/asdf57/stigmergy/internal/controller/command"
 	"github.com/asdf57/stigmergy/internal/controller/commandspipeline"
 	"github.com/asdf57/stigmergy/internal/controller/dns"
 	"github.com/asdf57/stigmergy/internal/controller/inventory"
@@ -103,6 +104,8 @@ func run() error {
 		AnsibleRolesRevision:   configuration.AnsibleRolesRevision,
 	})
 	commandsPipelineController := controller.NewController(commandsPipelineReconciler)
+	commandReconciler := command.NewReconciler(resourceStore)
+	commandController := controller.NewController(commandReconciler)
 
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
@@ -115,6 +118,15 @@ func run() error {
 		logger,
 		resourceStore,
 		[]controller.Registration{
+			{
+				Name: "command-controller", Controller: commandController,
+				Watches: []controller.Watch{
+					{Kind: registry.CommandResource.Kind, Mapper: commandReconciler.RequestsForCommand},
+					{Kind: registry.CommandsPipelineResource.Kind, Mapper: commandReconciler.RequestsForCommandsPipeline},
+					{Kind: registry.GitRepositoryResource.Kind, Mapper: commandReconciler.RequestsForGitRepository},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: commandReconciler.RequestsForSSHKeyPair},
+				},
+			},
 			{
 				Name: "pipeline-provider-controller", Controller: pipelineProviderController,
 				Watches: []controller.Watch{

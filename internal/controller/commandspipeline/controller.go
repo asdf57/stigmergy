@@ -68,7 +68,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if phase != "" {
 		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhase(phase), reason, message, nil)
 	}
-	commandPath, err := safeCommandPath(value)
+	commandPath, err := SafeCommandPath(value)
 	if err != nil {
 		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseFailed, "InvalidCommandPath", err.Error(), nil)
 	}
@@ -175,7 +175,7 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 	return repository, group, provider, keyPair, "", "", "", nil
 }
 
-func safeCommandPath(value registry.CommandsPipeline) (string, error) {
+func SafeCommandPath(value registry.CommandsPipeline) (string, error) {
 	commandPath := value.Spec.InventoryCaptureGroupRef.Name + ".sh"
 	if value.Spec.CommandPath != nil {
 		commandPath = strings.TrimSpace(*value.Spec.CommandPath)
