@@ -125,10 +125,6 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 	if err != nil {
 		return registry.GitRepository{}, registry.InventoryCaptureGroup{}, registry.PipelineProvider{}, registry.SSHKeyPair{}, "Failed", "RepositoryInvalid", err.Error(), nil
 	}
-	if repository.Spec.Authentication == nil || repository.Spec.Authentication.SshKeyPairRef == "" {
-		return repository, registry.InventoryCaptureGroup{}, registry.PipelineProvider{}, registry.SSHKeyPair{}, "Failed", "RepositoryAuthenticationRequired", "commands GitRepository must reference an SSHKeyPair", nil
-	}
-
 	raw, err = get(registry.InventoryCaptureGroupResource.Kind, value.Spec.InventoryCaptureGroupRef.Name)
 	if errors.Is(err, store.ErrNotFound) {
 		return repository, registry.InventoryCaptureGroup{}, registry.PipelineProvider{}, registry.SSHKeyPair{}, "Pending", "CaptureGroupNotFound", fmt.Sprintf("InventoryCaptureGroup %q does not exist", value.Spec.InventoryCaptureGroupRef.Name), nil
@@ -159,6 +155,9 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 		return repository, group, provider, registry.SSHKeyPair{}, "Pending", "ProviderNotReady", fmt.Sprintf("PipelineProvider %q is not Ready", provider.Metadata.Name), nil
 	}
 
+	if repository.Spec.Authentication == nil || repository.Spec.Authentication.SshKeyPairRef == "" {
+		return repository, group, provider, registry.SSHKeyPair{}, "", "", "", nil
+	}
 	raw, err = get(registry.SSHKeyPairResource.Kind, repository.Spec.Authentication.SshKeyPairRef)
 	if errors.Is(err, store.ErrNotFound) {
 		return repository, group, provider, registry.SSHKeyPair{}, "Pending", "SSHKeyPairNotFound", fmt.Sprintf("SSHKeyPair %q does not exist", repository.Spec.Authentication.SshKeyPairRef), nil
@@ -190,13 +189,16 @@ func safeCommandPath(value registry.CommandsPipeline) (string, error) {
 
 func (r *Reconciler) render(value registry.CommandsPipeline, repository registry.GitRepository, keyPair registry.SSHKeyPair, commandPath string) (string, error) {
 	imageRepository, imageTag := splitImage(r.config.CommandRunnerImage)
+	resourceSource := map[string]any{
+		"uri": repository.Spec.Url, "branch": repository.Spec.Branch,
+		"paths": []string{commandPath},
+	}
+	if repository.Spec.Authentication != nil && repository.Spec.Authentication.SshKeyPairRef != "" {
+		resourceSource["private_key"] = "((" + keyPair.Spec.Path + ".privateKey))"
+	}
 	resourceConfig := map[string]any{
 		"name": "commands", "type": "git", "check_every": "1m",
-		"source": map[string]any{
-			"uri": repository.Spec.Url, "branch": repository.Spec.Branch,
-			"private_key": "((" + keyPair.Spec.Path + ".privateKey))",
-			"paths":       []string{commandPath},
-		},
+		"source": resourceSource,
 	}
 	taskConfig := map[string]any{
 		"platform": "linux",

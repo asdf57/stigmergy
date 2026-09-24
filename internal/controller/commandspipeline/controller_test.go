@@ -24,6 +24,7 @@ func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
 	})
 	repository := registry.NewGitRepository(resource.Metadata{Name: "commands-data"}, apigen.GitRepositorySpec{
 		Url: "git@github.com:example/commands.git", Branch: "main",
+		Authentication: &apigen.GitRepositoryAuthentication{SshKeyPairRef: "git-ssh-key"},
 	})
 	keyPair := registry.NewSSHKeyPair(resource.Metadata{Name: "git-ssh-key"}, apigen.SSHKeyPairSpec{Path: "automation/git-ssh-key"})
 
@@ -59,5 +60,25 @@ func TestSafeCommandPath(t *testing.T) {
 		if _, err := safeCommandPath(value); err == nil {
 			t.Errorf("safeCommandPath(%q) accepted an unsafe path", invalid)
 		}
+	}
+}
+
+func TestRenderPublicRepositoryOmitsPrivateKey(t *testing.T) {
+	reconciler := &Reconciler{config: Config{
+		CommandRunnerImage: "registry.example/arch-provisioner:latest",
+		PublicAPIURL:       "https://stigmergy.example", AnsibleRolesRepository: "https://github.com/example/roles.git", AnsibleRolesRevision: "main",
+	}}
+	value := registry.NewCommandsPipeline(resource.Metadata{Name: "servers"}, apigen.CommandsPipelineSpec{
+		InventoryCaptureGroupRef: apigen.CommandsPipelineInventoryCaptureGroupReference{Name: "servers"},
+	})
+	repository := registry.NewGitRepository(resource.Metadata{Name: "commands-data"}, apigen.GitRepositorySpec{
+		Url: "https://github.com/example/commands.git", Branch: "main",
+	})
+	rendered, err := reconciler.render(value, repository, registry.SSHKeyPair{}, "servers.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(rendered, "private_key") {
+		t.Fatalf("public repository unexpectedly contains private_key:\n%s", rendered)
 	}
 }
