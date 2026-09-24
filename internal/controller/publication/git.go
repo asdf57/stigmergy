@@ -88,7 +88,7 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 		SingleBranch:  true,
 	})
 	emptyRemote := errors.Is(err, transport.ErrEmptyRemoteRepository)
-	missingPublicationBranch := (errors.Is(err, plumbing.ErrReferenceNotFound) || errors.Is(err, git.NoMatchingRefSpecError{})) && request.Branch != request.Repository.Branch
+	missingPublicationBranch := errors.Is(err, plumbing.ErrReferenceNotFound) || errors.Is(err, git.NoMatchingRefSpecError{})
 	if err != nil && !emptyRemote && !missingPublicationBranch {
 		return PublishResult{}, fmt.Errorf("clone Git publication branch %q: %w", request.Branch, err)
 	}
@@ -97,13 +97,20 @@ func (p *GitPublisher) Publish(ctx context.Context, request PublishRequest) (Pub
 			return PublishResult{}, fmt.Errorf("reset Git worktree after missing publication branch: %w", err)
 		}
 		repository, err = git.PlainCloneContext(ctx, temporaryDirectory, false, &git.CloneOptions{
-			URL:           request.Repository.Url,
-			Auth:          auth,
-			ReferenceName: plumbing.NewBranchReferenceName(request.Repository.Branch),
-			SingleBranch:  true,
+			URL:  request.Repository.Url,
+			Auth: auth,
 		})
+		if errors.Is(err, plumbing.ErrReferenceNotFound) {
+			if removeErr := os.RemoveAll(temporaryDirectory); removeErr != nil {
+				return PublishResult{}, fmt.Errorf("reset Git worktree after missing default branch: %w", removeErr)
+			}
+			repository, err = git.PlainCloneContext(ctx, temporaryDirectory, false, &git.CloneOptions{
+				URL: request.Repository.Url, Auth: auth,
+				ReferenceName: plumbing.NewBranchReferenceName("main"), SingleBranch: true,
+			})
+		}
 		if err != nil {
-			return PublishResult{}, fmt.Errorf("clone Git repository base branch %q: %w", request.Repository.Branch, err)
+			return PublishResult{}, fmt.Errorf("clone Git repository default branch: %w", err)
 		}
 		worktree, err := repository.Worktree()
 		if err != nil {

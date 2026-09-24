@@ -190,7 +190,7 @@ func safeCommandPath(value registry.CommandsPipeline) (string, error) {
 func (r *Reconciler) render(value registry.CommandsPipeline, repository registry.GitRepository, keyPair registry.SSHKeyPair, commandPath string) (string, error) {
 	imageRepository, imageTag := splitImage(r.config.CommandRunnerImage)
 	resourceSource := map[string]any{
-		"uri": repository.Spec.Url, "branch": repository.Spec.Branch,
+		"uri": repository.Spec.Url, "branch": value.Spec.InventoryCaptureGroupRef.Name,
 		"paths": []string{commandPath},
 	}
 	if repository.Spec.Authentication != nil && repository.Spec.Authentication.SshKeyPairRef != "" {

@@ -22,7 +22,7 @@ func TestGitPublisherPublishesAndSkipsUnchangedContent(t *testing.T) {
 		Now: func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
 	}
 	request := PublishRequest{
-		Repository:      apigen.GitRepositorySpec{Url: remotePath, Branch: "main"},
+		Repository:      apigen.GitRepositorySpec{Url: remotePath},
 		PublicationName: "servers-git",
 		Branch:          "servers-inventory",
 		RootPath:        "inventories/servers",
@@ -93,7 +93,7 @@ func TestGitPublisherCreatesPublicationBranchFromBaseAndOwnsRepositoryRoot(t *te
 	publisher := &GitPublisher{
 		Now: func() time.Time { return time.Date(2026, 8, 23, 20, 0, 0, 0, time.UTC) },
 	}
-	repository := apigen.GitRepositorySpec{Url: remotePath, Branch: "main"}
+	repository := apigen.GitRepositorySpec{Url: remotePath}
 	if _, err := publisher.Publish(context.Background(), PublishRequest{
 		Repository: repository, PublicationName: "seed", Branch: "main", RootPath: ".",
 		Artifacts: []Artifact{{Path: "README.md", Content: []byte("base branch\n")}},

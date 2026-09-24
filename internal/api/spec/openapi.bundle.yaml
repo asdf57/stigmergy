@@ -493,9 +493,6 @@ components:
             properties:
                 authentication:
                     $ref: '#/components/schemas/GitRepositoryAuthentication'
-                branch:
-                    minLength: 1
-                    type: string
                 commit:
                     $ref: '#/components/schemas/GitRepositoryCommitSpec'
                 url:
@@ -503,7 +500,6 @@ components:
                     type: string
             required:
                 - url
-                - branch
             type: object
         GitRepositoryStatus:
             additionalProperties: false

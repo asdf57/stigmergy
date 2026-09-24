@@ -23,7 +23,7 @@ func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
 		PipelineProviderRef:      apigen.CommandsPipelineProviderReference{Name: "concourse"},
 	})
 	repository := registry.NewGitRepository(resource.Metadata{Name: "commands-data"}, apigen.GitRepositorySpec{
-		Url: "git@github.com:example/commands.git", Branch: "main",
+		Url:            "git@github.com:example/commands.git",
 		Authentication: &apigen.GitRepositoryAuthentication{SshKeyPairRef: "git-ssh-key"},
 	})
 	keyPair := registry.NewSSHKeyPair(resource.Metadata{Name: "git-ssh-key"}, apigen.SSHKeyPairSpec{Path: "automation/git-ssh-key"})
@@ -38,6 +38,7 @@ func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"git@github.com:example/commands.git", "automation/git-ssh-key.privateKey",
+		"branch: servers",
 		"registry.example/arch-provisioner", "tag: v1", "CONTAINER_MODE: normal",
 		"INVENTORY_CAPTURE_GROUP: servers", "COMMAND_FILE: servers.sh",
 		"exec /bin/bash", "user: keiichi",
@@ -72,7 +73,7 @@ func TestRenderPublicRepositoryOmitsPrivateKey(t *testing.T) {
 		InventoryCaptureGroupRef: apigen.CommandsPipelineInventoryCaptureGroupReference{Name: "servers"},
 	})
 	repository := registry.NewGitRepository(resource.Metadata{Name: "commands-data"}, apigen.GitRepositorySpec{
-		Url: "https://github.com/example/commands.git", Branch: "main",
+		Url: "https://github.com/example/commands.git",
 	})
 	rendered, err := reconciler.render(value, repository, registry.SSHKeyPair{}, "servers.sh")
 	if err != nil {

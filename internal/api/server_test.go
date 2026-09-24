@@ -413,7 +413,6 @@ metadata:
   name: ansible-inventory
 spec:
   url: "git@github.com:example/inventory.git"
-  branch: main
   authentication:
     sshKeyPairRef: git-ssh-key
 `,

@@ -11,12 +11,9 @@ x-stigmergy-resource:
 GitRepositorySpec:
   type: object
   additionalProperties: false
-  required: [url, branch]
+  required: [url]
   properties:
     url:
-      type: string
-      minLength: 1
-    branch:
       type: string
       minLength: 1
     authentication:
