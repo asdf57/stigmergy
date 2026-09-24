@@ -14,9 +14,12 @@ import (
 	"github.com/asdf57/stigmergy/internal/api/registry"
 	"github.com/asdf57/stigmergy/internal/config"
 	"github.com/asdf57/stigmergy/internal/controller"
+	"github.com/asdf57/stigmergy/internal/controller/commandspipeline"
 	"github.com/asdf57/stigmergy/internal/controller/dns"
 	"github.com/asdf57/stigmergy/internal/controller/inventory"
 	"github.com/asdf57/stigmergy/internal/controller/machine"
+	"github.com/asdf57/stigmergy/internal/controller/pipeline"
+	"github.com/asdf57/stigmergy/internal/controller/pipelineprovider"
 	"github.com/asdf57/stigmergy/internal/controller/publication"
 	routercontroller "github.com/asdf57/stigmergy/internal/controller/router"
 	"github.com/asdf57/stigmergy/internal/controller/secret"
@@ -89,6 +92,17 @@ func run() error {
 	routerController := controller.NewController(routerReconciler)
 	dnsReconciler := dns.NewReconciler(resourceStore)
 	dnsController := controller.NewController(dnsReconciler)
+	pipelineProviderReconciler := pipelineprovider.NewReconciler(resourceStore)
+	pipelineProviderController := controller.NewController(pipelineProviderReconciler)
+	pipelineReconciler := pipeline.NewReconciler(resourceStore)
+	pipelineController := controller.NewController(pipelineReconciler)
+	commandsPipelineReconciler := commandspipeline.NewReconciler(resourceStore, commandspipeline.Config{
+		CommandRunnerImage:     configuration.CommandRunnerImage,
+		PublicAPIURL:           configuration.PublicAPIURL,
+		AnsibleRolesRepository: configuration.AnsibleRolesRepository,
+		AnsibleRolesRevision:   configuration.AnsibleRolesRevision,
+	})
+	commandsPipelineController := controller.NewController(commandsPipelineReconciler)
 
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
@@ -101,6 +115,32 @@ func run() error {
 		logger,
 		resourceStore,
 		[]controller.Registration{
+			{
+				Name: "pipeline-provider-controller", Controller: pipelineProviderController,
+				Watches: []controller.Watch{
+					{Kind: registry.PipelineProviderResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: pipelineProviderReconciler.RequestsForCredential},
+				},
+			},
+			{
+				Name: "pipeline-controller", Controller: pipelineController,
+				Watches: []controller.Watch{
+					{Kind: registry.PipelineResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.PipelineProviderResource.Kind, Mapper: pipelineReconciler.RequestsForProvider},
+					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: pipelineReconciler.RequestsForCredential},
+				},
+			},
+			{
+				Name: "commands-pipeline-controller", Controller: commandsPipelineController,
+				Watches: []controller.Watch{
+					{Kind: registry.CommandsPipelineResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.GitRepositoryResource.Kind, Mapper: commandsPipelineReconciler.RequestsForRepository},
+					{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: commandsPipelineReconciler.RequestsForCaptureGroup},
+					{Kind: registry.PipelineProviderResource.Kind, Mapper: commandsPipelineReconciler.RequestsForProvider},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: commandsPipelineReconciler.RequestsForSSHKeyPair},
+					{Kind: registry.PipelineResource.Kind, Mapper: commandsPipelineReconciler.RequestsForPipeline},
+				},
+			},
 			{
 				Name:       "machine-report-controller",
 				Controller: machineReportController,

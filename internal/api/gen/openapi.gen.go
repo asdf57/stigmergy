@@ -16,6 +16,141 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+// Defines values for CommandsPipelineApiVersion.
+const (
+	CommandsPipelineApiVersionHomelabIov1alpha1 CommandsPipelineApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineApiVersion enum.
+func (e CommandsPipelineApiVersion) Valid() bool {
+	switch e {
+	case CommandsPipelineApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineKind.
+const (
+	CommandsPipelineKindCommandsPipeline CommandsPipelineKind = "CommandsPipeline"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineKind enum.
+func (e CommandsPipelineKind) Valid() bool {
+	switch e {
+	case CommandsPipelineKindCommandsPipeline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineConditionStatus.
+const (
+	CommandsPipelineConditionStatusFalse   CommandsPipelineConditionStatus = "False"
+	CommandsPipelineConditionStatusTrue    CommandsPipelineConditionStatus = "True"
+	CommandsPipelineConditionStatusUnknown CommandsPipelineConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineConditionStatus enum.
+func (e CommandsPipelineConditionStatus) Valid() bool {
+	switch e {
+	case CommandsPipelineConditionStatusFalse:
+		return true
+	case CommandsPipelineConditionStatusTrue:
+		return true
+	case CommandsPipelineConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineCreateApiVersion.
+const (
+	CommandsPipelineCreateApiVersionHomelabIov1alpha1 CommandsPipelineCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineCreateApiVersion enum.
+func (e CommandsPipelineCreateApiVersion) Valid() bool {
+	switch e {
+	case CommandsPipelineCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineCreateKind.
+const (
+	CommandsPipelineCreateKindCommandsPipeline CommandsPipelineCreateKind = "CommandsPipeline"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineCreateKind enum.
+func (e CommandsPipelineCreateKind) Valid() bool {
+	switch e {
+	case CommandsPipelineCreateKindCommandsPipeline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineListApiVersion.
+const (
+	CommandsPipelineListApiVersionHomelabIov1alpha1 CommandsPipelineListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineListApiVersion enum.
+func (e CommandsPipelineListApiVersion) Valid() bool {
+	switch e {
+	case CommandsPipelineListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineListKind.
+const (
+	CommandsPipelineListKindCommandsPipelineList CommandsPipelineListKind = "CommandsPipelineList"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineListKind enum.
+func (e CommandsPipelineListKind) Valid() bool {
+	switch e {
+	case CommandsPipelineListKindCommandsPipelineList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CommandsPipelineStatusPhase.
+const (
+	CommandsPipelineStatusPhaseConflict CommandsPipelineStatusPhase = "Conflict"
+	CommandsPipelineStatusPhaseFailed   CommandsPipelineStatusPhase = "Failed"
+	CommandsPipelineStatusPhasePending  CommandsPipelineStatusPhase = "Pending"
+	CommandsPipelineStatusPhaseReady    CommandsPipelineStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the CommandsPipelineStatusPhase enum.
+func (e CommandsPipelineStatusPhase) Valid() bool {
+	switch e {
+	case CommandsPipelineStatusPhaseConflict:
+		return true
+	case CommandsPipelineStatusPhaseFailed:
+		return true
+	case CommandsPipelineStatusPhasePending:
+		return true
+	case CommandsPipelineStatusPhaseReady:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DNSRecordApiVersion.
 const (
 	DNSRecordApiVersionHomelabIov1alpha1 DNSRecordApiVersion = "homelab.io/v1alpha1"
@@ -772,6 +907,300 @@ func (e MachineReportNetworkAddressFamily) Valid() bool {
 	case MachineReportNetworkAddressFamilyIpv4:
 		return true
 	case MachineReportNetworkAddressFamilyIpv6:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineApiVersion.
+const (
+	PipelineApiVersionHomelabIov1alpha1 PipelineApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineApiVersion enum.
+func (e PipelineApiVersion) Valid() bool {
+	switch e {
+	case PipelineApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineKind.
+const (
+	PipelineKindPipeline PipelineKind = "Pipeline"
+)
+
+// Valid indicates whether the value is a known member of the PipelineKind enum.
+func (e PipelineKind) Valid() bool {
+	switch e {
+	case PipelineKindPipeline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineConditionStatus.
+const (
+	PipelineConditionStatusFalse   PipelineConditionStatus = "False"
+	PipelineConditionStatusTrue    PipelineConditionStatus = "True"
+	PipelineConditionStatusUnknown PipelineConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the PipelineConditionStatus enum.
+func (e PipelineConditionStatus) Valid() bool {
+	switch e {
+	case PipelineConditionStatusFalse:
+		return true
+	case PipelineConditionStatusTrue:
+		return true
+	case PipelineConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineCreateApiVersion.
+const (
+	PipelineCreateApiVersionHomelabIov1alpha1 PipelineCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineCreateApiVersion enum.
+func (e PipelineCreateApiVersion) Valid() bool {
+	switch e {
+	case PipelineCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineCreateKind.
+const (
+	PipelineCreateKindPipeline PipelineCreateKind = "Pipeline"
+)
+
+// Valid indicates whether the value is a known member of the PipelineCreateKind enum.
+func (e PipelineCreateKind) Valid() bool {
+	switch e {
+	case PipelineCreateKindPipeline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineDefinitionFormat.
+const (
+	PipelineDefinitionFormatConcourse PipelineDefinitionFormat = "concourse"
+)
+
+// Valid indicates whether the value is a known member of the PipelineDefinitionFormat enum.
+func (e PipelineDefinitionFormat) Valid() bool {
+	switch e {
+	case PipelineDefinitionFormatConcourse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineListApiVersion.
+const (
+	PipelineListApiVersionHomelabIov1alpha1 PipelineListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineListApiVersion enum.
+func (e PipelineListApiVersion) Valid() bool {
+	switch e {
+	case PipelineListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineListKind.
+const (
+	PipelineListKindPipelineList PipelineListKind = "PipelineList"
+)
+
+// Valid indicates whether the value is a known member of the PipelineListKind enum.
+func (e PipelineListKind) Valid() bool {
+	switch e {
+	case PipelineListKindPipelineList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderApiVersion.
+const (
+	PipelineProviderApiVersionHomelabIov1alpha1 PipelineProviderApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderApiVersion enum.
+func (e PipelineProviderApiVersion) Valid() bool {
+	switch e {
+	case PipelineProviderApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderKind.
+const (
+	PipelineProviderKindPipelineProvider PipelineProviderKind = "PipelineProvider"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderKind enum.
+func (e PipelineProviderKind) Valid() bool {
+	switch e {
+	case PipelineProviderKindPipelineProvider:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderConditionStatus.
+const (
+	PipelineProviderConditionStatusFalse   PipelineProviderConditionStatus = "False"
+	PipelineProviderConditionStatusTrue    PipelineProviderConditionStatus = "True"
+	PipelineProviderConditionStatusUnknown PipelineProviderConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderConditionStatus enum.
+func (e PipelineProviderConditionStatus) Valid() bool {
+	switch e {
+	case PipelineProviderConditionStatusFalse:
+		return true
+	case PipelineProviderConditionStatusTrue:
+		return true
+	case PipelineProviderConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderCreateApiVersion.
+const (
+	PipelineProviderCreateApiVersionHomelabIov1alpha1 PipelineProviderCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderCreateApiVersion enum.
+func (e PipelineProviderCreateApiVersion) Valid() bool {
+	switch e {
+	case PipelineProviderCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderCreateKind.
+const (
+	PipelineProviderCreateKindPipelineProvider PipelineProviderCreateKind = "PipelineProvider"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderCreateKind enum.
+func (e PipelineProviderCreateKind) Valid() bool {
+	switch e {
+	case PipelineProviderCreateKindPipelineProvider:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderListApiVersion.
+const (
+	PipelineProviderListApiVersionHomelabIov1alpha1 PipelineProviderListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderListApiVersion enum.
+func (e PipelineProviderListApiVersion) Valid() bool {
+	switch e {
+	case PipelineProviderListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderListKind.
+const (
+	PipelineProviderListKindPipelineProviderList PipelineProviderListKind = "PipelineProviderList"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderListKind enum.
+func (e PipelineProviderListKind) Valid() bool {
+	switch e {
+	case PipelineProviderListKindPipelineProviderList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderSpecType.
+const (
+	PipelineProviderSpecTypeConcourse PipelineProviderSpecType = "concourse"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderSpecType enum.
+func (e PipelineProviderSpecType) Valid() bool {
+	switch e {
+	case PipelineProviderSpecTypeConcourse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineProviderStatusPhase.
+const (
+	PipelineProviderStatusPhaseFailed  PipelineProviderStatusPhase = "Failed"
+	PipelineProviderStatusPhasePending PipelineProviderStatusPhase = "Pending"
+	PipelineProviderStatusPhaseReady   PipelineProviderStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the PipelineProviderStatusPhase enum.
+func (e PipelineProviderStatusPhase) Valid() bool {
+	switch e {
+	case PipelineProviderStatusPhaseFailed:
+		return true
+	case PipelineProviderStatusPhasePending:
+		return true
+	case PipelineProviderStatusPhaseReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineStatusPhase.
+const (
+	PipelineStatusPhaseFailed  PipelineStatusPhase = "Failed"
+	PipelineStatusPhasePending PipelineStatusPhase = "Pending"
+	PipelineStatusPhaseReady   PipelineStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the PipelineStatusPhase enum.
+func (e PipelineStatusPhase) Valid() bool {
+	switch e {
+	case PipelineStatusPhaseFailed:
+		return true
+	case PipelineStatusPhasePending:
+		return true
+	case PipelineStatusPhaseReady:
 		return true
 	default:
 		return false
@@ -1681,6 +2110,95 @@ func (e UsernamePasswordCredentialStatusPhase) Valid() bool {
 	}
 }
 
+// CommandsPipeline defines model for CommandsPipeline.
+type CommandsPipeline struct {
+	ApiVersion CommandsPipelineApiVersion `json:"apiVersion"`
+	Kind       CommandsPipelineKind       `json:"kind"`
+	Metadata   Metadata                   `json:"metadata"`
+	Spec       CommandsPipelineSpec       `json:"spec"`
+	Status     *CommandsPipelineStatus    `json:"status,omitempty"`
+}
+
+// CommandsPipelineApiVersion defines model for CommandsPipeline.ApiVersion.
+type CommandsPipelineApiVersion string
+
+// CommandsPipelineKind defines model for CommandsPipeline.Kind.
+type CommandsPipelineKind string
+
+// CommandsPipelineCondition defines model for CommandsPipelineCondition.
+type CommandsPipelineCondition struct {
+	Message            *string                         `json:"message,omitempty"`
+	ObservedGeneration *int64                          `json:"observedGeneration,omitempty"`
+	Reason             string                          `json:"reason"`
+	Status             CommandsPipelineConditionStatus `json:"status"`
+	Type               string                          `json:"type"`
+}
+
+// CommandsPipelineConditionStatus defines model for CommandsPipelineCondition.Status.
+type CommandsPipelineConditionStatus string
+
+// CommandsPipelineCreate defines model for CommandsPipelineCreate.
+type CommandsPipelineCreate struct {
+	ApiVersion CommandsPipelineCreateApiVersion `json:"apiVersion"`
+	Kind       CommandsPipelineCreateKind       `json:"kind"`
+	Metadata   Metadata                         `json:"metadata"`
+	Spec       CommandsPipelineSpec             `json:"spec"`
+}
+
+// CommandsPipelineCreateApiVersion defines model for CommandsPipelineCreate.ApiVersion.
+type CommandsPipelineCreateApiVersion string
+
+// CommandsPipelineCreateKind defines model for CommandsPipelineCreate.Kind.
+type CommandsPipelineCreateKind string
+
+// CommandsPipelineInventoryCaptureGroupReference defines model for CommandsPipelineInventoryCaptureGroupReference.
+type CommandsPipelineInventoryCaptureGroupReference struct {
+	Name string `json:"name"`
+}
+
+// CommandsPipelineList defines model for CommandsPipelineList.
+type CommandsPipelineList struct {
+	ApiVersion CommandsPipelineListApiVersion `json:"apiVersion"`
+	Items      []CommandsPipeline             `json:"items"`
+	Kind       CommandsPipelineListKind       `json:"kind"`
+	Metadata   ListMetadata                   `json:"metadata"`
+}
+
+// CommandsPipelineListApiVersion defines model for CommandsPipelineList.ApiVersion.
+type CommandsPipelineListApiVersion string
+
+// CommandsPipelineListKind defines model for CommandsPipelineList.Kind.
+type CommandsPipelineListKind string
+
+// CommandsPipelineProviderReference defines model for CommandsPipelineProviderReference.
+type CommandsPipelineProviderReference struct {
+	Name string `json:"name"`
+}
+
+// CommandsPipelineRepositoryReference defines model for CommandsPipelineRepositoryReference.
+type CommandsPipelineRepositoryReference struct {
+	Name string `json:"name"`
+}
+
+// CommandsPipelineSpec defines model for CommandsPipelineSpec.
+type CommandsPipelineSpec struct {
+	CommandPath              *string                                        `json:"commandPath,omitempty"`
+	CommandsRepositoryRef    CommandsPipelineRepositoryReference            `json:"commandsRepositoryRef"`
+	InventoryCaptureGroupRef CommandsPipelineInventoryCaptureGroupReference `json:"inventoryCaptureGroupRef"`
+	PipelineProviderRef      CommandsPipelineProviderReference              `json:"pipelineProviderRef"`
+}
+
+// CommandsPipelineStatus defines model for CommandsPipelineStatus.
+type CommandsPipelineStatus struct {
+	Conditions         *[]CommandsPipelineCondition `json:"conditions,omitempty"`
+	ObservedGeneration *int64                       `json:"observedGeneration,omitempty"`
+	Phase              *CommandsPipelineStatusPhase `json:"phase,omitempty"`
+	PipelineRef        *ResourceReference           `json:"pipelineRef,omitempty"`
+}
+
+// CommandsPipelineStatusPhase defines model for CommandsPipelineStatus.Phase.
+type CommandsPipelineStatusPhase string
+
 // DNSRecord defines model for DNSRecord.
 type DNSRecord struct {
 	ApiVersion DNSRecordApiVersion `json:"apiVersion"`
@@ -2434,6 +2952,175 @@ type OpenBaoSecretStoreProvider struct {
 	KvV2Mount      string                           `json:"kvV2Mount"`
 }
 
+// Pipeline defines model for Pipeline.
+type Pipeline struct {
+	ApiVersion PipelineApiVersion `json:"apiVersion"`
+	Kind       PipelineKind       `json:"kind"`
+	Metadata   Metadata           `json:"metadata"`
+	Spec       PipelineSpec       `json:"spec"`
+	Status     *PipelineStatus    `json:"status,omitempty"`
+}
+
+// PipelineApiVersion defines model for Pipeline.ApiVersion.
+type PipelineApiVersion string
+
+// PipelineKind defines model for Pipeline.Kind.
+type PipelineKind string
+
+// PipelineCondition defines model for PipelineCondition.
+type PipelineCondition struct {
+	Message            *string                 `json:"message,omitempty"`
+	ObservedGeneration *int64                  `json:"observedGeneration,omitempty"`
+	Reason             string                  `json:"reason"`
+	Status             PipelineConditionStatus `json:"status"`
+	Type               string                  `json:"type"`
+}
+
+// PipelineConditionStatus defines model for PipelineCondition.Status.
+type PipelineConditionStatus string
+
+// PipelineCreate defines model for PipelineCreate.
+type PipelineCreate struct {
+	ApiVersion PipelineCreateApiVersion `json:"apiVersion"`
+	Kind       PipelineCreateKind       `json:"kind"`
+	Metadata   Metadata                 `json:"metadata"`
+	Spec       PipelineSpec             `json:"spec"`
+}
+
+// PipelineCreateApiVersion defines model for PipelineCreate.ApiVersion.
+type PipelineCreateApiVersion string
+
+// PipelineCreateKind defines model for PipelineCreate.Kind.
+type PipelineCreateKind string
+
+// PipelineDefinition defines model for PipelineDefinition.
+type PipelineDefinition struct {
+	Data   string                   `json:"data"`
+	Format PipelineDefinitionFormat `json:"format"`
+}
+
+// PipelineDefinitionFormat defines model for PipelineDefinition.Format.
+type PipelineDefinitionFormat string
+
+// PipelineList defines model for PipelineList.
+type PipelineList struct {
+	ApiVersion PipelineListApiVersion `json:"apiVersion"`
+	Items      []Pipeline             `json:"items"`
+	Kind       PipelineListKind       `json:"kind"`
+	Metadata   ListMetadata           `json:"metadata"`
+}
+
+// PipelineListApiVersion defines model for PipelineList.ApiVersion.
+type PipelineListApiVersion string
+
+// PipelineListKind defines model for PipelineList.Kind.
+type PipelineListKind string
+
+// PipelineProvider defines model for PipelineProvider.
+type PipelineProvider struct {
+	ApiVersion PipelineProviderApiVersion `json:"apiVersion"`
+	Kind       PipelineProviderKind       `json:"kind"`
+	Metadata   Metadata                   `json:"metadata"`
+	Spec       PipelineProviderSpec       `json:"spec"`
+	Status     *PipelineProviderStatus    `json:"status,omitempty"`
+}
+
+// PipelineProviderApiVersion defines model for PipelineProvider.ApiVersion.
+type PipelineProviderApiVersion string
+
+// PipelineProviderKind defines model for PipelineProvider.Kind.
+type PipelineProviderKind string
+
+// PipelineProviderCondition defines model for PipelineProviderCondition.
+type PipelineProviderCondition struct {
+	Message            *string                         `json:"message,omitempty"`
+	ObservedGeneration *int64                          `json:"observedGeneration,omitempty"`
+	Reason             string                          `json:"reason"`
+	Status             PipelineProviderConditionStatus `json:"status"`
+	Type               string                          `json:"type"`
+}
+
+// PipelineProviderConditionStatus defines model for PipelineProviderCondition.Status.
+type PipelineProviderConditionStatus string
+
+// PipelineProviderCreate defines model for PipelineProviderCreate.
+type PipelineProviderCreate struct {
+	ApiVersion PipelineProviderCreateApiVersion `json:"apiVersion"`
+	Kind       PipelineProviderCreateKind       `json:"kind"`
+	Metadata   Metadata                         `json:"metadata"`
+	Spec       PipelineProviderSpec             `json:"spec"`
+}
+
+// PipelineProviderCreateApiVersion defines model for PipelineProviderCreate.ApiVersion.
+type PipelineProviderCreateApiVersion string
+
+// PipelineProviderCreateKind defines model for PipelineProviderCreate.Kind.
+type PipelineProviderCreateKind string
+
+// PipelineProviderCredentialReference defines model for PipelineProviderCredentialReference.
+type PipelineProviderCredentialReference struct {
+	Name string `json:"name"`
+}
+
+// PipelineProviderList defines model for PipelineProviderList.
+type PipelineProviderList struct {
+	ApiVersion PipelineProviderListApiVersion `json:"apiVersion"`
+	Items      []PipelineProvider             `json:"items"`
+	Kind       PipelineProviderListKind       `json:"kind"`
+	Metadata   ListMetadata                   `json:"metadata"`
+}
+
+// PipelineProviderListApiVersion defines model for PipelineProviderList.ApiVersion.
+type PipelineProviderListApiVersion string
+
+// PipelineProviderListKind defines model for PipelineProviderList.Kind.
+type PipelineProviderListKind string
+
+// PipelineProviderReference defines model for PipelineProviderReference.
+type PipelineProviderReference struct {
+	Name string `json:"name"`
+}
+
+// PipelineProviderSpec defines model for PipelineProviderSpec.
+type PipelineProviderSpec struct {
+	CredentialRef PipelineProviderCredentialReference `json:"credentialRef"`
+	Team          string                              `json:"team,omitempty"`
+	Type          PipelineProviderSpecType            `json:"type"`
+	Url           string                              `json:"url"`
+}
+
+// PipelineProviderSpecType defines model for PipelineProviderSpec.Type.
+type PipelineProviderSpecType string
+
+// PipelineProviderStatus defines model for PipelineProviderStatus.
+type PipelineProviderStatus struct {
+	Conditions         *[]PipelineProviderCondition `json:"conditions,omitempty"`
+	ObservedGeneration *int64                       `json:"observedGeneration,omitempty"`
+	Phase              *PipelineProviderStatusPhase `json:"phase,omitempty"`
+}
+
+// PipelineProviderStatusPhase defines model for PipelineProviderStatus.Phase.
+type PipelineProviderStatusPhase string
+
+// PipelineSpec defines model for PipelineSpec.
+type PipelineSpec struct {
+	Definition   PipelineDefinition        `json:"definition"`
+	ExternalName string                    `json:"externalName"`
+	ProviderRef  PipelineProviderReference `json:"providerRef"`
+}
+
+// PipelineStatus defines model for PipelineStatus.
+type PipelineStatus struct {
+	AppliedDigest      *string              `json:"appliedDigest,omitempty"`
+	Conditions         *[]PipelineCondition `json:"conditions,omitempty"`
+	ExternalName       *string              `json:"externalName,omitempty"`
+	ObservedGeneration *int64               `json:"observedGeneration,omitempty"`
+	Phase              *PipelineStatusPhase `json:"phase,omitempty"`
+}
+
+// PipelineStatusPhase defines model for PipelineStatus.Phase.
+type PipelineStatusPhase string
+
 // ResourceReference defines model for ResourceReference.
 type ResourceReference struct {
 	Name string `json:"name"`
@@ -3113,6 +3800,27 @@ type UsernamePasswordCredentialStatus struct {
 // UsernamePasswordCredentialStatusPhase defines model for UsernamePasswordCredentialStatus.Phase.
 type UsernamePasswordCredentialStatusPhase string
 
+// DeleteCommandsPipelineParams defines parameters for DeleteCommandsPipeline.
+type DeleteCommandsPipelineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchCommandsPipelineApplicationMergePatchPlusJSONBody defines parameters for PatchCommandsPipeline.
+type PatchCommandsPipelineApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchCommandsPipelineParams defines parameters for PatchCommandsPipeline.
+type PatchCommandsPipelineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutCommandsPipelineParams defines parameters for PutCommandsPipeline.
+type PutCommandsPipelineParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
 // DeleteDNSRecordParams defines parameters for DeleteDNSRecord.
 type DeleteDNSRecordParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -3226,6 +3934,48 @@ type PatchMachineParams struct {
 
 // PutMachineParams defines parameters for PutMachine.
 type PutMachineParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// DeletePipelineProviderParams defines parameters for DeletePipelineProvider.
+type DeletePipelineProviderParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchPipelineProviderApplicationMergePatchPlusJSONBody defines parameters for PatchPipelineProvider.
+type PatchPipelineProviderApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchPipelineProviderParams defines parameters for PatchPipelineProvider.
+type PatchPipelineProviderParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutPipelineProviderParams defines parameters for PutPipelineProvider.
+type PutPipelineProviderParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// DeletePipelineParams defines parameters for DeletePipeline.
+type DeletePipelineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchPipelineApplicationMergePatchPlusJSONBody defines parameters for PatchPipeline.
+type PatchPipelineApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchPipelineParams defines parameters for PatchPipeline.
+type PatchPipelineParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutPipelineParams defines parameters for PutPipeline.
+type PutPipelineParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
 }
@@ -3356,6 +4106,15 @@ type PutUsernamePasswordCredentialParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// CreateCommandsPipelineJSONRequestBody defines body for CreateCommandsPipeline for application/json ContentType.
+type CreateCommandsPipelineJSONRequestBody = CommandsPipelineCreate
+
+// PatchCommandsPipelineApplicationMergePatchPlusJSONRequestBody defines body for PatchCommandsPipeline for application/merge-patch+json ContentType.
+type PatchCommandsPipelineApplicationMergePatchPlusJSONRequestBody PatchCommandsPipelineApplicationMergePatchPlusJSONBody
+
+// PutCommandsPipelineJSONRequestBody defines body for PutCommandsPipeline for application/json ContentType.
+type PutCommandsPipelineJSONRequestBody = CommandsPipelineCreate
+
 // CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
 type CreateDNSRecordJSONRequestBody = DNSRecordCreate
 
@@ -3406,6 +4165,24 @@ type PatchMachineApplicationMergePatchPlusJSONRequestBody PatchMachineApplicatio
 
 // PutMachineJSONRequestBody defines body for PutMachine for application/json ContentType.
 type PutMachineJSONRequestBody = MachineCreate
+
+// CreatePipelineProviderJSONRequestBody defines body for CreatePipelineProvider for application/json ContentType.
+type CreatePipelineProviderJSONRequestBody = PipelineProviderCreate
+
+// PatchPipelineProviderApplicationMergePatchPlusJSONRequestBody defines body for PatchPipelineProvider for application/merge-patch+json ContentType.
+type PatchPipelineProviderApplicationMergePatchPlusJSONRequestBody PatchPipelineProviderApplicationMergePatchPlusJSONBody
+
+// PutPipelineProviderJSONRequestBody defines body for PutPipelineProvider for application/json ContentType.
+type PutPipelineProviderJSONRequestBody = PipelineProviderCreate
+
+// CreatePipelineJSONRequestBody defines body for CreatePipeline for application/json ContentType.
+type CreatePipelineJSONRequestBody = PipelineCreate
+
+// PatchPipelineApplicationMergePatchPlusJSONRequestBody defines body for PatchPipeline for application/merge-patch+json ContentType.
+type PatchPipelineApplicationMergePatchPlusJSONRequestBody PatchPipelineApplicationMergePatchPlusJSONBody
+
+// PutPipelineJSONRequestBody defines body for PutPipeline for application/json ContentType.
+type PutPipelineJSONRequestBody = PipelineCreate
 
 // CreateRouterJSONRequestBody defines body for CreateRouter for application/json ContentType.
 type CreateRouterJSONRequestBody = RouterCreate
@@ -3466,146 +4243,160 @@ type PutUsernamePasswordCredentialJSONRequestBody = UsernamePasswordCredentialCr
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"AAD//w==",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -1,0 +1,61 @@
+# PipelineProvider declares a pipeline service and the credential used to manage it.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: PipelineProvider
+  plural: pipeline-providers
+  spec-schema: PipelineProviderSpec
+  status-schema: PipelineProviderStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+
+PipelineProviderSpec:
+  type: object
+  additionalProperties: false
+  required: [type, url, credentialRef]
+  properties:
+    type:
+      type: string
+      enum: [concourse]
+    url:
+      type: string
+      format: uri
+    team:
+      type: string
+      minLength: 1
+      default: main
+      x-go-type-skip-optional-pointer: true
+    credentialRef:
+      $ref: '#/components/schemas/PipelineProviderCredentialReference'
+
+PipelineProviderCredentialReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+PipelineProviderStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Failed]
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/PipelineProviderCondition'
+
+PipelineProviderCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

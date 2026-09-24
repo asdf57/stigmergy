@@ -8,6 +8,59 @@ import (
 	"github.com/asdf57/stigmergy/internal/resource"
 )
 
+// CommandsPipeline is the concrete controller-facing resource for CommandsPipeline.
+type CommandsPipeline struct {
+	APIVersion string                         `json:"apiVersion"`
+	Kind       string                         `json:"kind"`
+	Metadata   resource.Metadata              `json:"metadata"`
+	Spec       apigen.CommandsPipelineSpec    `json:"spec"`
+	Status     *apigen.CommandsPipelineStatus `json:"status,omitempty"`
+}
+
+// NewCommandsPipeline constructs a CommandsPipeline with its generated type identity.
+func NewCommandsPipeline(metadata resource.Metadata, spec apigen.CommandsPipelineSpec) CommandsPipeline {
+	return CommandsPipeline{
+		APIVersion: CommandsPipelineResource.APIVersion,
+		Kind:       CommandsPipelineResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed CommandsPipeline into the generic storage representation.
+func (value CommandsPipeline) Encode() (resource.Resource, error) {
+	return encodeResource(CommandsPipelineResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// CommandsPipelineDefinition adds concrete CommandsPipeline decoding to the shared API definition.
+type CommandsPipelineDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed CommandsPipeline status to the generic storage representation.
+func (definition CommandsPipelineDefinition) EncodeStatus(status *apigen.CommandsPipelineStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed CommandsPipeline.
+func (definition CommandsPipelineDefinition) Decode(value resource.Resource) (CommandsPipeline, error) {
+	spec, err := decodeResourceSpec[apigen.CommandsPipelineSpec](definition.Definition, value)
+	if err != nil {
+		return CommandsPipeline{}, err
+	}
+	status, err := decodeStoredStatus[apigen.CommandsPipelineStatus](definition.Kind, value.Status)
+	if err != nil {
+		return CommandsPipeline{}, err
+	}
+	return CommandsPipeline{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // DNSRecord is the concrete controller-facing resource for DNSRecord.
 type DNSRecord struct {
 	APIVersion string                  `json:"apiVersion"`
@@ -307,6 +360,112 @@ func (definition MachineDefinition) Decode(value resource.Resource) (Machine, er
 		return Machine{}, err
 	}
 	return Machine{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
+// PipelineProvider is the concrete controller-facing resource for PipelineProvider.
+type PipelineProvider struct {
+	APIVersion string                         `json:"apiVersion"`
+	Kind       string                         `json:"kind"`
+	Metadata   resource.Metadata              `json:"metadata"`
+	Spec       apigen.PipelineProviderSpec    `json:"spec"`
+	Status     *apigen.PipelineProviderStatus `json:"status,omitempty"`
+}
+
+// NewPipelineProvider constructs a PipelineProvider with its generated type identity.
+func NewPipelineProvider(metadata resource.Metadata, spec apigen.PipelineProviderSpec) PipelineProvider {
+	return PipelineProvider{
+		APIVersion: PipelineProviderResource.APIVersion,
+		Kind:       PipelineProviderResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed PipelineProvider into the generic storage representation.
+func (value PipelineProvider) Encode() (resource.Resource, error) {
+	return encodeResource(PipelineProviderResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// PipelineProviderDefinition adds concrete PipelineProvider decoding to the shared API definition.
+type PipelineProviderDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed PipelineProvider status to the generic storage representation.
+func (definition PipelineProviderDefinition) EncodeStatus(status *apigen.PipelineProviderStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed PipelineProvider.
+func (definition PipelineProviderDefinition) Decode(value resource.Resource) (PipelineProvider, error) {
+	spec, err := decodeResourceSpec[apigen.PipelineProviderSpec](definition.Definition, value)
+	if err != nil {
+		return PipelineProvider{}, err
+	}
+	status, err := decodeStoredStatus[apigen.PipelineProviderStatus](definition.Kind, value.Status)
+	if err != nil {
+		return PipelineProvider{}, err
+	}
+	return PipelineProvider{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
+// Pipeline is the concrete controller-facing resource for Pipeline.
+type Pipeline struct {
+	APIVersion string                 `json:"apiVersion"`
+	Kind       string                 `json:"kind"`
+	Metadata   resource.Metadata      `json:"metadata"`
+	Spec       apigen.PipelineSpec    `json:"spec"`
+	Status     *apigen.PipelineStatus `json:"status,omitempty"`
+}
+
+// NewPipeline constructs a Pipeline with its generated type identity.
+func NewPipeline(metadata resource.Metadata, spec apigen.PipelineSpec) Pipeline {
+	return Pipeline{
+		APIVersion: PipelineResource.APIVersion,
+		Kind:       PipelineResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Pipeline into the generic storage representation.
+func (value Pipeline) Encode() (resource.Resource, error) {
+	return encodeResource(PipelineResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// PipelineDefinition adds concrete Pipeline decoding to the shared API definition.
+type PipelineDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed Pipeline status to the generic storage representation.
+func (definition PipelineDefinition) EncodeStatus(status *apigen.PipelineStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed Pipeline.
+func (definition PipelineDefinition) Decode(value resource.Resource) (Pipeline, error) {
+	spec, err := decodeResourceSpec[apigen.PipelineSpec](definition.Definition, value)
+	if err != nil {
+		return Pipeline{}, err
+	}
+	status, err := decodeStoredStatus[apigen.PipelineStatus](definition.Kind, value.Status)
+	if err != nil {
+		return Pipeline{}, err
+	}
+	return Pipeline{
 		APIVersion: value.APIVersion,
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
@@ -622,12 +781,15 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 	}, nil
 }
 
+var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"})}
 var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"})}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil))}
+var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil))}
+var PipelineResource = PipelineDefinition{Definition: NewDefinition[apigen.PipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Pipeline", "pipelines", "PipelineStatus", []string{"homelab.io/pipeline-cleanup"})}
 var RouterResource = RouterDefinition{Definition: NewDefinition[apigen.RouterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Router", "routers", "RouterStatus", []string(nil))}
 var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
 var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
@@ -636,12 +798,15 @@ var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.S
 var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"})}
 
 var Definitions = []Definition{
+	CommandsPipelineResource.Definition,
 	DNSRecordResource.Definition,
 	GitRepositoryResource.Definition,
 	InventoryCaptureGroupResource.Definition,
 	InventoryPublicationResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
+	PipelineProviderResource.Definition,
+	PipelineResource.Definition,
 	RouterResource.Definition,
 	SecretStoreResource.Definition,
 	SecretResource.Definition,

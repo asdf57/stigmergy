@@ -2,6 +2,159 @@
 # This self-contained contract drives code generation, request validation, Swagger UI, and /openapi.json.
 components:
     schemas:
+        CommandsPipeline:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: CommandsPipeline
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/CommandsPipelineSpec'
+                status:
+                    $ref: '#/components/schemas/CommandsPipelineStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        CommandsPipelineCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
+            type: object
+        CommandsPipelineCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: CommandsPipeline
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/CommandsPipelineSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        CommandsPipelineInventoryCaptureGroupReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+            type: object
+        CommandsPipelineList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/CommandsPipeline'
+                    type: array
+                kind:
+                    const: CommandsPipelineList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        CommandsPipelineProviderReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+            type: object
+        CommandsPipelineRepositoryReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+            type: object
+        CommandsPipelineSpec:
+            additionalProperties: false
+            properties:
+                commandPath:
+                    minLength: 1
+                    type: string
+                commandsRepositoryRef:
+                    $ref: '#/components/schemas/CommandsPipelineRepositoryReference'
+                inventoryCaptureGroupRef:
+                    $ref: '#/components/schemas/CommandsPipelineInventoryCaptureGroupReference'
+                pipelineProviderRef:
+                    $ref: '#/components/schemas/CommandsPipelineProviderReference'
+            required:
+                - commandsRepositoryRef
+                - inventoryCaptureGroupRef
+                - pipelineProviderRef
+            type: object
+        CommandsPipelineStatus:
+            additionalProperties: false
+            properties:
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/CommandsPipelineCondition'
+                    type: array
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Ready
+                        - Conflict
+                        - Failed
+                    type: string
+                pipelineRef:
+                    $ref: '#/components/schemas/ResourceReference'
+            type: object
         DNSRecord:
             additionalProperties: false
             properties:
@@ -1576,6 +1729,291 @@ components:
                 - kvV2Mount
                 - authentication
             type: object
+        Pipeline:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Pipeline
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/PipelineSpec'
+                status:
+                    $ref: '#/components/schemas/PipelineStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        PipelineCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
+            type: object
+        PipelineCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Pipeline
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/PipelineSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        PipelineDefinition:
+            additionalProperties: false
+            properties:
+                data:
+                    minLength: 1
+                    type: string
+                format:
+                    enum:
+                        - concourse
+                    type: string
+            required:
+                - format
+                - data
+            type: object
+        PipelineList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/Pipeline'
+                    type: array
+                kind:
+                    const: PipelineList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        PipelineProvider:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: PipelineProvider
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/PipelineProviderSpec'
+                status:
+                    $ref: '#/components/schemas/PipelineProviderStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        PipelineProviderCondition:
+            additionalProperties: false
+            properties:
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                reason:
+                    minLength: 1
+                    type: string
+                status:
+                    enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                    type: string
+                type:
+                    minLength: 1
+                    type: string
+            required:
+                - type
+                - status
+                - reason
+            type: object
+        PipelineProviderCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: PipelineProvider
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/PipelineProviderSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        PipelineProviderCredentialReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+            type: object
+        PipelineProviderList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/PipelineProvider'
+                    type: array
+                kind:
+                    const: PipelineProviderList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        PipelineProviderReference:
+            additionalProperties: false
+            properties:
+                name:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+            type: object
+        PipelineProviderSpec:
+            additionalProperties: false
+            properties:
+                credentialRef:
+                    $ref: '#/components/schemas/PipelineProviderCredentialReference'
+                team:
+                    default: main
+                    minLength: 1
+                    type: string
+                    x-go-type-skip-optional-pointer: true
+                type:
+                    enum:
+                        - concourse
+                    type: string
+                url:
+                    format: uri
+                    type: string
+            required:
+                - type
+                - url
+                - credentialRef
+            type: object
+        PipelineProviderStatus:
+            additionalProperties: false
+            properties:
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/PipelineProviderCondition'
+                    type: array
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Ready
+                        - Failed
+                    type: string
+            type: object
+        PipelineSpec:
+            additionalProperties: false
+            properties:
+                definition:
+                    $ref: '#/components/schemas/PipelineDefinition'
+                externalName:
+                    minLength: 1
+                    type: string
+                providerRef:
+                    $ref: '#/components/schemas/PipelineProviderReference'
+            required:
+                - providerRef
+                - externalName
+                - definition
+            type: object
+        PipelineStatus:
+            additionalProperties: false
+            properties:
+                appliedDigest:
+                    type: string
+                conditions:
+                    items:
+                        $ref: '#/components/schemas/PipelineCondition'
+                    type: array
+                externalName:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Ready
+                        - Failed
+                    type: string
+            type: object
         ResourceReference:
             additionalProperties: false
             properties:
@@ -2771,6 +3209,344 @@ info:
     version: 0.1.0
 openapi: 3.1.0
 paths:
+    /api/v1alpha1/commands-pipelines:
+        delete:
+            operationId: deleteCommandsPipelines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all CommandsPipeline resources
+            tags:
+                - CommandsPipelines
+        get:
+            operationId: listCommandsPipelines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipelineList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List CommandsPipeline resources
+            tags:
+                - CommandsPipelines
+        post:
+            operationId: createCommandsPipeline
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a CommandsPipeline
+            tags:
+                - CommandsPipelines
+    /api/v1alpha1/commands-pipelines/{name}:
+        delete:
+            operationId: deleteCommandsPipeline
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one CommandsPipeline
+            tags:
+                - CommandsPipelines
+        get:
+            operationId: getCommandsPipeline
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one CommandsPipeline
+            tags:
+                - CommandsPipelines
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchCommandsPipeline
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one CommandsPipeline
+            tags:
+                - CommandsPipelines
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putCommandsPipeline
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/CommandsPipelineCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CommandsPipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one CommandsPipeline
+            tags:
+                - CommandsPipelines
     /api/v1alpha1/dns-records:
         delete:
             operationId: deleteDNSRecords
@@ -4727,6 +5503,682 @@ paths:
             summary: Create or replace one Machine
             tags:
                 - Machines
+    /api/v1alpha1/pipeline-providers:
+        delete:
+            operationId: deletePipelineProviders
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all PipelineProvider resources
+            tags:
+                - PipelineProviders
+        get:
+            operationId: listPipelineProviders
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProviderList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List PipelineProvider resources
+            tags:
+                - PipelineProviders
+        post:
+            operationId: createPipelineProvider
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProvider'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a PipelineProvider
+            tags:
+                - PipelineProviders
+    /api/v1alpha1/pipeline-providers/{name}:
+        delete:
+            operationId: deletePipelineProvider
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one PipelineProvider
+            tags:
+                - PipelineProviders
+        get:
+            operationId: getPipelineProvider
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProvider'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one PipelineProvider
+            tags:
+                - PipelineProviders
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchPipelineProvider
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProvider'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one PipelineProvider
+            tags:
+                - PipelineProviders
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putPipelineProvider
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineProviderCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProvider'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineProvider'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one PipelineProvider
+            tags:
+                - PipelineProviders
+    /api/v1alpha1/pipelines:
+        delete:
+            operationId: deletePipelines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteCollectionResult'
+                    description: Resources deleted
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete all Pipeline resources
+            tags:
+                - Pipelines
+        get:
+            operationId: listPipelines
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PipelineList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List Pipeline resources
+            tags:
+                - Pipelines
+        post:
+            operationId: createPipeline
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Pipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a Pipeline
+            tags:
+                - Pipelines
+    /api/v1alpha1/pipelines/{name}:
+        delete:
+            operationId: deletePipeline
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one Pipeline
+            tags:
+                - Pipelines
+        get:
+            operationId: getPipeline
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Pipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one Pipeline
+            tags:
+                - Pipelines
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchPipeline
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Pipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one Pipeline
+            tags:
+                - Pipelines
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putPipeline
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/PipelineCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Pipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Pipeline'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one Pipeline
+            tags:
+                - Pipelines
     /api/v1alpha1/resources:
         delete:
             operationId: deleteAllResources
@@ -6810,12 +8262,15 @@ servers:
     - url: /
 tags:
     - name: System
+    - name: CommandsPipelines
     - name: DNSRecords
     - name: GitRepositorys
     - name: InventoryCaptureGroups
     - name: InventoryPublications
     - name: MachineReports
     - name: Machines
+    - name: PipelineProviders
+    - name: Pipelines
     - name: Routers
     - name: SecretStores
     - name: Secrets

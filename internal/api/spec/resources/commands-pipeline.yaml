@@ -1,0 +1,74 @@
+# CommandsPipeline declares a provider-neutral Git-triggered command runner for one inventory capture group.
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: CommandsPipeline
+  plural: commands-pipelines
+  spec-schema: CommandsPipelineSpec
+  status-schema: CommandsPipelineStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/commands-pipeline-cleanup]
+
+CommandsPipelineSpec:
+  type: object
+  additionalProperties: false
+  required: [commandsRepositoryRef, inventoryCaptureGroupRef, pipelineProviderRef]
+  properties:
+    commandsRepositoryRef:
+      $ref: '#/components/schemas/CommandsPipelineRepositoryReference'
+    inventoryCaptureGroupRef:
+      $ref: '#/components/schemas/CommandsPipelineInventoryCaptureGroupReference'
+    pipelineProviderRef:
+      $ref: '#/components/schemas/CommandsPipelineProviderReference'
+    commandPath:
+      type: string
+      minLength: 1
+
+CommandsPipelineRepositoryReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+CommandsPipelineInventoryCaptureGroupReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+CommandsPipelineProviderReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+CommandsPipelineStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase:
+      type: string
+      enum: [Pending, Ready, Conflict, Failed]
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    pipelineRef:
+      $ref: '#/components/schemas/ResourceReference'
+    conditions:
+      type: array
+      items:
+        $ref: '#/components/schemas/CommandsPipelineCondition'
+
+CommandsPipelineCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status:
+      type: string
+      enum: ['True', 'False', Unknown]
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

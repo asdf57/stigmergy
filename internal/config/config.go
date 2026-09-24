@@ -9,24 +9,32 @@ import (
 )
 
 type Config struct {
-	HTTPAddr        string
-	EtcdEndpoints   []string
-	EtcdPrefix      string
-	DialTimeout     time.Duration
-	RequestTimeout  time.Duration
-	ShutdownTimeout time.Duration
-	LogLevel        slog.Level
+	HTTPAddr               string
+	EtcdEndpoints          []string
+	EtcdPrefix             string
+	DialTimeout            time.Duration
+	RequestTimeout         time.Duration
+	ShutdownTimeout        time.Duration
+	LogLevel               slog.Level
+	CommandRunnerImage     string
+	PublicAPIURL           string
+	AnsibleRolesRepository string
+	AnsibleRolesRevision   string
 }
 
 func Load() (Config, error) {
 	config := Config{
-		HTTPAddr:        envOr("HTTP_ADDR", "127.0.0.1:8080"),
-		EtcdEndpoints:   splitCSV(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379")),
-		EtcdPrefix:      envOr("ETCD_PREFIX", "/homelab/v1"),
-		DialTimeout:     5 * time.Second,
-		RequestTimeout:  10 * time.Second,
-		ShutdownTimeout: 10 * time.Second,
-		LogLevel:        slog.LevelInfo,
+		HTTPAddr:               envOr("HTTP_ADDR", "127.0.0.1:8080"),
+		EtcdEndpoints:          splitCSV(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379")),
+		EtcdPrefix:             envOr("ETCD_PREFIX", "/homelab/v1"),
+		DialTimeout:            5 * time.Second,
+		RequestTimeout:         10 * time.Second,
+		ShutdownTimeout:        10 * time.Second,
+		LogLevel:               slog.LevelInfo,
+		CommandRunnerImage:     strings.TrimSpace(os.Getenv("COMMAND_RUNNER_IMAGE")),
+		PublicAPIURL:           strings.TrimSpace(os.Getenv("PUBLIC_API_URL")),
+		AnsibleRolesRepository: envOr("ANSIBLE_ROLES_REPOSITORY", "git@github.com:asdf57/ansible-roles.git"),
+		AnsibleRolesRevision:   envOr("ANSIBLE_ROLES_REVISION", "main"),
 	}
 
 	var err error
