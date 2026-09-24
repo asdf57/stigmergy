@@ -59,6 +59,7 @@ func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Dur
 	mux.HandleFunc("GET /docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/", http.StatusTemporaryRedirect)
 	})
+	mux.HandleFunc("GET /ipxe/{mac}", server.getIPXEBoot)
 	mux.Handle("/", server.normalizeYAML(validate(apiMux)))
 
 	return server.recover(server.withTimeout(server.limitRequestBody(mux)))
