@@ -13,6 +13,7 @@ import (
 
 type Backend interface {
 	Apply(context.Context, registry.PipelineProvider, registry.UsernamePasswordCredential, string, string) error
+	Exists(context.Context, registry.PipelineProvider, registry.UsernamePasswordCredential, string) (bool, error)
 	Delete(context.Context, registry.PipelineProvider, registry.UsernamePasswordCredential, string) error
 }
 
@@ -37,6 +38,25 @@ func (b *FlyBackend) Apply(ctx context.Context, provider registry.PipelineProvid
 		return err
 	}
 	return b.run(ctx, home, "unpause-pipeline", "-t", "stigmergy", "-p", name)
+}
+
+func (b *FlyBackend) Exists(ctx context.Context, provider registry.PipelineProvider, credential registry.UsernamePasswordCredential, name string) (bool, error) {
+	home, err := os.MkdirTemp("", "stigmergy-fly-")
+	if err != nil {
+		return false, fmt.Errorf("create fly workspace: %w", err)
+	}
+	defer os.RemoveAll(home)
+	if err := b.login(ctx, home, provider, credential); err != nil {
+		return false, err
+	}
+	err = b.run(ctx, home, "get-pipeline", "-t", "stigmergy", "-p", name)
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "pipeline not found") {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (b *FlyBackend) Delete(ctx context.Context, provider registry.PipelineProvider, credential registry.UsernamePasswordCredential, name string) error {

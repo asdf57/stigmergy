@@ -63,7 +63,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	digestBytes := sha256.Sum256([]byte(value.Spec.Definition.Data))
 	digest := hex.EncodeToString(digestBytes[:])
 	if pipelineApplied(value, digest) {
-		return nil
+		exists, err := r.backend.Exists(ctx, provider, credential, value.Spec.ExternalName)
+		if err != nil {
+			return r.backendFailure(ctx, value, "ExistenceCheckFailed", err)
+		}
+		if exists {
+			return nil
+		}
 	}
 	if err := r.backend.Apply(ctx, provider, credential, value.Spec.ExternalName, value.Spec.Definition.Data); err != nil {
 		return r.backendFailure(ctx, value, "ApplyFailed", err)
