@@ -111,7 +111,7 @@ func run() error {
 	sshCertificateReconciler := sshcertificate.NewReconciler(resourceStore)
 	sshCertificateController := controller.NewControllerWithResync(sshCertificateReconciler, 30*time.Second)
 	isoReconciler := iso.NewReconciler(resourceStore, gitpublication.NewGitPublisher(resourceStore),
-		&isobuild.CopypartyReader{BaseURL: configuration.ISOArtifactBaseURL, Password: configuration.ISOArtifactPassword, Client: &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("artifact redirects are not accepted") }}},
+		&isobuild.CopypartyReader{BaseURL: configuration.ISOArtifactBaseURL, Client: &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("artifact redirects are not accepted") }}},
 		isobuild.Config{BuilderRepository: configuration.ISOBuilderRepository, BuilderBranch: configuration.AnsibleRolesRevision, DaemonRepository: configuration.ISODaemonRepository, DaemonBranch: configuration.ISODaemonRevision, PublicAPIURL: configuration.PublicAPIURL, ArtifactBaseURL: configuration.ISOArtifactBaseURL, UploadPasswordVariable: configuration.ISOUploadPasswordVariable})
 	isoController := controller.NewControllerWithResync(isoReconciler, 30*time.Second)
 	usernamePasswordReconciler := usernamepassword.NewReconciler(resourceStore)

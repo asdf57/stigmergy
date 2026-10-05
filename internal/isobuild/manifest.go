@@ -27,9 +27,8 @@ type ManifestReader interface {
 	Latest(context.Context, string, string, string) (*Manifest, error)
 }
 type CopypartyReader struct {
-	BaseURL  string
-	Client   *http.Client
-	Password string
+	BaseURL string
+	Client  *http.Client
 }
 
 var manifestName = regexp.MustCompile(`^[a-f0-9-]{36}\.json$`)
@@ -39,9 +38,6 @@ func (r *CopypartyReader) get(ctx context.Context, address string, value any) (b
 	request, err := http.NewRequestWithContext(ctx, "GET", address, nil)
 	if err != nil {
 		return false, err
-	}
-	if r.Password != "" {
-		request.Header.Set("PW", "pipeline:"+r.Password)
 	}
 	response, err := r.Client.Do(request)
 	if err != nil {

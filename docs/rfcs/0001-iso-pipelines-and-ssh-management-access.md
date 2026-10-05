@@ -436,11 +436,12 @@ has broad Server-status permission; field-level ownership is deferred.
 Live images embed only the restricted agent API token, injected through private
 Concourse credentials rather than Git. The shared installer creates root-owned
 /etc/homelabd (0700) and its environment file (0600); disk provisioning preserves
-the enrollment. ISO and netboot artifacts must require authenticated reads:
-anyone who downloads an image can extract its token. The publisher fails closed
-if storage allows anonymous reads. Token rotation requires rebuilding all images.
-Unauthenticated iPXE downloads cannot consume these private artifacts; authenticated
-netboot delivery is a separate requirement, without public storage credentials.
+the enrollment. ISO and netboot downloads remain public by explicit operator
+choice, keeping iPXE simple. Anyone downloading an image can extract and use its
+agent token to submit MachineReports and read Servers. This shared token is not
+proof of an individual machine's identity. Admin and runner credentials are never
+embedded; artifact writes remain authenticated. Token rotation requires rebuilding
+all images.
 Concourse's external-store policy must explicitly exclude CA private material.
 
 The management username and managed-Linux inventory ansible_user remain fixed

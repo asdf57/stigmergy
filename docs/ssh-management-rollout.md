@@ -81,8 +81,7 @@ Configure the API deployment:
 | Setting | Purpose |
 | --- | --- |
 | `PUBLIC_API_URL` | HTTPS API address used by images and runners. |
-| `ISO_ARTIFACT_BASE_URL` | HTTPS Copyparty base URL; ISO artifacts and manifests require authentication. |
-| `ISO_ARTIFACT_PASSWORD` | Private controller credential for reading Copyparty artifacts; supplied from `FILE_REGISTRY_PASSWORD`. |
+| `ISO_ARTIFACT_BASE_URL` | HTTPS Copyparty base URL, with public ISO/netboot/manifest reads; writes require authentication. |
 | `ISO_BUILDER_REPOSITORY` | Public HTTPS ansible-roles repository; defaults to the project repository. |
 | `ANSIBLE_ROLES_REVISION` | Builder and provisioning source branch. |
 | `ISO_DAEMON_REPOSITORY`, `ISO_DAEMON_REVISION` | Public HTTPS homelabd source and branch. |
@@ -184,11 +183,12 @@ root-owned `/etc/homelabd` (0700) and `environment` (0600), containing
 `API_TOKEN=<restricted-agent-token>`. Provisioning preserves this enrollment.
 Token rotation requires rebuilding every image. Anyone able to read an image
 can extract its token: filesystem permissions do not prevent offline extraction.
-The Copyparty `iso-resources` volume therefore requires authentication, and the
-publisher refuses anonymous-readable storage. Download ISOs with the `pipeline`
-account. Unauthenticated iPXE artifact downloads cannot boot these private images;
-authenticated netboot delivery must be configured separately, without exposing
-storage passwords in public boot scripts. A live-host source installation can receive
+ISO and netboot downloads remain public by explicit operator choice. Anyone
+downloading an image can use its agent token to submit MachineReports and read
+Servers; this token is not a trusted proof of a particular machine's identity.
+API authentication still protects other operations, and artifact writes require
+the pipeline credential. No additional download-authentication flow is needed
+for iPXE. A live-host source installation can receive
 `HOMELABD_API_TOKEN_FILE=/absolute/token-file` and
 `SSH_CA_BUNDLE_SOURCE=/absolute/public-bundle` when running `setup/install.sh`.
 Do not copy the admin or runner token into the daemon.
