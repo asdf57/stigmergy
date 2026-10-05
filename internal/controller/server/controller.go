@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -201,6 +202,11 @@ func (r *ServerReconciler) updateServerBinding(ctx context.Context, server regis
 			fqdn += "." + *server.Spec.DomainName
 		}
 		status.Fqdn = &fqdn
+	}
+	if status.Conditions != nil {
+		conditions := append([]apigen.ServerCondition{}, (*status.Conditions)...)
+		sort.Slice(conditions, func(i, j int) bool { return conditions[i].Type < conditions[j].Type })
+		status.Conditions = &conditions
 	}
 	if resource.EqualJSON(server.Status, status) {
 		return nil

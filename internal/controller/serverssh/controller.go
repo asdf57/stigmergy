@@ -125,6 +125,11 @@ func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Se
 	if err := r.projectBoot(ctx, server, status); err != nil {
 		return err
 	}
+	if status.Conditions != nil {
+		conditions := append([]apigen.ServerCondition{}, (*status.Conditions)...)
+		sort.Slice(conditions, func(i, j int) bool { return conditions[i].Type < conditions[j].Type })
+		status.Conditions = &conditions
+	}
 	if resource.EqualJSON(server.Status, status) {
 		return nil
 	}
