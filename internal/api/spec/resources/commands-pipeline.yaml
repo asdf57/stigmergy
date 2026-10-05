@@ -65,6 +65,10 @@ CommandsPipelineStatus:
       enum: [Pending, Ready, Conflict, Failed]
     observedGeneration: {type: integer, format: int64, minimum: 0}
     lastScheduledAt: {type: string, format: date-time}
+    pipelineRef:
+      $ref: '#/components/schemas/ResourceReference'
+    activeCommandRef:
+      $ref: '#/components/schemas/ResourceReference'
     conditions:
       type: array
       items:

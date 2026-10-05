@@ -48,8 +48,9 @@ func (b *fakeBackend) Trigger(_ context.Context, _ registry.PipelineProvider, _ 
 	if b.err != nil {
 		return pipeline.Build{}, b.err
 	}
-	b.builds = []pipeline.Build{{ID: 42, Status: "pending"}}
-	return b.builds[0], nil
+	build := pipeline.Build{ID: int64(41 + b.triggers), Status: "pending"}
+	b.builds = append(b.builds, build)
+	return build, nil
 }
 func (b *fakeBackend) Builds(context.Context, registry.PipelineProvider, registry.UsernamePasswordCredential, string) ([]pipeline.Build, error) {
 	return b.builds, nil
@@ -108,10 +109,10 @@ func reconcile(t *testing.T, r *Reconciler, name string) {
 }
 func readyChild(t *testing.T, s *testutil.Store, uid string) {
 	t.Helper()
-	name := executionName(uid)
+	name := commandspipeline.ExecutionName("servers")
 	raw, err := s.Get(context.Background(), "Pipeline", name)
 	if err != nil {
-		t.Fatalf("%v; resources: %#v", err, s.Resources)
+		t.Fatal(err)
 	}
 	rv, _ := strconv.ParseInt(raw.Metadata.ResourceVersion, 10, 64)
 	_, err = s.UpdateStatus(context.Background(), "Pipeline", name, map[string]any{"phase": "Ready", "observedGeneration": raw.Metadata.Generation}, rv)
@@ -139,7 +140,7 @@ func prepared(t *testing.T, r *Reconciler, s *testutil.Store, name string) resou
 	readyChild(t, s, raw.Metadata.UID)
 	return raw
 }
-func TestIndependentCommandsAndImmutableInputs(t *testing.T) {
+func TestCommandsSharePipelineWithoutInputRaces(t *testing.T) {
 	r, s, p, b := fixture(t)
 	first := prepared(t, r, s, "first")
 	second := prepared(t, r, s, "second")
@@ -149,7 +150,7 @@ func TestIndependentCommandsAndImmutableInputs(t *testing.T) {
 	if len(p.requests) != 2 || p.requests[0].RootPath == p.requests[1].RootPath || p.requests[0].OwnerUID != first.Metadata.UID {
 		t.Fatal(p.requests)
 	}
-	child, _ := s.Get(context.Background(), "Pipeline", executionName(first.Metadata.UID))
+	child, _ := s.Get(context.Background(), "Pipeline", commandspipeline.ExecutionName("servers"))
 	data := child.Spec["definition"].(map[string]any)["data"].(string)
 	if !strings.Contains(data, "ref: abc123") || strings.Contains(data, "trigger: true") || strings.Contains(data, "type: time") {
 		t.Fatal(data)
@@ -167,14 +168,35 @@ func TestIndependentCommandsAndImmutableInputs(t *testing.T) {
 	if b.triggers != 1 {
 		t.Fatal("build resubmitted")
 	}
+	reconcile(t, r, "second")
+	if b.triggers != 1 || (*status(t, s, "second").Status.Conditions)[0].Reason != "ExecutorBusy" {
+		t.Fatal("second request altered an active job")
+	}
+	unchanged, _ := s.Get(context.Background(), "Pipeline", child.Metadata.Name)
+	if !resource.EqualJSON(child.Spec, unchanged.Spec) {
+		t.Fatal("active job input changed")
+	}
 	b.builds[0].Status = "succeeded"
 	reconcile(t, r, "first")
+	reconcile(t, r, "first") // release the durable executor slot
 	writes := s.Writes
 	for i := 0; i < 3; i++ {
 		reconcile(t, r, "first")
 	}
 	if b.triggers != 1 || s.Writes != writes || *status(t, s, "first").Status.Phase != apigen.CommandStatusPhaseSucceeded {
 		t.Fatal("terminal execution was replayed")
+	}
+	reconcile(t, r, "second")
+	readyChild(t, s, second.Metadata.UID)
+	reconcile(t, r, "second")
+	if b.triggers != 2 || len(b.builds) != 2 {
+		t.Fatal("separate build not submitted")
+	}
+	if status(t, s, "first").Status.PipelineRef.Uid != status(t, s, "second").Status.PipelineRef.Uid {
+		t.Fatal("commands did not share one pipeline")
+	}
+	if p.requests[0].Branch != "commands-servers" || p.requests[1].Branch != p.requests[0].Branch {
+		t.Fatal("commands did not share a stable branch")
 	}
 }
 func TestLostSubmissionAdoptedWithoutRetrigger(t *testing.T) {
@@ -217,14 +239,11 @@ func TestTTLAndOwnedCleanup(t *testing.T) {
 	now = now.Add(5 * time.Second)
 	reconcile(t, r, "ttl")
 	reconcile(t, r, "ttl")
-	childName := executionName(raw.Metadata.UID)
+	childName := commandspipeline.ExecutionName("servers")
 	child, _ := s.Get(context.Background(), "Pipeline", childName)
-	if child.Metadata.DeletionTimestamp == nil {
-		t.Fatal("child not marked for cleanup")
+	if child.Metadata.DeletionTimestamp != nil {
+		t.Fatal("shared pipeline was deleted")
 	}
-	delete(s.Resources, "Pipeline/"+childName) // simulate Pipeline controller completing its own finalizer
-	b.builds = nil                             // destroying the pipeline may remove its build history too
-	reconcile(t, r, "ttl")
 	if _, ok := s.Resources["Command/ttl"]; ok {
 		t.Fatal("command not removed")
 	}
@@ -232,7 +251,7 @@ func TestTTLAndOwnedCleanup(t *testing.T) {
 		t.Fatal("Git inputs not cleaned")
 	}
 }
-func TestDeletingRunningCommandAbortsBeforeDeletingPipeline(t *testing.T) {
+func TestDeletingRunningCommandAbortsOnlyItsBuild(t *testing.T) {
 	r, s, _, b := fixture(t)
 	raw := prepared(t, r, s, "cancel")
 	reconcile(t, r, "cancel")
@@ -242,14 +261,18 @@ func TestDeletingRunningCommandAbortsBeforeDeletingPipeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	reconcile(t, r, "cancel")
-	child, _ := s.Get(context.Background(), "Pipeline", executionName(raw.Metadata.UID))
+	_ = raw
+	child, _ := s.Get(context.Background(), "Pipeline", commandspipeline.ExecutionName("servers"))
 	if b.aborts != 1 || child.Metadata.DeletionTimestamp != nil {
 		t.Fatal("did not wait for abort convergence")
 	}
 	reconcile(t, r, "cancel")
-	child, _ = s.Get(context.Background(), "Pipeline", executionName(raw.Metadata.UID))
-	if child.Metadata.DeletionTimestamp == nil {
-		t.Fatal("pipeline not cleaned after abort")
+	child, _ = s.Get(context.Background(), "Pipeline", commandspipeline.ExecutionName("servers"))
+	if child.Metadata.DeletionTimestamp != nil {
+		t.Fatal("shared pipeline cleaned after abort")
+	}
+	if _, ok := s.Resources["Command/cancel"]; ok {
+		t.Fatal("cancelled request retained")
 	}
 }
 func TestExecutorSnapshotAndProviderIdentity(t *testing.T) {
@@ -262,7 +285,7 @@ func TestExecutorSnapshotAndProviderIdentity(t *testing.T) {
 	reconcile(t, r, "snapshot")
 	reconcile(t, r, "snapshot")
 	readyChild(t, s, raw.Metadata.UID)
-	child := s.Resources["Pipeline/"+executionName(raw.Metadata.UID)]
+	child := s.Resources["Pipeline/"+commandspipeline.ExecutionName("servers")]
 	if !strings.Contains(child.Spec["definition"].(map[string]any)["data"].(string), "INVENTORY_CAPTURE_GROUP: servers") {
 		t.Fatal("accepted settings changed")
 	}
@@ -278,21 +301,29 @@ func TestUnownedChildNeverDeletedOrOverwritten(t *testing.T) {
 	raw := addCommand(t, s, "conflict", nil)
 	reconcile(t, r, "conflict")
 	reconcile(t, r, "conflict")
-	name := executionName(raw.Metadata.UID)
+	_ = raw
+	name := commandspipeline.ExecutionName("servers")
 	s.Resources["Pipeline/"+name] = resource.Resource{APIVersion: resource.APIVersion, Kind: "Pipeline", Metadata: resource.Metadata{Name: name, UID: "other", ResourceVersion: "1"}, Spec: map[string]any{}}
 	if err := r.Reconcile(context.Background(), controller.Request{Name: "conflict"}); err == nil || b.triggers != 0 {
 		t.Fatal("unowned child overwritten")
 	}
 }
 
-func TestLegacyPipelineBlocksAcceptanceEvenWithCachedReadyExecutor(t *testing.T) {
+func TestRestartKeepsExecutorSlotAndRejectsAmbiguousSubmission(t *testing.T) {
 	r, s, p, b := fixture(t)
-	addCommand(t, s, "migration", nil)
-	s.Resources["Pipeline/servers"] = resource.Resource{APIVersion: resource.APIVersion, Kind: "Pipeline", Metadata: resource.Metadata{Name: "servers", Annotations: map[string]string{"homelab.io/commands-pipeline-uid": "executor-uid"}}, Spec: map[string]any{}}
-	reconcile(t, r, "migration")
-	v := status(t, s, "migration")
-	if v.Status.Snapshot != nil || len(p.requests) != 0 || b.triggers != 0 || (*v.Status.Conditions)[0].Reason != "LegacyPipelinePresent" {
-		t.Fatal("legacy execution could overlap new execution", v)
+	prepared(t, r, s, "uncertain")
+	b.builds = []pipeline.Build{{ID: 10, Status: "succeeded"}}
+	b.err = errors.New("lost response")
+	reconcile(t, r, "uncertain")
+	prepared(t, r, s, "waiting")
+	restarted := NewReconcilerWithDependencies(s, r.executorConfigForTest(), p, b)
+	reconcile(t, restarted, "waiting")
+	if b.triggers != 1 {
+		t.Fatal("slot was not durable")
+	}
+	b.builds = append(b.builds, pipeline.Build{ID: 100, Status: "started"}, pipeline.Build{ID: 101, Status: "pending"})
+	if err := restarted.Reconcile(context.Background(), controller.Request{Name: "uncertain"}); err == nil {
+		t.Fatal("ambiguous builds adopted")
 	}
 }
 
@@ -321,14 +352,11 @@ func TestRealGitInputsAreRemovedWithoutTouchingAnotherCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	reconcile(t, r, "git-first")
-	delete(s.Resources, "Pipeline/"+executionName(first.Metadata.UID))
-	b.builds = nil
-	reconcile(t, r, "git-first")
 	repo, err := git.PlainOpen(remote)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, err := repo.Reference(plumbing.NewBranchReferenceName(executionName("executor-uid")), true)
+	ref, err := repo.Reference(plumbing.NewBranchReferenceName(commandspipeline.ExecutionName("servers")), true)
 	if err != nil {
 		t.Fatal(err)
 	}

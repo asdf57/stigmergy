@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,68 +14,77 @@ import (
 	"github.com/asdf57/stigmergy/internal/resource"
 )
 
-func TestExecutionBackendUsesNativeFlyCommands(t *testing.T) {
+func TestSharedJobExecutionUsesFlyLoginAndJSONBuildIDs(t *testing.T) {
 	dir := t.TempDir()
-	executable := filepath.Join(dir, "fly")
-	log := filepath.Join(dir, "calls")
+	executable, log := filepath.Join(dir, "fly"), filepath.Join(dir, "calls")
 	script := `#!/bin/sh
 printf '%s\n' "$*" >> "$FLY_TEST_LOG"
-if [ "$1" = "login" ]; then exit 0; fi
-if [ "$3" = "trigger-job" ] || [ "$3" = "abort-build" ] || [ "$3" = "check-resource" ]; then exit 0; fi
-if [ "$FLY_TEST_FAIL" = "1" ]; then exit 1; fi
-case "$FLY_TEST_RESULT" in
- build) printf '[{"id":42,"status":"started"}]' ;;
- list) printf '[{"id":42,"status":"succeeded"}]' ;;
- empty) printf '{}' ;;
- *) exit 0 ;;
-esac
+if [ "$1" = "login" ]; then
+  printf 'targets:\n  stigmergy:\n    token:\n      type: Bearer\n      value: test-token\n' > "$HOME/.flyrc"
+  exit 0
+fi
+if [ "$3" = "builds" ]; then printf '[{"id":500,"status":"succeeded"},{"id":42,"status":"started"}]'; fi
 `
 	if err := os.WriteFile(executable, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("FLY_TEST_LOG", log)
-	t.Setenv("FLY_TEST_RESULT", "build")
+	fail := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Error("missing fly authentication")
+			w.WriteHeader(401)
+			return
+		}
+		if fail {
+			w.WriteHeader(503)
+			return
+		}
+		switch r.Method + " " + r.URL.Path {
+		case "POST /api/v1/teams/main/pipelines/commands-servers/jobs/run/builds":
+			w.Write([]byte(`{"id":501,"status":"pending"}`))
+		case "GET /api/v1/builds/42":
+			w.Write([]byte(`{"id":42,"status":"started","pipeline_name":"commands-servers","job_name":"run","team_name":"main"}`))
+		case "GET /api/v1/builds/99":
+			w.Write([]byte(`{"id":99,"status":"started","pipeline_name":"other","job_name":"run","team_name":"main"}`))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
 	b := &FlyBackend{executable: executable}
-	p := registry.NewPipelineProvider(resource.Metadata{}, apigen.PipelineProviderSpec{Url: "https://ci.example"})
+	p := registry.NewPipelineProvider(resource.Metadata{}, apigen.PipelineProviderSpec{Url: server.URL})
 	c := registry.NewUsernamePasswordCredential(resource.Metadata{}, apigen.UsernamePasswordCredentialSpec{Username: "test", Password: "test"})
-	if err := b.CheckResource(context.Background(), p, c, "command-uid", "commands", map[string]string{"ref": "abc123"}); err != nil {
+	ctx := context.Background()
+	if err := b.CheckResource(ctx, p, c, "commands-servers", "commands", map[string]string{"ref": "abc123"}); err != nil {
 		t.Fatal(err)
 	}
-	build, err := b.Trigger(context.Background(), p, c, "command-uid")
+	build, err := b.Trigger(ctx, p, c, "commands-servers")
+	if err != nil || build.ID != 501 {
+		t.Fatal(build, err)
+	}
+	builds, err := b.Builds(ctx, p, c, "commands-servers")
+	if err != nil || len(builds) != 2 {
+		t.Fatal(builds, err)
+	}
+	build, err = b.Build(ctx, p, c, "commands-servers", 42)
 	if err != nil || build.ID != 42 {
 		t.Fatal(build, err)
 	}
-	t.Setenv("FLY_TEST_RESULT", "list")
-	builds, err := b.Builds(context.Background(), p, c, "command-uid")
-	if err != nil || len(builds) != 1 || !builds[0].Terminal() {
-		t.Fatal(builds, err)
+	if _, err := b.Build(ctx, p, c, "commands-servers", 99); err == nil {
+		t.Fatal("accepted a different executor's build")
 	}
-	t.Setenv("FLY_TEST_RESULT", "build")
-	if _, err := b.Build(context.Background(), p, c, "command-uid", 42); err != nil {
+	if err := b.Abort(ctx, p, c, 42); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Build(context.Background(), p, c, "command-uid", 99); err == nil {
-		t.Fatal("mismatched build ID accepted")
-	}
-	t.Setenv("FLY_TEST_RESULT", "")
-	if err := b.Abort(context.Background(), p, c, 42); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(log)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, expected := range []string{"login -t stigmergy -c https://ci.example -n main", "check-resource --resource command-uid/commands --from ref:abc123", "trigger-job -j command-uid/run", "builds --job command-uid/run --count 2 --json", "abort-build --build 42"} {
+	data, _ := os.ReadFile(log)
+	for _, expected := range []string{"login -t stigmergy", "check-resource --resource commands-servers/commands --from ref:abc123", "builds --job commands-servers/run --count 100 --json", "abort-build --build 42"} {
 		if !strings.Contains(string(data), expected) {
-			t.Fatalf("missing %q in %s", expected, data)
+			t.Fatalf("missing %q", expected)
 		}
 	}
-	t.Setenv("FLY_TEST_RESULT", "empty")
-	if _, err := b.Trigger(context.Background(), p, c, "command-uid"); err == nil {
-		t.Fatal("missing build ID accepted")
-	}
-	t.Setenv("FLY_TEST_FAIL", "1")
-	if _, err := b.Trigger(context.Background(), p, c, "command-uid"); err == nil {
-		t.Fatal("failed dispatch accepted")
+	fail = true
+	if _, err := b.Trigger(ctx, p, c, "commands-servers"); err == nil {
+		t.Fatal("failed submission accepted")
 	}
 }

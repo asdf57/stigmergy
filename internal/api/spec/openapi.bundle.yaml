@@ -161,6 +161,10 @@ components:
                     items:
                         $ref: '#/components/schemas/CommandCondition'
                     type: array
+                dispatchAfterBuildID:
+                    format: int64
+                    minimum: 0
+                    type: integer
                 observedGeneration:
                     format: int64
                     minimum: 0
@@ -318,6 +322,8 @@ components:
         CommandsPipelineStatus:
             additionalProperties: false
             properties:
+                activeCommandRef:
+                    $ref: '#/components/schemas/ResourceReference'
                 conditions:
                     items:
                         $ref: '#/components/schemas/CommandsPipelineCondition'
@@ -336,6 +342,8 @@ components:
                         - Conflict
                         - Failed
                     type: string
+                pipelineRef:
+                    $ref: '#/components/schemas/ResourceReference'
             type: object
         DNSRecord:
             additionalProperties: false

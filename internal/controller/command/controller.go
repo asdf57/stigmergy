@@ -21,7 +21,6 @@ import (
 )
 
 const cleanupFinalizer = "homelab.io/command-cleanup"
-const ownerAnnotation = "homelab.io/command-uid"
 const revisionPlaceholder = "__STIGMERGY_COMMAND_REVISION__"
 
 type Reconciler struct {
@@ -76,6 +75,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return err
 	}
 	if terminal(v) {
+		if err := r.release(ctx, v); err != nil {
+			return err
+		}
 		if v.Spec.TtlSecondsAfterFinished != nil && v.Status.CompletedAt != nil && !r.now().Before(v.Status.CompletedAt.Add(time.Duration(*v.Spec.TtlSecondsAfterFinished)*time.Second)) {
 			rv, err := version(v.Metadata)
 			if err != nil {
@@ -94,7 +96,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	name := executionName(v.Metadata.UID)
 	// Dispatch state is durable. Never recreate/re-submit an execution after this boundary.
 	if v.Status.BuildID != nil || (v.Status.Phase != nil && *v.Status.Phase == apigen.CommandStatusPhaseDispatching) {
-		return r.observe(ctx, v, name)
+		return r.observe(ctx, v, commandspipeline.ExecutionName(v.Spec.CommandsPipelineRef.Name))
 	}
 	if v.Status.Revision == nil {
 		result, err := r.publisher.Publish(ctx, gitpublication.PublishRequest{Repository: v.Status.Snapshot.Repository, PublicationName: v.Metadata.Name, Branch: v.Status.Snapshot.Branch, RootPath: name, OwnerUID: v.Metadata.UID, PreserveUnmanaged: true, Artifacts: []gitpublication.Artifact{{Path: "run.sh", Content: []byte(v.Spec.Script)}}})
@@ -106,6 +108,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		}
 		v.Status.Revision = &result.Revision
 		return r.save(ctx, v, apigen.CommandStatusPhasePending, "InputsPublished", "Immutable script inputs published")
+	}
+	acquired, err := r.acquire(ctx, v)
+	if err != nil {
+		return err
+	}
+	if !acquired {
+		return r.save(ctx, v, apigen.CommandStatusPhasePending, "ExecutorBusy", "Waiting for the active Command to complete")
 	}
 	child, err := r.ensurePipeline(ctx, v, name)
 	if err != nil {
@@ -122,9 +131,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if err != nil {
 		return err
 	}
+	name = child.Metadata.Name
 	if err := r.backend.CheckResource(ctx, provider, credential, name, "commands", map[string]string{"ref": *v.Status.Revision}); err != nil {
 		return fmt.Errorf("register immutable command input version: %w", err)
 	}
+	builds, err := r.backend.Builds(ctx, provider, credential, name)
+	if err != nil {
+		return err
+	}
+	baseline := int64(0)
+	for _, build := range builds {
+		if build.ID > baseline {
+			baseline = build.ID
+		}
+	}
+	v.Status.DispatchAfterBuildID = &baseline
 	// A CAS wins the right to submit. A crash after this write is recovered by observation, not retry.
 	updated, err := r.persist(ctx, v, apigen.CommandStatusPhaseDispatching, "Submitting", "Submitting one Concourse build")
 	if err != nil {
@@ -149,15 +170,6 @@ func (r *Reconciler) accept(ctx context.Context, v registry.Command) error {
 	if err != nil {
 		return err
 	}
-	// Recheck migration independently of the executor's cached Ready status;
-	// the two controllers may restart in either order.
-	legacy, legacyErr := r.store.Get(ctx, registry.PipelineResource.Kind, executor.Metadata.Name)
-	if legacyErr == nil && legacy.Metadata.Annotations["homelab.io/commands-pipeline-uid"] == executor.Metadata.UID {
-		return r.save(ctx, v, apigen.CommandStatusPhasePending, "LegacyPipelinePresent", "Retire the legacy command Pipeline before accepting new executions")
-	}
-	if legacyErr != nil && !errors.Is(legacyErr, store.ErrNotFound) {
-		return legacyErr
-	}
 	if v.Spec.CommandsPipelineRef.Uid != nil && *v.Spec.CommandsPipelineRef.Uid != executor.Metadata.UID {
 		return r.save(ctx, v, apigen.CommandStatusPhaseFailed, "ExecutorReplaced", "The referenced executor UID no longer matches")
 	}
@@ -165,7 +177,7 @@ func (r *Reconciler) accept(ctx context.Context, v registry.Command) error {
 		return r.save(ctx, v, apigen.CommandStatusPhasePending, "ExecutorNotReady", "Waiting for the referenced CommandsPipeline to become Ready")
 	}
 	name := executionName(v.Metadata.UID)
-	branch := executionName(executor.Metadata.UID)
+	branch := commandspipeline.ExecutionName(executor.Metadata.Name)
 	repository, provider, definition, err := r.executor.Prepare(ctx, executor, branch, name+"/run.sh", revisionPlaceholder)
 	if err != nil {
 		return err
@@ -175,29 +187,68 @@ func (r *Reconciler) accept(ctx context.Context, v registry.Command) error {
 }
 func (r *Reconciler) ensurePipeline(ctx context.Context, v registry.Command, name string) (registry.Pipeline, error) {
 	data := strings.ReplaceAll(v.Status.Snapshot.Definition, revisionPlaceholder, *v.Status.Revision)
-	desired := registry.NewPipeline(resource.Metadata{Name: name, Finalizers: append([]string(nil), registry.PipelineResource.DefaultFinalizers...), Annotations: map[string]string{ownerAnnotation: v.Metadata.UID}}, apigen.PipelineSpec{ProviderRef: apigen.PipelineProviderReference{Name: v.Status.Snapshot.ProviderName}, ExternalName: name, Definition: apigen.PipelineDefinition{Format: apigen.PipelineDefinitionFormatConcourse, Data: data}})
-	raw, err := r.store.Get(ctx, desired.Kind, name)
+	executor := registry.NewCommandsPipeline(resource.Metadata{Name: v.Spec.CommandsPipelineRef.Name, UID: v.Status.Snapshot.ExecutorUID}, apigen.CommandsPipelineSpec{})
+	return commandspipeline.EnsurePipeline(ctx, r.store, executor, v.Status.Snapshot.ProviderName, data, true)
+}
+
+// The executor status is a durable CAS slot, not an in-process mutex. Hold it
+// through terminal observation so pending builds cannot see another request's plan.
+func (r *Reconciler) acquire(ctx context.Context, v registry.Command) (bool, error) {
+	raw, err := r.store.Get(ctx, registry.CommandsPipelineResource.Kind, v.Spec.CommandsPipelineRef.Name)
+	if err != nil {
+		return false, err
+	}
+	executor, err := registry.CommandsPipelineResource.Decode(raw)
+	if err != nil {
+		return false, err
+	}
+	if executor.Metadata.UID != v.Status.Snapshot.ExecutorUID || executor.Metadata.DeletionTimestamp != nil {
+		return false, fmt.Errorf("executor identity changed")
+	}
+	if executor.Status == nil {
+		return false, fmt.Errorf("executor status missing")
+	}
+	if active := executor.Status.ActiveCommandRef; active != nil {
+		return active.Uid == v.Metadata.UID, nil
+	}
+	executor.Status.ActiveCommandRef = &apigen.ResourceReference{Name: v.Metadata.Name, Uid: v.Metadata.UID}
+	status, err := registry.CommandsPipelineResource.EncodeStatus(executor.Status)
+	if err != nil {
+		return false, err
+	}
+	rv, err := version(executor.Metadata)
+	if err != nil {
+		return false, err
+	}
+	_, err = r.store.UpdateStatus(ctx, executor.Kind, executor.Metadata.Name, status, rv)
+	return err == nil, err
+}
+func (r *Reconciler) release(ctx context.Context, v registry.Command) error {
+	raw, err := r.store.Get(ctx, registry.CommandsPipelineResource.Kind, v.Spec.CommandsPipelineRef.Name)
 	if errors.Is(err, store.ErrNotFound) {
-		encoded, encodeErr := desired.Encode()
-		if encodeErr != nil {
-			return registry.Pipeline{}, encodeErr
-		}
-		raw, err = r.store.Create(ctx, encoded)
-		if errors.Is(err, store.ErrConflict) {
-			return r.ensurePipeline(ctx, v, name)
-		}
+		return nil
 	}
 	if err != nil {
-		return registry.Pipeline{}, err
+		return err
 	}
-	child, err := registry.PipelineResource.Decode(raw)
+	executor, err := registry.CommandsPipelineResource.Decode(raw)
 	if err != nil {
-		return child, err
+		return err
 	}
-	if child.Metadata.Annotations[ownerAnnotation] != v.Metadata.UID || !resource.EqualJSON(child.Spec, desired.Spec) || child.Metadata.DeletionTimestamp != nil {
-		return child, fmt.Errorf("execution Pipeline ownership/spec conflict")
+	if executor.Status == nil || executor.Status.ActiveCommandRef == nil || executor.Status.ActiveCommandRef.Uid != v.Metadata.UID {
+		return nil
 	}
-	return child, nil
+	executor.Status.ActiveCommandRef = nil
+	status, err := registry.CommandsPipelineResource.EncodeStatus(executor.Status)
+	if err != nil {
+		return err
+	}
+	rv, err := version(executor.Metadata)
+	if err != nil {
+		return err
+	}
+	_, err = r.store.UpdateStatus(ctx, executor.Kind, executor.Metadata.Name, status, rv)
+	return err
 }
 func (r *Reconciler) connection(ctx context.Context, v registry.Command) (registry.PipelineProvider, registry.UsernamePasswordCredential, error) {
 	snap := v.Status.Snapshot
@@ -229,11 +280,12 @@ func (r *Reconciler) observe(ctx context.Context, v registry.Command, name strin
 		if err != nil {
 			return err
 		}
+		builds = r.submittedBuilds(v, builds)
 		if len(builds) == 0 {
 			return r.save(ctx, v, apigen.CommandStatusPhaseDispatching, "SubmissionUncertain", "No build found yet; never automatically resubmitting. Delete this request and create a new one if an explicit retry is required.")
 		}
 		if len(builds) != 1 || builds[0].ID < 1 {
-			return fmt.Errorf("isolated execution job has unexpected build history; refusing ambiguous adoption")
+			return fmt.Errorf("shared execution job has ambiguous submissions; refusing adoption")
 		}
 		v.Status.BuildID = &builds[0].ID
 		return r.saveBuild(ctx, v, builds[0])
@@ -243,6 +295,15 @@ func (r *Reconciler) observe(ctx context.Context, v registry.Command, name strin
 		return err
 	}
 	return r.saveBuild(ctx, v, build)
+}
+func (r *Reconciler) submittedBuilds(v registry.Command, builds []pipeline.Build) []pipeline.Build {
+	var found []pipeline.Build
+	for _, build := range builds {
+		if v.Status.DispatchAfterBuildID != nil && build.ID > *v.Status.DispatchAfterBuildID {
+			found = append(found, build)
+		}
+	}
+	return found
 }
 func (r *Reconciler) saveBuild(ctx context.Context, v registry.Command, build pipeline.Build) error {
 	phase := apigen.CommandStatusPhaseRunning
@@ -310,19 +371,9 @@ func (r *Reconciler) finalize(ctx context.Context, v registry.Command) error {
 	if !slices.Contains(v.Metadata.Finalizers, cleanupFinalizer) {
 		return nil
 	}
-	name := executionName(v.Metadata.UID)
+	name := commandspipeline.ExecutionName(v.Spec.CommandsPipelineRef.Name)
 	if v.Status != nil && v.Status.Snapshot != nil {
-		raw, err := r.store.Get(ctx, registry.PipelineResource.Kind, name)
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			return err
-		}
-		childExists := err == nil
-		if childExists && raw.Metadata.Annotations[ownerAnnotation] != v.Metadata.UID {
-			return fmt.Errorf("refusing to delete unowned Pipeline")
-		}
-		// Once the child finalizer completes, Concourse may also have removed its build history.
-		// Observe/abort before requesting child deletion, not after its destruction.
-		if childExists && (v.Status.BuildID != nil || (v.Status.Phase != nil && *v.Status.Phase == apigen.CommandStatusPhaseDispatching)) {
+		if v.Status.BuildID != nil || (v.Status.Phase != nil && *v.Status.Phase == apigen.CommandStatusPhaseDispatching) {
 			provider, credential, err := r.connection(ctx, v)
 			if err != nil {
 				return err
@@ -340,6 +391,10 @@ func (r *Reconciler) finalize(ctx context.Context, v registry.Command) error {
 				if err != nil {
 					return err
 				}
+				builds = r.submittedBuilds(v, builds)
+				if len(builds) != 1 {
+					return fmt.Errorf("submission is uncertain; inspect Concourse before clearing this Command's dispatch state")
+				}
 			}
 			waiting := false
 			for _, build := range builds {
@@ -354,23 +409,13 @@ func (r *Reconciler) finalize(ctx context.Context, v registry.Command) error {
 				return nil
 			}
 		}
-		if childExists {
-			if raw.Metadata.Annotations[ownerAnnotation] != v.Metadata.UID {
-				return fmt.Errorf("refusing to delete unowned Pipeline")
-			}
-			if raw.Metadata.DeletionTimestamp == nil {
-				rv, err := version(raw.Metadata)
-				if err != nil {
-					return err
-				}
-				return r.store.Delete(ctx, raw.Kind, raw.Metadata.Name, rv)
-			}
-			return nil
-		}
 		// Publication may have succeeded before its status write; cleanup is still safe by UID ownership.
-		if _, err := r.publisher.Publish(ctx, gitpublication.PublishRequest{Repository: v.Status.Snapshot.Repository, PublicationName: v.Metadata.Name, Branch: v.Status.Snapshot.Branch, RootPath: name, OwnerUID: v.Metadata.UID, RemoveOwned: true}); err != nil {
+		if _, err := r.publisher.Publish(ctx, gitpublication.PublishRequest{Repository: v.Status.Snapshot.Repository, PublicationName: v.Metadata.Name, Branch: v.Status.Snapshot.Branch, RootPath: executionName(v.Metadata.UID), OwnerUID: v.Metadata.UID, RemoveOwned: true}); err != nil {
 			return err
 		}
+	}
+	if err := r.release(ctx, v); err != nil {
+		return err
 	}
 	v.Metadata.Finalizers = slices.DeleteFunc(append([]string(nil), v.Metadata.Finalizers...), func(s string) bool { return s == cleanupFinalizer })
 	encoded, err := v.Encode()

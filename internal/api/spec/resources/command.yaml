@@ -63,6 +63,7 @@ CommandStatus:
       $ref: '#/components/schemas/ResourceReference'
     revision: {type: string}
     buildID: {type: integer, format: int64, minimum: 1}
+    dispatchAfterBuildID: {type: integer, format: int64, minimum: 0}
     completedAt: {type: string, format: date-time}
     conditions:
       type: array
