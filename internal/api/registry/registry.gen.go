@@ -326,6 +326,59 @@ func (definition InventoryPublicationDefinition) Decode(value resource.Resource)
 	}, nil
 }
 
+// ISO is the concrete controller-facing resource for ISO.
+type ISO struct {
+	APIVersion string            `json:"apiVersion"`
+	Kind       string            `json:"kind"`
+	Metadata   resource.Metadata `json:"metadata"`
+	Spec       apigen.ISOSpec    `json:"spec"`
+	Status     *apigen.ISOStatus `json:"status,omitempty"`
+}
+
+// NewISO constructs a ISO with its generated type identity.
+func NewISO(metadata resource.Metadata, spec apigen.ISOSpec) ISO {
+	return ISO{
+		APIVersion: ISOResource.APIVersion,
+		Kind:       ISOResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed ISO into the generic storage representation.
+func (value ISO) Encode() (resource.Resource, error) {
+	return encodeResource(ISOResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// ISODefinition adds concrete ISO decoding to the shared API definition.
+type ISODefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed ISO status to the generic storage representation.
+func (definition ISODefinition) EncodeStatus(status *apigen.ISOStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed ISO.
+func (definition ISODefinition) Decode(value resource.Resource) (ISO, error) {
+	spec, err := decodeResourceSpec[apigen.ISOSpec](definition.Definition, value)
+	if err != nil {
+		return ISO{}, err
+	}
+	status, err := decodeStoredStatus[apigen.ISOStatus](definition.Kind, value.Status)
+	if err != nil {
+		return ISO{}, err
+	}
+	return ISO{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // MachineReport is the concrete controller-facing resource for MachineReport.
 type MachineReport struct {
 	APIVersion string                   `json:"apiVersion"`
@@ -728,6 +781,112 @@ func (definition ServerDefinition) Decode(value resource.Resource) (Server, erro
 	}, nil
 }
 
+// SSHCertificateAuthority is the concrete controller-facing resource for SSHCertificateAuthority.
+type SSHCertificateAuthority struct {
+	APIVersion string                                `json:"apiVersion"`
+	Kind       string                                `json:"kind"`
+	Metadata   resource.Metadata                     `json:"metadata"`
+	Spec       apigen.SSHCertificateAuthoritySpec    `json:"spec"`
+	Status     *apigen.SSHCertificateAuthorityStatus `json:"status,omitempty"`
+}
+
+// NewSSHCertificateAuthority constructs a SSHCertificateAuthority with its generated type identity.
+func NewSSHCertificateAuthority(metadata resource.Metadata, spec apigen.SSHCertificateAuthoritySpec) SSHCertificateAuthority {
+	return SSHCertificateAuthority{
+		APIVersion: SSHCertificateAuthorityResource.APIVersion,
+		Kind:       SSHCertificateAuthorityResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed SSHCertificateAuthority into the generic storage representation.
+func (value SSHCertificateAuthority) Encode() (resource.Resource, error) {
+	return encodeResource(SSHCertificateAuthorityResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// SSHCertificateAuthorityDefinition adds concrete SSHCertificateAuthority decoding to the shared API definition.
+type SSHCertificateAuthorityDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed SSHCertificateAuthority status to the generic storage representation.
+func (definition SSHCertificateAuthorityDefinition) EncodeStatus(status *apigen.SSHCertificateAuthorityStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed SSHCertificateAuthority.
+func (definition SSHCertificateAuthorityDefinition) Decode(value resource.Resource) (SSHCertificateAuthority, error) {
+	spec, err := decodeResourceSpec[apigen.SSHCertificateAuthoritySpec](definition.Definition, value)
+	if err != nil {
+		return SSHCertificateAuthority{}, err
+	}
+	status, err := decodeStoredStatus[apigen.SSHCertificateAuthorityStatus](definition.Kind, value.Status)
+	if err != nil {
+		return SSHCertificateAuthority{}, err
+	}
+	return SSHCertificateAuthority{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
+// SSHCertificate is the concrete controller-facing resource for SSHCertificate.
+type SSHCertificate struct {
+	APIVersion string                       `json:"apiVersion"`
+	Kind       string                       `json:"kind"`
+	Metadata   resource.Metadata            `json:"metadata"`
+	Spec       apigen.SSHCertificateSpec    `json:"spec"`
+	Status     *apigen.SSHCertificateStatus `json:"status,omitempty"`
+}
+
+// NewSSHCertificate constructs a SSHCertificate with its generated type identity.
+func NewSSHCertificate(metadata resource.Metadata, spec apigen.SSHCertificateSpec) SSHCertificate {
+	return SSHCertificate{
+		APIVersion: SSHCertificateResource.APIVersion,
+		Kind:       SSHCertificateResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed SSHCertificate into the generic storage representation.
+func (value SSHCertificate) Encode() (resource.Resource, error) {
+	return encodeResource(SSHCertificateResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// SSHCertificateDefinition adds concrete SSHCertificate decoding to the shared API definition.
+type SSHCertificateDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed SSHCertificate status to the generic storage representation.
+func (definition SSHCertificateDefinition) EncodeStatus(status *apigen.SSHCertificateStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed SSHCertificate.
+func (definition SSHCertificateDefinition) Decode(value resource.Resource) (SSHCertificate, error) {
+	spec, err := decodeResourceSpec[apigen.SSHCertificateSpec](definition.Definition, value)
+	if err != nil {
+		return SSHCertificate{}, err
+	}
+	status, err := decodeStoredStatus[apigen.SSHCertificateStatus](definition.Kind, value.Status)
+	if err != nil {
+		return SSHCertificate{}, err
+	}
+	return SSHCertificate{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // SSHKeyPair is the concrete controller-facing resource for SSHKeyPair.
 type SSHKeyPair struct {
 	APIVersion string                   `json:"apiVersion"`
@@ -834,22 +993,25 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 	}, nil
 }
 
-var CommandResource = CommandDefinition{Definition: NewDefinition[apigen.CommandSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Command", "commands", "CommandStatus", []string(nil))}
-var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"})}
-var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"})}
-var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil))}
-var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil))}
-var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil))}
-var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil))}
-var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil))}
-var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil))}
-var PipelineResource = PipelineDefinition{Definition: NewDefinition[apigen.PipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Pipeline", "pipelines", "PipelineStatus", []string{"homelab.io/pipeline-cleanup"})}
-var RouterResource = RouterDefinition{Definition: NewDefinition[apigen.RouterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Router", "routers", "RouterStatus", []string(nil))}
-var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil))}
-var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"})}
-var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil))}
-var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.SSHKeyPairSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHKeyPair", "ssh-key-pairs", "SSHKeyPairStatus", []string{"homelab.io/ssh-key-pair-cleanup"})}
-var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"})}
+var CommandResource = CommandDefinition{Definition: NewDefinition[apigen.CommandSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Command", "commands", "CommandStatus", []string{"homelab.io/command-cleanup"}, true)}
+var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"}, false)}
+var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"}, false)}
+var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil), false)}
+var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil), false)}
+var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil), false)}
+var ISOResource = ISODefinition{Definition: NewDefinition[apigen.ISOSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "ISO", "isos", "ISOStatus", []string{"homelab.io/iso-cleanup"}, false)}
+var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil), false)}
+var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil), false)}
+var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil), false)}
+var PipelineResource = PipelineDefinition{Definition: NewDefinition[apigen.PipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Pipeline", "pipelines", "PipelineStatus", []string{"homelab.io/pipeline-cleanup"}, false)}
+var RouterResource = RouterDefinition{Definition: NewDefinition[apigen.RouterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Router", "routers", "RouterStatus", []string(nil), false)}
+var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil), false)}
+var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"}, false)}
+var ServerResource = ServerDefinition{Definition: NewDefinition[apigen.ServerSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Server", "servers", "ServerStatus", []string(nil), false)}
+var SSHCertificateAuthorityResource = SSHCertificateAuthorityDefinition{Definition: NewDefinition[apigen.SSHCertificateAuthoritySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHCertificateAuthority", "ssh-certificate-authorities", "SSHCertificateAuthorityStatus", []string{"homelab.io/ssh-authority-protection"}, false)}
+var SSHCertificateResource = SSHCertificateDefinition{Definition: NewDefinition[apigen.SSHCertificateSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHCertificate", "ssh-certificates", "SSHCertificateStatus", []string{"homelab.io/ssh-certificate-cleanup"}, false)}
+var SSHKeyPairResource = SSHKeyPairDefinition{Definition: NewDefinition[apigen.SSHKeyPairSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SSHKeyPair", "ssh-key-pairs", "SSHKeyPairStatus", []string{"homelab.io/ssh-key-pair-cleanup"}, false)}
+var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{Definition: NewDefinition[apigen.UsernamePasswordCredentialSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "UsernamePasswordCredential", "username-password-credentials", "UsernamePasswordCredentialStatus", []string{"homelab.io/username-password-cleanup"}, false)}
 
 var Definitions = []Definition{
 	CommandResource.Definition,
@@ -858,6 +1020,7 @@ var Definitions = []Definition{
 	GitRepositoryResource.Definition,
 	InventoryCaptureGroupResource.Definition,
 	InventoryPublicationResource.Definition,
+	ISOResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
 	PipelineProviderResource.Definition,
@@ -866,6 +1029,8 @@ var Definitions = []Definition{
 	SecretStoreResource.Definition,
 	SecretResource.Definition,
 	ServerResource.Definition,
+	SSHCertificateAuthorityResource.Definition,
+	SSHCertificateResource.Definition,
 	SSHKeyPairResource.Definition,
 	UsernamePasswordCredentialResource.Definition,
 }

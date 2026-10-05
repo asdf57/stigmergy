@@ -1,0 +1,64 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: SSHCertificateAuthority
+  plural: ssh-certificate-authorities
+  spec-schema: SSHCertificateAuthoritySpec
+  status-schema: SSHCertificateAuthorityStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/ssh-authority-protection]
+
+SSHCertificateAuthoritySpec:
+  type: object
+  additionalProperties: false
+  required: [signingKeyRef, trustedKeyRefs]
+  properties:
+    signingKeyRef: {$ref: '#/SSHAuthorityKeyReference'}
+    trustedKeyRefs:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: {$ref: '#/SSHAuthorityKeyReference'}
+
+SSHAuthorityKeyReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+SSHCertificateAuthorityStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string, enum: [Pending, Ready, Conflict, Failed]}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    signingKeyRef: {$ref: '#/components/schemas/ResourceReference'}
+    trustBundleDigest: {type: string}
+    trustBundle:
+      type: array
+      items: {$ref: '#/SSHAuthorityTrustedKey'}
+    conditions:
+      type: array
+      items: {$ref: '#/SSHCertificateAuthorityCondition'}
+
+SSHAuthorityTrustedKey:
+  type: object
+  additionalProperties: false
+  required: [keyPairRef, publicKey, fingerprint]
+  properties:
+    keyPairRef: {$ref: '#/components/schemas/ResourceReference'}
+    publicKey: {type: string, minLength: 1}
+    fingerprint: {type: string, minLength: 1}
+
+SSHCertificateAuthorityCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status: {type: string, enum: ['True', 'False', Unknown]}
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

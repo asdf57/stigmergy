@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 
 	"golang.org/x/crypto/ssh"
@@ -34,20 +33,6 @@ func NewReconciler(resourceStore store.Store) *Reconciler {
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) error {
-	if request.Kind == registry.ServerResource.Kind {
-		raw, err := r.store.Get(ctx, registry.ServerResource.Kind, request.Name)
-		if errors.Is(err, store.ErrNotFound) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("get Server %q while resolving SSH keys: %w", request.Name, err)
-		}
-		server, err := registry.ServerResource.Decode(raw)
-		if err != nil {
-			return fmt.Errorf("decode Server %q while resolving SSH keys: %w", request.Name, err)
-		}
-		return r.reconcileServerKeys(ctx, server)
-	}
 
 	raw, err := r.store.Get(ctx, registry.SSHKeyPairResource.Kind, request.Name)
 	if errors.Is(err, store.ErrNotFound) {
@@ -73,10 +58,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return r.updateStatus(ctx, keyPair, failureStatus(keyPair, phase, reason, err.Error()))
 	}
 	if created || !secretReady(secretResource) {
+		pending := failureStatus(keyPair, "Pending", "SecretPending", fmt.Sprintf("Secret %q is waiting for reconciliation", secretResource.Metadata.Name))
+		pending.SecretRef = &apigen.ResourceReference{Name: secretResource.Metadata.Name, Uid: secretResource.Metadata.UID}
+		pending.PublicKey, pending.Fingerprint = &publicKey, &fingerprint
 		if secretResource.Status != nil && secretResource.Status.Phase != nil && *secretResource.Status.Phase == apigen.SecretStatusPhaseFailed {
-			return r.updateStatus(ctx, keyPair, failureStatus(keyPair, "Failed", "SecretReconciliationFailed", fmt.Sprintf("Secret %q failed reconciliation", secretResource.Metadata.Name)))
+			phase := apigen.SSHKeyPairStatusPhaseFailed
+			pending.Phase = &phase
+			(*pending.Conditions)[0].Reason = "SecretReconciliationFailed"
 		}
-		return r.updateStatus(ctx, keyPair, failureStatus(keyPair, "Pending", "SecretPending", fmt.Sprintf("Secret %q is waiting for reconciliation", secretResource.Metadata.Name)))
+		return r.updateStatus(ctx, keyPair, pending)
 	}
 
 	phase, message, observedGeneration := apigen.SSHKeyPairStatusPhaseReady, "The generated key pair is managed by a Ready Secret resource", keyPair.Metadata.Generation
@@ -105,6 +95,9 @@ func (r *Reconciler) ensureSecret(ctx context.Context, keyPair registry.SSHKeyPa
 		return registry.Secret{}, "", "", false, fmt.Errorf("get Secret %q: %w", keyPair.Metadata.Name, err)
 	}
 
+	if keyPair.Status != nil && keyPair.Status.SecretRef != nil {
+		return registry.Secret{}, "", "", false, fmt.Errorf("backing Secret for established SSHKeyPair %q is missing; refusing to silently replace its identity", keyPair.Metadata.Name)
+	}
 	privateKey, publicKey, fingerprint, err := sshkey.GenerateEd25519KeyPair()
 	if err != nil {
 		return registry.Secret{}, "", "", false, err
@@ -138,6 +131,9 @@ func (r *Reconciler) ensureSecret(ctx context.Context, keyPair registry.SSHKeyPa
 }
 
 func validateOwnedSecret(secretResource registry.Secret, keyPair registry.SSHKeyPair) (string, string, error) {
+	if keyPair.Status != nil && keyPair.Status.SecretRef != nil && keyPair.Status.SecretRef.Uid != secretResource.Metadata.UID {
+		return "", "", fmt.Errorf("%w: backing Secret identity changed", errSecretOwnershipConflict)
+	}
 	if secretResource.Metadata.Annotations[ownerUIDAnnotation] != keyPair.Metadata.UID {
 		return "", "", fmt.Errorf("%w: Secret %q is not owned by SSHKeyPair %q", errSecretOwnershipConflict, secretResource.Metadata.Name, keyPair.Metadata.Name)
 	}
@@ -165,7 +161,11 @@ func validateOwnedSecret(secretResource registry.Secret, keyPair registry.SSHKey
 	if !bytes.Equal(signer.PublicKey().Marshal(), parsedPublic.Marshal()) {
 		return "", "", fmt.Errorf("public and private keys in Secret %q do not match", secretResource.Metadata.Name)
 	}
-	return publicKey, ssh.FingerprintSHA256(parsedPublic), nil
+	fingerprint := ssh.FingerprintSHA256(parsedPublic)
+	if keyPair.Status != nil && keyPair.Status.Fingerprint != nil && *keyPair.Status.Fingerprint != fingerprint {
+		return "", "", fmt.Errorf("%w: established key material changed; create a new SSHKeyPair for rotation", errSecretOwnershipConflict)
+	}
+	return publicKey, fingerprint, nil
 }
 
 func secretReady(secretResource registry.Secret) bool {
@@ -180,9 +180,12 @@ func failureStatus(keyPair registry.SSHKeyPair, phase, reason, message string) *
 		Type: "Ready", Status: apigen.SSHKeyPairConditionStatusFalse, Reason: reason,
 		Message: &message, ObservedGeneration: &observedGeneration,
 	}}
-	return &apigen.SSHKeyPairStatus{
-		Phase: &statusPhase, ObservedGeneration: &observedGeneration, Conditions: &conditions,
+	status := &apigen.SSHKeyPairStatus{}
+	if keyPair.Status != nil {
+		*status = *keyPair.Status
 	}
+	status.Phase, status.ObservedGeneration, status.Conditions = &statusPhase, &observedGeneration, &conditions
+	return status
 }
 
 func (r *Reconciler) updateStatus(ctx context.Context, keyPair registry.SSHKeyPair, status *apigen.SSHKeyPairStatus) error {
@@ -206,6 +209,33 @@ func (r *Reconciler) updateStatus(ctx context.Context, keyPair registry.SSHKeyPa
 func (r *Reconciler) finalize(ctx context.Context, keyPair registry.SSHKeyPair) error {
 	if !slices.Contains(keyPair.Metadata.Finalizers, cleanupFinalizer) {
 		return nil
+	}
+	authorities, err := r.store.List(ctx, registry.SSHCertificateAuthorityResource.Kind)
+	if err != nil {
+		return err
+	}
+	for _, rawAuthority := range authorities.Items {
+		authority, err := registry.SSHCertificateAuthorityResource.Decode(rawAuthority)
+		if err != nil {
+			return err
+		}
+		for _, reference := range authority.Spec.TrustedKeyRefs {
+			if reference.Name == keyPair.Metadata.Name {
+				return fmt.Errorf("SSHKeyPair %q is still trusted by CA %q", keyPair.Metadata.Name, authority.Metadata.Name)
+			}
+		}
+		if authority.Spec.SigningKeyRef.Name == keyPair.Metadata.Name {
+			return fmt.Errorf("SSHKeyPair %q is still a CA signer", keyPair.Metadata.Name)
+		}
+	}
+	certificates, err := r.store.List(ctx, registry.SSHCertificateResource.Kind)
+	if err != nil {
+		return err
+	}
+	for _, value := range certificates.Items {
+		if ref, ok := value.Spec["keyPairRef"].(map[string]any); ok && ref["name"] == keyPair.Metadata.Name {
+			return fmt.Errorf("SSHKeyPair %q is still referenced by SSHCertificate %q", keyPair.Metadata.Name, value.Metadata.Name)
+		}
 	}
 	raw, err := r.store.Get(ctx, registry.SecretResource.Kind, keyPair.Metadata.Name)
 	if errors.Is(err, store.ErrNotFound) {
@@ -252,106 +282,4 @@ func (r *Reconciler) removeFinalizer(ctx context.Context, keyPair registry.SSHKe
 
 func (r *Reconciler) RequestsForSecret(_ context.Context, request controller.Request) ([]controller.Request, error) {
 	return []controller.Request{{Kind: registry.SSHKeyPairResource.Kind, Name: request.Name}}, nil
-}
-
-func (r *Reconciler) RequestsForSSHKeyPair(ctx context.Context, request controller.Request) ([]controller.Request, error) {
-	servers, err := r.store.List(ctx, registry.ServerResource.Kind)
-	if err != nil {
-		return nil, fmt.Errorf("list Servers for SSHKeyPair %q: %w", request.Name, err)
-	}
-	requests := make([]controller.Request, 0)
-	for _, raw := range servers.Items {
-		server, err := registry.ServerResource.Decode(raw)
-		if err != nil {
-			return nil, fmt.Errorf("decode Server %q for SSHKeyPair %q: %w", raw.Metadata.Name, request.Name, err)
-		}
-		if serverReferencesKeyPair(server, request.Name) {
-			requests = append(requests, controller.Request{Kind: registry.ServerResource.Kind, Name: server.Metadata.Name})
-		}
-	}
-	return requests, nil
-}
-
-func serverReferencesKeyPair(server registry.Server, name string) bool {
-	if server.Spec.Users == nil {
-		return false
-	}
-	for _, user := range *server.Spec.Users {
-		if user.Ssh == nil {
-			continue
-		}
-		for _, reference := range user.Ssh.AuthorizedKeyRefs {
-			if reference.Name == name {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (r *Reconciler) reconcileServerKeys(ctx context.Context, server registry.Server) error {
-	type resolvedKey struct{ keyPairName, keyPairUID, loginUser, publicKey, fingerprint string }
-	keys := make([]resolvedKey, 0)
-	if server.Spec.Users != nil {
-		for _, user := range *server.Spec.Users {
-			if user.Ssh == nil {
-				continue
-			}
-			for _, reference := range user.Ssh.AuthorizedKeyRefs {
-				raw, err := r.store.Get(ctx, registry.SSHKeyPairResource.Kind, reference.Name)
-				if errors.Is(err, store.ErrNotFound) {
-					continue
-				}
-				if err != nil {
-					return fmt.Errorf("get SSHKeyPair %q for Server %q: %w", reference.Name, server.Metadata.Name, err)
-				}
-				keyPair, err := registry.SSHKeyPairResource.Decode(raw)
-				if err != nil {
-					return fmt.Errorf("decode SSHKeyPair %q for Server %q: %w", reference.Name, server.Metadata.Name, err)
-				}
-				if keyPair.Metadata.DeletionTimestamp != nil || keyPair.Status == nil || keyPair.Status.Phase == nil ||
-					*keyPair.Status.Phase != apigen.SSHKeyPairStatusPhaseReady || keyPair.Status.ObservedGeneration == nil ||
-					*keyPair.Status.ObservedGeneration != keyPair.Metadata.Generation {
-					continue
-				}
-				if keyPair.Status.PublicKey == nil || keyPair.Status.Fingerprint == nil || *keyPair.Status.PublicKey == "" || *keyPair.Status.Fingerprint == "" {
-					continue
-				}
-				keys = append(keys, resolvedKey{keyPair.Metadata.Name, keyPair.Metadata.UID, user.Name, *keyPair.Status.PublicKey, *keyPair.Status.Fingerprint})
-			}
-		}
-	}
-	sort.Slice(keys, func(left, right int) bool {
-		if keys[left].loginUser != keys[right].loginUser {
-			return keys[left].loginUser < keys[right].loginUser
-		}
-		return keys[left].keyPairName < keys[right].keyPairName
-	})
-	authorizedKeys := make([]apigen.ServerSSHAuthorizedKeyStatus, 0, len(keys))
-	for _, key := range keys {
-		authorizedKeys = append(authorizedKeys, apigen.ServerSSHAuthorizedKeyStatus{
-			KeyPairRef: apigen.ResourceReference{Name: key.keyPairName, Uid: key.keyPairUID},
-			LoginUser:  key.loginUser, PublicKey: key.publicKey, Fingerprint: key.fingerprint,
-		})
-	}
-	status := &apigen.ServerStatus{}
-	if server.Status != nil {
-		*status = *server.Status
-	}
-	status.Ssh = &apigen.ServerSSHStatus{AuthorizedKeys: authorizedKeys}
-	if resource.EqualJSON(server.Status, status) {
-		return nil
-	}
-	revision, err := strconv.ParseInt(server.Metadata.ResourceVersion, 10, 64)
-	if err != nil {
-		return fmt.Errorf("parse Server %q resource version: %w", server.Metadata.Name, err)
-	}
-	storedStatus, err := registry.ServerResource.EncodeStatus(status)
-	if err != nil {
-		return err
-	}
-	if _, err := r.store.UpdateStatus(ctx, server.Kind, server.Metadata.Name, storedStatus, revision); err != nil {
-		return fmt.Errorf("update Server %q resolved SSH keys: %w", server.Metadata.Name, err)
-	}
-	return nil
 }

@@ -1,0 +1,60 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: SSHCertificate
+  plural: ssh-certificates
+  spec-schema: SSHCertificateSpec
+  status-schema: SSHCertificateStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/ssh-certificate-cleanup]
+
+SSHCertificateSpec:
+  type: object
+  additionalProperties: false
+  required: [authorityRef, keyPairRef, principals, ttl, renewBefore, secretStoreRef, path]
+  properties:
+    authorityRef: {$ref: '#/SSHCertificateReference'}
+    keyPairRef: {$ref: '#/SSHCertificateReference'}
+    principals:
+      type: array
+      minItems: 1
+      maxItems: 32
+      uniqueItems: true
+      items: {type: string, pattern: '^[a-zA-Z0-9][a-zA-Z0-9_.@-]{0,127}$'}
+    ttl: {type: string, pattern: '^[1-9][0-9]*(m|h)$', description: User-certificate lifetime; controller enforces 5 minutes to 7 days.}
+    renewBefore: {type: string, pattern: '^[1-9][0-9]*(m|h)$', description: Must be at least one minute and less than ttl.}
+    secretStoreRef: {$ref: '#/SSHCertificateSecretStoreReference'}
+    path: {type: string, minLength: 1}
+
+SSHCertificateReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+SSHCertificateSecretStoreReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+
+SSHCertificateStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string, enum: [Pending, Ready, Conflict, Failed]}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    reason: {type: string}
+    message: {type: string}
+    authorityRef: {$ref: '#/components/schemas/ResourceReference'}
+    keyPairRef: {$ref: '#/components/schemas/ResourceReference'}
+    signingKeyRef: {$ref: '#/components/schemas/ResourceReference'}
+    secretRef: {$ref: '#/components/schemas/ResourceReference'}
+    certificate: {type: string, description: Public OpenSSH user certificate; never private key material.}
+    serial: {type: string}
+    validAfter: {type: string, format: date-time}
+    validBefore: {type: string, format: date-time}
+    renewAt: {type: string, format: date-time}

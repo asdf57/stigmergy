@@ -10,6 +10,7 @@ import (
 
 	"github.com/asdf57/stigmergy/internal/api/registry"
 	"github.com/asdf57/stigmergy/internal/controller"
+	serverconsumer "github.com/asdf57/stigmergy/internal/controller/serverssh"
 	"github.com/asdf57/stigmergy/internal/resource"
 	"github.com/asdf57/stigmergy/internal/sshkey"
 	"github.com/asdf57/stigmergy/internal/store"
@@ -186,7 +187,7 @@ func TestReconcileProjectsServerDeclaredKeyPair(t *testing.T) {
 		"publicKey": "ssh-ed25519 AAAA-test", "fingerprint": "SHA256:test",
 	}
 	storage := newFakeStore(server, keyPair)
-	reconciler := NewReconciler(storage)
+	reconciler := serverconsumer.NewReconciler(storage)
 
 	if err := reconciler.Reconcile(context.Background(), controller.Request{Kind: registry.ServerResource.Kind, Name: "desktop"}); err != nil {
 		t.Fatalf("Reconcile() error = %v", err)
@@ -262,3 +263,45 @@ func readySecret(t *testing.T) resource.Resource {
 }
 
 var _ store.Store = (*fakeStore)(nil)
+
+func TestPendingIdentityCannotBeReplacedOrRegenerated(t *testing.T) {
+	for _, mode := range []string{"missing", "replaced", "changed-material"} {
+		t.Run(mode, func(t *testing.T) {
+			s := newFakeStore(testSSHKeyPair())
+			r := NewReconciler(s)
+			request := controller.Request{Name: "ansible-homelab"}
+			if err := r.Reconcile(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+			original := s.resources["SSHKeyPair/ansible-homelab"].Status["fingerprint"]
+			if s.resources["SSHKeyPair/ansible-homelab"].Status["secretRef"] == nil {
+				t.Fatal("Pending identity was not recorded")
+			}
+			secret := s.resources["Secret/ansible-homelab"]
+			switch mode {
+			case "missing":
+				delete(s.resources, "Secret/ansible-homelab")
+			case "replaced":
+				secret.Metadata.UID = "replacement"
+				s.resources["Secret/ansible-homelab"] = secret
+			case "changed-material":
+				private, public, _, _ := sshkey.GenerateEd25519KeyPair()
+				data := secret.Spec["data"].(map[string]any)
+				data["privateKey"], data["publicKey"] = private, public
+				s.resources["Secret/ansible-homelab"] = secret
+			}
+			if err := r.Reconcile(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+			status := s.resources["SSHKeyPair/ansible-homelab"].Status
+			if status["phase"] == "Ready" || status["phase"] == "Pending" || status["fingerprint"] != original {
+				t.Fatal("identity silently changed", status)
+			}
+			if mode == "missing" {
+				if _, ok := s.resources["Secret/ansible-homelab"]; ok {
+					t.Fatal("missing identity regenerated")
+				}
+			}
+		})
+	}
+}

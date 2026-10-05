@@ -220,6 +220,10 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 				return
 			}
 		}
+		if definition.ImmutableSpec && !resource.EqualJSON(existing.Spec, candidate.Spec) {
+			writeError(w, http.StatusUnprocessableEntity, "Immutable", "spec is immutable; create a new resource to execute again")
+			return
+		}
 		observed := existing
 		existing.Spec = candidate.Spec
 		existing.Metadata.Labels = candidate.Metadata.Labels
@@ -292,6 +296,10 @@ func (s *Server) patchResource(w http.ResponseWriter, r *http.Request, definitio
 	validated, err := s.validateResourceSpec(definition, merged)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+		return
+	}
+	if definition.ImmutableSpec && !resource.EqualJSON(existing.Spec, validated) {
+		writeError(w, http.StatusUnprocessableEntity, "Immutable", "spec is immutable; create a new resource to execute again")
 		return
 	}
 	existing.Spec = validated

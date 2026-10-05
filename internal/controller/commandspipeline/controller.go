@@ -2,12 +2,12 @@ package commandspipeline
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
-	"path"
-	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -20,26 +20,25 @@ import (
 
 const (
 	cleanupFinalizer   = "homelab.io/commands-pipeline-cleanup"
-	pipelineFinalizer  = "homelab.io/pipeline-cleanup"
 	ownerUIDAnnotation = "homelab.io/commands-pipeline-uid"
 )
-
-var errOwnershipConflict = errors.New("Pipeline ownership conflict")
 
 type Config struct {
 	CommandRunnerImage     string
 	PublicAPIURL           string
 	AnsibleRolesRepository string
 	AnsibleRolesRevision   string
+	RunnerParameters       map[string]string
 }
 
 type Reconciler struct {
 	store  store.Store
 	config Config
+	now    func() time.Time
 }
 
 func NewReconciler(resourceStore store.Store, config Config) *Reconciler {
-	return &Reconciler{store: resourceStore, config: config}
+	return &Reconciler{store: resourceStore, config: config, now: time.Now}
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) error {
@@ -58,6 +57,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return r.finalize(ctx, value)
 	}
 
+	legacy, legacyErr := r.store.Get(ctx, registry.PipelineResource.Kind, value.Metadata.Name)
+	if legacyErr == nil && legacy.Metadata.Annotations[ownerUIDAnnotation] == value.Metadata.UID {
+		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhasePending, "LegacyPipelinePresent", "Retire the legacy Git-triggered Pipeline before enabling disposable Commands", nil)
+	}
+	if legacyErr != nil && !errors.Is(legacyErr, store.ErrNotFound) {
+		return legacyErr
+	}
 	if message := r.configError(); message != "" {
 		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhasePending, "ConfigurationUnavailable", message, nil)
 	}
@@ -68,28 +74,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if phase != "" {
 		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhase(phase), reason, message, nil)
 	}
-	commandPath, err := SafeCommandPath(value)
-	if err != nil {
-		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseFailed, "InvalidCommandPath", err.Error(), nil)
+	_, _ = group, provider
+	if _, err := r.render(value, repository, keyPair, "validation", "validation/run.sh", "validation"); err != nil {
+		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseFailed, "RunnerConfigurationInvalid", err.Error(), nil)
 	}
-	definition, err := r.render(value, repository, keyPair, commandPath)
-	if err != nil {
-		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseFailed, "RenderFailed", err.Error(), nil)
+	if (value.Spec.Schedule == nil) != (value.Spec.CommandTemplate == nil) {
+		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseFailed, "InvalidSchedule", "schedule and commandTemplate must be supplied together", nil)
 	}
-	child, changed, err := r.ensurePipeline(ctx, value, provider, definition)
-	if err != nil {
-		phase, reason := apigen.CommandsPipelineStatusPhaseFailed, "PipelineProvisioningFailed"
-		if errors.Is(err, errOwnershipConflict) {
-			phase, reason = apigen.CommandsPipelineStatusPhaseConflict, "PipelineOwnershipConflict"
-		}
-		return r.setStatus(ctx, value, phase, reason, err.Error(), nil)
+	if err := r.schedule(ctx, &value); err != nil {
+		return err
 	}
-	reference := &apigen.ResourceReference{Name: child.Metadata.Name, Uid: child.Metadata.UID}
-	if changed || !childReady(child) {
-		return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhasePending, "PipelinePending", fmt.Sprintf("Pipeline %q is waiting for reconciliation", child.Metadata.Name), reference)
-	}
-	_ = group
-	return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseReady, "CommandsPipelineReady", "The commands pipeline is configured and Ready", reference)
+	return r.setStatus(ctx, value, apigen.CommandsPipelineStatusPhaseReady, "ExecutorReady", "Reusable command executor is Ready", nil)
 }
 
 func (r *Reconciler) configError() string {
@@ -175,23 +170,26 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 	return repository, group, provider, keyPair, "", "", "", nil
 }
 
-func SafeCommandPath(value registry.CommandsPipeline) (string, error) {
-	commandPath := value.Spec.InventoryCaptureGroupRef.Name + ".sh"
-	if value.Spec.CommandPath != nil {
-		commandPath = strings.TrimSpace(*value.Spec.CommandPath)
+// Prepare resolves and snapshots reusable settings for a single execution.
+func (r *Reconciler) Prepare(ctx context.Context, value registry.CommandsPipeline, branch, commandPath, revision string) (registry.GitRepository, registry.PipelineProvider, string, error) {
+	if message := r.configError(); message != "" {
+		return registry.GitRepository{}, registry.PipelineProvider{}, "", fmt.Errorf("%s", message)
 	}
-	cleaned := path.Clean(commandPath)
-	if commandPath == "" || path.IsAbs(commandPath) || cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") || cleaned != commandPath {
-		return "", fmt.Errorf("commandPath %q must be a clean relative path", commandPath)
+	repo, _, provider, key, phase, _, message, err := r.resolve(ctx, value)
+	if err != nil {
+		return repo, provider, "", err
 	}
-	return cleaned, nil
+	if phase != "" {
+		return repo, provider, "", fmt.Errorf("%s", message)
+	}
+	definition, err := r.render(value, repo, key, branch, commandPath, revision)
+	return repo, provider, definition, err
 }
 
-func (r *Reconciler) render(value registry.CommandsPipeline, repository registry.GitRepository, keyPair registry.SSHKeyPair, commandPath string) (string, error) {
+func (r *Reconciler) render(value registry.CommandsPipeline, repository registry.GitRepository, keyPair registry.SSHKeyPair, branch, commandPath, revision string) (string, error) {
 	imageRepository, imageTag := splitImage(r.config.CommandRunnerImage)
 	resourceSource := map[string]any{
-		"uri": repository.Spec.Url, "branch": value.Spec.InventoryCaptureGroupRef.Name,
-		"paths": []string{commandPath},
+		"uri": repository.Spec.Url, "branch": branch,
 	}
 	if repository.Spec.Authentication != nil && repository.Spec.Authentication.SshKeyPairRef != "" {
 		resourceSource["private_key"] = "((" + keyPair.Spec.Path + ".privateKey))"
@@ -221,14 +219,21 @@ test -f "$command_file"
 exec /bin/bash "$command_file"`},
 		},
 	}
+	parameters := taskConfig["params"].(map[string]any)
+	for name, value := range r.config.RunnerParameters {
+		if _, reserved := parameters[name]; reserved {
+			return "", fmt.Errorf("runner parameter %q overrides controller configuration", name)
+		}
+		parameters[name] = value
+	}
+	resources := []any{resourceConfig}
+	plan := []any{map[string]any{"get": "commands", "version": map[string]any{"ref": revision}}}
+	plan = append(plan, map[string]any{"task": "run-command", "config": taskConfig})
 	config := map[string]any{
-		"resources": []any{resourceConfig},
+		"resources": resources,
 		"jobs": []any{map[string]any{
 			"name": "run", "serial": true,
-			"plan": []any{
-				map[string]any{"get": "commands", "trigger": true},
-				map[string]any{"task": "run-command", "privileged": true, "config": taskConfig},
-			},
+			"plan": plan,
 		}},
 	}
 	data, err := yaml.Marshal(config)
@@ -246,69 +251,6 @@ func splitImage(image string) (string, string) {
 	return image, "latest"
 }
 
-func (r *Reconciler) ensurePipeline(ctx context.Context, owner registry.CommandsPipeline, provider registry.PipelineProvider, definition string) (registry.Pipeline, bool, error) {
-	name := owner.Metadata.Name
-	raw, err := r.store.Get(ctx, registry.PipelineResource.Kind, name)
-	if errors.Is(err, store.ErrNotFound) {
-		desired := desiredPipeline(owner, provider, definition, resource.Metadata{Name: name, Finalizers: []string{pipelineFinalizer}, Annotations: map[string]string{ownerUIDAnnotation: owner.Metadata.UID}})
-		encoded, err := desired.Encode()
-		if err != nil {
-			return registry.Pipeline{}, false, err
-		}
-		created, err := r.store.Create(ctx, encoded)
-		if errors.Is(err, store.ErrConflict) {
-			return r.ensurePipeline(ctx, owner, provider, definition)
-		}
-		if err != nil {
-			return registry.Pipeline{}, false, err
-		}
-		child, err := registry.PipelineResource.Decode(created)
-		return child, true, err
-	}
-	if err != nil {
-		return registry.Pipeline{}, false, err
-	}
-	child, err := registry.PipelineResource.Decode(raw)
-	if err != nil {
-		return registry.Pipeline{}, false, err
-	}
-	if child.Metadata.Annotations[ownerUIDAnnotation] != owner.Metadata.UID {
-		return child, false, fmt.Errorf("%w: Pipeline %q is owned by another CommandsPipeline", errOwnershipConflict, name)
-	}
-	if child.Metadata.DeletionTimestamp != nil {
-		return child, false, fmt.Errorf("Pipeline %q is terminating", name)
-	}
-	desired := desiredPipeline(owner, provider, definition, child.Metadata)
-	if resource.EqualJSON(child.Spec, desired.Spec) && slices.Contains(child.Metadata.Finalizers, pipelineFinalizer) {
-		return child, false, nil
-	}
-	if !slices.Contains(desired.Metadata.Finalizers, pipelineFinalizer) {
-		desired.Metadata.Finalizers = append(desired.Metadata.Finalizers, pipelineFinalizer)
-	}
-	encoded, err := desired.Encode()
-	if err != nil {
-		return registry.Pipeline{}, false, err
-	}
-	revision, err := strconv.ParseInt(child.Metadata.ResourceVersion, 10, 64)
-	if err != nil {
-		return registry.Pipeline{}, false, err
-	}
-	updated, err := r.store.Update(ctx, encoded, revision)
-	if err != nil {
-		return registry.Pipeline{}, false, err
-	}
-	child, err = registry.PipelineResource.Decode(updated)
-	return child, true, err
-}
-
-func desiredPipeline(owner registry.CommandsPipeline, provider registry.PipelineProvider, definition string, metadata resource.Metadata) registry.Pipeline {
-	return registry.NewPipeline(metadata, apigen.PipelineSpec{ProviderRef: apigen.PipelineProviderReference{Name: provider.Metadata.Name}, ExternalName: "commands-" + owner.Metadata.Name, Definition: apigen.PipelineDefinition{Format: apigen.PipelineDefinitionFormatConcourse, Data: definition}})
-}
-
-func childReady(value registry.Pipeline) bool {
-	return value.Status != nil && value.Status.Phase != nil && *value.Status.Phase == apigen.PipelineStatusPhaseReady && value.Status.ObservedGeneration != nil && *value.Status.ObservedGeneration == value.Metadata.Generation
-}
-
 func (r *Reconciler) setStatus(ctx context.Context, value registry.CommandsPipeline, phase apigen.CommandsPipelineStatusPhase, reason, message string, reference *apigen.ResourceReference) error {
 	generation := value.Metadata.Generation
 	conditionStatus := apigen.CommandsPipelineConditionStatusFalse
@@ -316,7 +258,7 @@ func (r *Reconciler) setStatus(ctx context.Context, value registry.CommandsPipel
 		conditionStatus = apigen.CommandsPipelineConditionStatusTrue
 	}
 	conditions := []apigen.CommandsPipelineCondition{{Type: "Ready", Status: conditionStatus, Reason: reason, Message: &message, ObservedGeneration: &generation}}
-	status := &apigen.CommandsPipelineStatus{Phase: &phase, ObservedGeneration: &generation, PipelineRef: reference, Conditions: &conditions}
+	status := &apigen.CommandsPipelineStatus{Phase: &phase, ObservedGeneration: &generation, LastScheduledAt: lastScheduledAt(value), Conditions: &conditions}
 	if resource.EqualJSON(value.Status, status) {
 		return nil
 	}
@@ -332,50 +274,128 @@ func (r *Reconciler) setStatus(ctx context.Context, value registry.CommandsPipel
 	return err
 }
 
-func (r *Reconciler) finalize(ctx context.Context, value registry.CommandsPipeline) error {
-	if !slices.Contains(value.Metadata.Finalizers, cleanupFinalizer) {
+func lastScheduledAt(value registry.CommandsPipeline) *time.Time {
+	if value.Status != nil {
+		return value.Status.LastScheduledAt
+	}
+	return nil
+}
+
+// No backfill and no overlap for scheduled runs. Ad-hoc Commands are independent.
+func (r *Reconciler) schedule(ctx context.Context, value *registry.CommandsPipeline) error {
+	if value.Spec.Schedule == nil {
 		return nil
 	}
-	raw, err := r.store.Get(ctx, registry.PipelineResource.Kind, value.Metadata.Name)
-	if errors.Is(err, store.ErrNotFound) {
-		return r.removeFinalizer(ctx, value)
+	interval, err := time.ParseDuration(*value.Spec.Schedule)
+	if err != nil || interval < time.Second {
+		return fmt.Errorf("invalid schedule interval")
 	}
+	now := r.now().UTC()
+	slot := time.Unix((now.Unix()/int64(interval/time.Second))*int64(interval/time.Second), 0).UTC()
+	if previous := lastScheduledAt(*value); previous != nil && !previous.Before(slot) {
+		return nil
+	}
+	items, err := r.store.List(ctx, registry.CommandResource.Kind)
 	if err != nil {
 		return err
 	}
-	child, err := registry.PipelineResource.Decode(raw)
-	if err != nil {
-		return err
-	}
-	if child.Metadata.Annotations[ownerUIDAnnotation] != value.Metadata.UID {
-		return fmt.Errorf("%w: refusing to delete Pipeline %q", errOwnershipConflict, child.Metadata.Name)
-	}
-	if child.Metadata.DeletionTimestamp == nil {
-		revision, err := strconv.ParseInt(child.Metadata.ResourceVersion, 10, 64)
+	active := false
+	for _, raw := range items.Items {
+		if raw.Metadata.Annotations["homelab.io/scheduled-executor-uid"] != value.Metadata.UID {
+			continue
+		}
+		command, err := registry.CommandResource.Decode(raw)
 		if err != nil {
 			return err
 		}
-		if err := r.store.Delete(ctx, child.Kind, child.Metadata.Name, revision); err != nil && !errors.Is(err, store.ErrNotFound) {
+		if command.Status == nil || command.Status.Phase == nil || (*command.Status.Phase != apigen.CommandStatusPhaseSucceeded && *command.Status.Phase != apigen.CommandStatusPhaseFailed) {
+			active = true
+		}
+	}
+	if value.Status == nil {
+		value.Status = &apigen.CommandsPipelineStatus{}
+	}
+	value.Status.LastScheduledAt = &slot
+	// Claim this slot before creating: no duplicate request after a crash plus TTL deletion.
+	// A crash between this CAS and creation may skip the slot; missed slots are not backfilled.
+	status, err := registry.CommandsPipelineResource.EncodeStatus(value.Status)
+	if err != nil {
+		return err
+	}
+	version, err := strconv.ParseInt(value.Metadata.ResourceVersion, 10, 64)
+	if err != nil {
+		return err
+	}
+	updated, err := r.store.UpdateStatus(ctx, value.Kind, value.Metadata.Name, status, version)
+	if err != nil {
+		return err
+	}
+	*value, err = registry.CommandsPipelineResource.Decode(updated)
+	if err != nil {
+		return err
+	}
+	if !active {
+		name := fmt.Sprintf("scheduled-%x-%d", sha256.Sum256([]byte(value.Metadata.UID)), slot.Unix())
+		uid := value.Metadata.UID
+		command := registry.NewCommand(resource.Metadata{Name: name, Finalizers: append([]string(nil), registry.CommandResource.DefaultFinalizers...), Annotations: map[string]string{"homelab.io/scheduled-executor-uid": uid}}, apigen.CommandSpec{CommandsPipelineRef: apigen.CommandExecutorReference{Name: value.Metadata.Name, Uid: &uid}, Script: value.Spec.CommandTemplate.Script, TtlSecondsAfterFinished: value.Spec.CommandTemplate.TtlSecondsAfterFinished})
+		encoded, err := command.Encode()
+		if err != nil {
 			return err
+		}
+		if _, err := r.store.Create(ctx, encoded); err != nil {
+			if !errors.Is(err, store.ErrConflict) {
+				return err
+			}
+			existing, getErr := r.store.Get(ctx, command.Kind, name)
+			if getErr != nil {
+				return getErr
+			}
+			if existing.Metadata.Annotations["homelab.io/scheduled-executor-uid"] != uid || !resource.EqualJSON(existing.Spec, encoded.Spec) {
+				return fmt.Errorf("scheduled Command ownership conflict")
+			}
 		}
 	}
 	return nil
 }
 
-func (r *Reconciler) removeFinalizer(ctx context.Context, value registry.CommandsPipeline) error {
-	value.Metadata.Finalizers = slices.DeleteFunc(value.Metadata.Finalizers, func(item string) bool { return item == cleanupFinalizer })
+func (r *Reconciler) finalize(ctx context.Context, value registry.CommandsPipeline) error {
+	commands, err := r.store.List(ctx, registry.CommandResource.Kind)
+	if err != nil {
+		return err
+	}
+	for _, raw := range commands.Items {
+		command, err := registry.CommandResource.Decode(raw)
+		if err != nil {
+			return err
+		}
+		if command.Spec.CommandsPipelineRef.Name == value.Metadata.Name {
+			return fmt.Errorf("CommandsPipeline is still referenced by Command %q; delete its Commands first", command.Metadata.Name)
+		}
+	}
+	// Legacy child pipelines must be retired explicitly before migration.
+	raw, err := r.store.Get(ctx, registry.PipelineResource.Kind, value.Metadata.Name)
+	if err == nil && raw.Metadata.Annotations[ownerUIDAnnotation] == value.Metadata.UID {
+		return fmt.Errorf("retire legacy Pipeline %q before deleting its executor", raw.Metadata.Name)
+	}
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return err
+	}
+	finalizers := make([]string, 0, len(value.Metadata.Finalizers))
+	for _, item := range value.Metadata.Finalizers {
+		if item != cleanupFinalizer {
+			finalizers = append(finalizers, item)
+		}
+	}
+	value.Metadata.Finalizers = finalizers
 	encoded, err := value.Encode()
 	if err != nil {
 		return err
 	}
-	revision, err := strconv.ParseInt(value.Metadata.ResourceVersion, 10, 64)
+	version, err := strconv.ParseInt(value.Metadata.ResourceVersion, 10, 64)
 	if err != nil {
 		return err
 	}
-	_, err = r.store.Update(ctx, encoded, revision)
-	if errors.Is(err, store.ErrNotFound) {
-		return nil
-	}
+	_, err = r.store.Update(ctx, encoded, version)
 	return err
 }
 
@@ -409,7 +429,12 @@ func (r *Reconciler) RequestsForCaptureGroup(ctx context.Context, request contro
 func (r *Reconciler) RequestsForProvider(ctx context.Context, request controller.Request) ([]controller.Request, error) {
 	return r.requestsMatching(ctx, func(value registry.CommandsPipeline) bool { return value.Spec.PipelineProviderRef.Name == request.Name })
 }
-func (r *Reconciler) RequestsForPipeline(_ context.Context, request controller.Request) ([]controller.Request, error) {
+func (r *Reconciler) RequestsForPipeline(ctx context.Context, request controller.Request) ([]controller.Request, error) {
+	if _, err := r.store.Get(ctx, registry.CommandsPipelineResource.Kind, request.Name); errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
 	return []controller.Request{{Kind: registry.CommandsPipelineResource.Kind, Name: request.Name}}, nil
 }
 func (r *Reconciler) RequestsForSSHKeyPair(ctx context.Context, request controller.Request) ([]controller.Request, error) {

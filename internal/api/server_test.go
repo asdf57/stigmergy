@@ -412,7 +412,7 @@ kind: Command
 metadata:
   name: servers
 spec:
-  inventoryCaptureGroupRef:
+  commandsPipelineRef:
     name: servers
   script: |
     #!/usr/bin/env bash
@@ -1214,11 +1214,50 @@ func TestOpenAPIAndSwaggerUI(t *testing.T) {
 	if !strings.Contains(docsResponse.Body.String(), "defaultModelsExpandDepth: 1") {
 		t.Fatal("Swagger UI page does not expose component schemas")
 	}
+	if !strings.Contains(docsResponse.Body.String(), "persistAuthorization: true") {
+		t.Fatal("Swagger must persist authorization across page reloads")
+	}
 
 	assetRequest := httptest.NewRequest(http.MethodGet, "/docs/swagger-ui.css", nil)
 	assetResponse := httptest.NewRecorder()
 	handler.ServeHTTP(assetResponse, assetRequest)
 	if assetResponse.Code != http.StatusOK {
 		t.Fatalf("Swagger UI asset status = %d", assetResponse.Code)
+	}
+}
+
+func TestGeneratedBearerSecurityCoversResourceRoutesAndExemptsPublicRoutes(t *testing.T) {
+	specification, err := apigen.GetSpec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheme := specification.Components.SecuritySchemes["BearerAuth"]
+	if scheme == nil || scheme.Value == nil || scheme.Value.Type != "http" || scheme.Value.Scheme != "bearer" {
+		t.Fatal("missing standard HTTP bearer scheme")
+	}
+	if len(specification.Security) != 1 {
+		t.Fatal("missing global security requirement")
+	}
+	if _, ok := specification.Security[0]["BearerAuth"]; !ok {
+		t.Fatal("global scheme is not bearer")
+	}
+	for path, item := range specification.Paths.Map() {
+		for method, operation := range item.Operations() {
+			public := path == "/healthz" || path == "/readyz" || path == "/ipxe/{mac}"
+			if public {
+				if operation.Security == nil || len(*operation.Security) != 0 {
+					t.Fatalf("%s %s is not explicitly public", method, path)
+				}
+			} else {
+				if operation.Security != nil && len(*operation.Security) == 0 {
+					t.Fatalf("%s %s bypasses global auth", method, path)
+				}
+				for _, status := range []string{"401", "403"} {
+					if operation.Responses.Value(status) == nil {
+						t.Fatalf("%s %s lacks documented %s", method, path, status)
+					}
+				}
+			}
+		}
 	}
 }

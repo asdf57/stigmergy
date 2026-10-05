@@ -10,6 +10,17 @@ import (
 )
 
 func (s *Server) serveResource(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/status") {
+		definition, name, collection, found := s.resolveResource(strings.TrimSuffix(r.URL.Path, "/status"))
+		if found && !collection && definition.StatusSchema != "" {
+			if r.Method == http.MethodPatch {
+				s.patchResourceStatus(w, r, definition, name)
+			} else {
+				writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowed", "status supports PATCH")
+			}
+			return
+		}
+	}
 	definition, resourceName, collection, found := s.resolveResource(r.URL.Path)
 	if !found {
 		writeError(w, http.StatusNotFound, "NotFound", "resource endpoint not found")

@@ -19,7 +19,7 @@ func TestGitAuthenticationUsesReadySSHKeyPairSecret(t *testing.T) {
 	publisher := NewGitPublisher(storage)
 	publisher.KnownHostsFiles = []string{gitAuthenticationKnownHostsFile(t)}
 
-	auth, err := publisher.authentication(context.Background(), repository)
+	auth, err := publisher.Authentication(context.Background(), repository)
 	if err != nil {
 		t.Fatalf("authentication() error = %v", err)
 	}
@@ -33,7 +33,7 @@ func TestGitAuthenticationRejectsMissingKnownHosts(t *testing.T) {
 	publisher := NewGitPublisher(storage)
 	publisher.KnownHostsFiles = []string{filepath.Join(t.TempDir(), "missing-known-hosts")}
 
-	_, err := publisher.authentication(context.Background(), repository)
+	_, err := publisher.Authentication(context.Background(), repository)
 	if err == nil || !strings.Contains(err.Error(), "load SSH known hosts") {
 		t.Fatalf("authentication() error = %v, want known-hosts error", err)
 	}
@@ -46,7 +46,7 @@ func TestGitAuthenticationRejectsStaleSSHKeyPairStatus(t *testing.T) {
 	keyPair.Metadata.Generation++
 	storage.resources[key] = keyPair
 
-	_, err := NewGitPublisher(storage).authentication(context.Background(), repository)
+	_, err := NewGitPublisher(storage).Authentication(context.Background(), repository)
 	if err == nil || !strings.Contains(err.Error(), "latest generation") {
 		t.Fatalf("authentication() error = %v, want stale-generation error", err)
 	}
@@ -59,7 +59,7 @@ func TestGitAuthenticationRejectsReplacedSecret(t *testing.T) {
 	secret.Metadata.UID = "replacement-secret-uid"
 	storage.resources[key] = secret
 
-	_, err := NewGitPublisher(storage).authentication(context.Background(), repository)
+	_, err := NewGitPublisher(storage).Authentication(context.Background(), repository)
 	if err == nil || !strings.Contains(err.Error(), "does not match SSHKeyPair reference UID") {
 		t.Fatalf("authentication() error = %v, want Secret UID mismatch error", err)
 	}
@@ -69,10 +69,10 @@ func TestGitAuthenticationRejectsSecretOwnedByAnotherSSHKeyPair(t *testing.T) {
 	storage, repository := gitAuthenticationFixture(t)
 	key := registry.SecretResource.Kind + "/git-ssh-key"
 	secret := storage.resources[key]
-	secret.Metadata.Annotations[sshKeyPairOwnerUIDAnnotation] = "another-key-pair-uid"
+	secret.Metadata.Annotations["homelab.io/ssh-key-pair-uid"] = "another-key-pair-uid"
 	storage.resources[key] = secret
 
-	_, err := NewGitPublisher(storage).authentication(context.Background(), repository)
+	_, err := NewGitPublisher(storage).Authentication(context.Background(), repository)
 	if err == nil || !strings.Contains(err.Error(), "is not owned by SSHKeyPair") {
 		t.Fatalf("authentication() error = %v, want Secret ownership error", err)
 	}
@@ -85,7 +85,7 @@ func TestGitAuthenticationRejectsPrivateKeyWithWrongFingerprint(t *testing.T) {
 	keyPair.Status["fingerprint"] = "SHA256:not-the-stored-key"
 	storage.resources[key] = keyPair
 
-	_, err := NewGitPublisher(storage).authentication(context.Background(), repository)
+	_, err := NewGitPublisher(storage).Authentication(context.Background(), repository)
 	if err == nil || !strings.Contains(err.Error(), "private key does not match") {
 		t.Fatalf("authentication() error = %v, want fingerprint mismatch error", err)
 	}
@@ -123,7 +123,7 @@ func gitAuthenticationFixture(t *testing.T) (*fakeStore, apigen.GitRepositorySpe
 
 	secret := registry.NewSecret(resource.Metadata{
 		Name: "git-ssh-key", UID: "secret-uid", ResourceVersion: "1", Generation: generation,
-		Annotations: map[string]string{sshKeyPairOwnerUIDAnnotation: "key-pair-uid"},
+		Annotations: map[string]string{"homelab.io/ssh-key-pair-uid": "key-pair-uid"},
 	}, apigen.SecretSpec{
 		SecretStoreRef: apigen.SecretStoreReference{Name: "openbao"},
 		Path:           "automation/git-ssh-key",

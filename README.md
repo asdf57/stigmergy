@@ -6,9 +6,68 @@ Homelab API attempt deux
 
 The API, etcd, and OpenBao run together with Docker Compose:
 
+First generate private credentials (refuses to overwrite existing credentials):
+
+```sh
+make api-auth
+```
+
+This creates `.local/api-auth/api-access.json`, separate admin/agent/runner token
+files, and `bootstrap.env`, all private and gitignored. `API_AUTH_FILE` points
+to the policy JSON **inside the API process/container**, not to a token file.
+The API refuses to start without authentication by default. All resource
+endpoints require `Authorization: Bearer <token>`; health, docs, and iPXE GET
+routes are intentionally public. This is not HTTP Basic authentication.
+
+For the homelab bootstrap, combine the credentials with your existing private
+Docker env-file without shell-sourcing it or printing secrets:
+
+```sh
+go run ./cmd/create-api-auth --bootstrap-env-source "$HOME/.homelab-init" \
+  --bootstrap-env-output .local/deployment/homelab-init.env
+homelabc init --env-file "$PWD/.local/deployment/homelab-init.env"
+```
+
+The output is private and gitignored, includes the runner token for Concourse,
+and refuses to overwrite an existing file. The bootstrap role
+installs the policy as UID/GID 65532, mode 0400, and mounts it read-only.
+
+For a standalone Compose deployment, install the policy:
+
+```sh
+sudo install -D -o 65532 -g 65532 -m 0400 \
+  .local/api-auth/api-access.json /srv/homelab/stigmergy-api-access.json
+```
+
+Include this deployment override alongside the normal Compose files:
+
+```yaml
+services:
+  api:
+    environment:
+      API_AUTH_FILE: /run/stigmergy/api-access.json
+    volumes:
+      - /srv/homelab/stigmergy-api-access.json:/run/stigmergy/api-access.json:ro
+```
+
+For example, save it as `compose.auth.yaml` (local deployment configuration) and
+run `docker compose -f compose.yaml -f compose.etcd.yaml -f compose.openbao.yaml
+-f compose.auth.yaml up --build`. Plain `make run` does not include this custom
+override. For host-only development, use
+`API_AUTH_FILE="$PWD/.local/api-auth/api-access.json" make run-local`.
+
+See the [SSH management rollout guide](docs/ssh-management-rollout.md) for policy
+permissions and downstream credential enrollment. With a deployment override
+included in `COMPOSE_DEV`, the usual workflow is:
+
 ```sh
 make run
 ```
+
+Resources with status support `PATCH /api/v1alpha1/<plural>/<name>/status`.
+Send `If-Match` with the current ETag and a merge-patch body containing
+`metadata.uid` and `status`. Status permission is separate from spec permission;
+it currently grants the whole status object, with field-level ownership deferred.
 
 This builds the API image and starts both datastores before the API. API data is
 retained in `etcd-data`; encrypted OpenBao data is retained in `openbao-data`.
@@ -36,6 +95,14 @@ Once running:
 - OpenAPI document: <http://127.0.0.1:8080/openapi.json>
 - Swagger UI: <http://127.0.0.1:8080/docs/>
 
+In Swagger, click **Authorize**, paste an API token (without `Bearer `), and
+use **Try it out**. Resource endpoints and `/status` inherit the standard
+OpenAPI HTTP bearer security scheme; health/readiness and iPXE are marked
+public. Missing/invalid tokens return 401; insufficient permissions return 403.
+Swagger persists authorization in browser local storage across page reloads;
+use **Logout** in the Authorize dialog to clear it on shared browsers. Generated clients
+receive the same bearer security requirements from `/openapi.json`.
+
 Docker publishes the API on `0.0.0.0:8080`, so it is also reachable through
 the host's LAN addresses. The etcd client port remains restricted to host
 loopback.
@@ -45,8 +112,8 @@ on the host against an independently managed etcd endpoint.
 
 ### Automatic OpenBao bootstrap
 
-`make run` is the only command required for the local stack. The Compose
-bootstrap service initializes OpenBao on its first run, unseals it on every
+With API authentication configured, `make run` also starts the Compose
+bootstrap service, which initializes OpenBao on its first run, unseals it on every
 subsequent run, enables KV v2 and AppRole, installs the least-privilege
 `stigmergy-api` policy, and provisions the Agent credentials before the API
 starts.
@@ -364,30 +431,48 @@ This replaces the initial single-file `format` and `path` contract. Existing
 fields are intentionally rejected rather than interpreted ambiguously as a
 file or directory.
 
-### Publishing commands to Git
+### Disposable command executions
 
-A `Command` supplies the multiline shell file consumed by the single
-`CommandsPipeline` for an inventory capture group:
+`CommandsPipeline` is reusable runner configuration: commands Git repository, inventory capture group, and pipeline provider. Multiple executors may use a group; a Command explicitly chooses its executor.
 
 ```yaml
 apiVersion: homelab.io/v1alpha1
 kind: Command
 metadata:
-  name: servers
+  name: servers-uptime-001
 spec:
-  inventoryCaptureGroupRef:
+  commandsPipelineRef:
     name: servers
+  ttlSecondsAfterFinished: 86400
   script: |
     #!/usr/bin/env bash
     set -euo pipefail
-    ansible all --module-name ansible.builtin.command --args 'ps aux'
+    ansible all --module-name ansible.builtin.command --args 'uptime'
 ```
 
-The controller inherits the repository and command path from the matching
-`CommandsPipeline`, publishes to the branch named after the capture group, and
-uses the `GitRepository` authentication and commit identity. It preserves other
-files on that branch and does not create a commit when the script is unchanged.
-Only one `Command` and one `CommandsPipeline` may target a capture group.
+Creating this resource requests one execution. Its entire spec is immutable (including TTL). Reapplying an identical manifest does not rerun it; use a new name for another execution. Do not continuously apply disposable requests from GitOps: re-creating one after TTL deletion requests a new run.
+
+The Command controller snapshots accepted settings, publishes a UID-owned `command-<uid-hash>/run.sh` directory on an executor-UID-derived branch, and pins the Git commit. It creates a separate, UID-owned generic Pipeline with one non-triggered Concourse job. PipelineController configures it; CommandController registers the pinned input version with `fly check-resource --from ref:<revision>`, then submits once using native `fly trigger-job`, tracks it with `builds --json`, and cancels with `abort-build`. Registering the version prevents concurrent publications from hiding an older pinned commit. Script publication or unrelated Git commits do not trigger execution. This uses Concourse's standard [resource-check mechanism](https://concourse-ci.org/docs/resources/managing-resources/).
+
+Status progresses `Pending → Dispatching → Running → Succeeded/Failed`, with pipeline reference, Git revision, build ID and completion time. Queued builds count as Running. The controller polls every 30 seconds. A completed request never executes again; failed builds are not retried.
+
+Submission is recorded before the external call. A lost response is recovered by looking up the isolated job's build. If no build can be found, Dispatching remains uncertain rather than being resubmitted. An explicit retry requires deleting the uncertain request and creating a new one; first inspect Concourse to rule out an in-flight/lost build. This is conservative at-most-once submission, not an exactly-once guarantee.
+
+An optional `ttlSecondsAfterFinished` starts at recorded completion; omission retains the request and its pipeline. Deletion/TTL invokes finalizers: abort and observe active builds, wait for owned Pipeline cleanup, remove UID-owned Git inputs, then remove the Command. Git history, shared branches, and Concourse worker caches are not erased. Deleting an executor is blocked while Commands reference it.
+
+For recurring requests, set both `schedule` (for example `5m`) and `commandTemplate` on CommandsPipeline:
+
+```yaml
+schedule: 5m
+commandTemplate:
+  ttlSecondsAfterFinished: 86400
+  script: |
+    set -euo pipefail
+    ansible-playbook /homelab/plays/ssh_trust.yml -e ansible_user=ansible
+```
+
+The controller creates a fresh, deterministic interval-named Command when the executor is Ready. The first current interval runs immediately. It skips missed intervals and intervals with an active scheduled request; ad-hoc requests are independent and can overlap. Its persistent cursor prevents recreating expired requests. Claiming a slot precedes creation, so a crash or creation failure in between can skip that interval. Polling is approximately 30 seconds; short intervals are not a precision timer.
+
 
 Machine and Server resources support two update styles:
 
@@ -469,3 +554,8 @@ Do not edit `internal/api/spec/openapi.bundle.yaml`,
 `internal/api/gen/openapi.gen.go` by hand. When the server is running, the
 bundled OpenAPI document is available at `/openapi.json` and Swagger UI at
 `/docs/`.
+# SSH management and ISO builds
+
+See [the rollout guide](docs/ssh-management-rollout.md) for access policy,
+resources, runner credentials, and enrollment. Production API startup
+requires `API_AUTH_FILE`; the unauthenticated override is development-only.

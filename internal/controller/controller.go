@@ -31,9 +31,17 @@ type Reconciler interface {
 }
 
 type Controller struct {
-	workqueue  *utils.Queue
-	reconciler Reconciler
-	retryDelay time.Duration
+	workqueue      *utils.Queue
+	reconciler     Reconciler
+	retryDelay     time.Duration
+	resyncInterval time.Duration
+}
+
+// External state (such as completed artifact manifests) also needs polling.
+func NewControllerWithResync(reconciler Reconciler, interval time.Duration) *Controller {
+	c := NewController(reconciler)
+	c.resyncInterval = interval
+	return c
 }
 
 func NewController(reconciler Reconciler) *Controller {
@@ -59,6 +67,8 @@ func (c *Controller) Run(ctx context.Context) {
 		if err != nil {
 			fmt.Printf("Reconcile error for %s: %v. Retrying after %s\n", request.Key(), err, c.retryDelay)
 			c.workqueue.AddAfter(ctx, item, c.retryDelay)
+		} else if c.resyncInterval > 0 {
+			c.workqueue.AddAfter(ctx, item, c.resyncInterval)
 		}
 	}
 }

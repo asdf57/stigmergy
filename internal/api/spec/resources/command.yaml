@@ -1,5 +1,4 @@
-# Command publishes one multiline shell script to the commands repository branch
-# owned by an inventory capture group's CommandsPipeline.
+# Command is an immutable, one-shot execution request.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
@@ -7,25 +6,48 @@ x-stigmergy-resource:
   plural: commands
   spec-schema: CommandSpec
   status-schema: CommandStatus
+  immutable-spec: true
   operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/command-cleanup]
 
 CommandSpec:
   type: object
   additionalProperties: false
-  required: [inventoryCaptureGroupRef, script]
+  required: [commandsPipelineRef, script]
+  description: Immutable after creation. Create a new Command to run again.
   properties:
-    inventoryCaptureGroupRef:
-      $ref: '#/components/schemas/CommandInventoryCaptureGroupReference'
-    script:
-      type: string
-      minLength: 1
+    commandsPipelineRef:
+      $ref: '#/components/schemas/CommandExecutorReference'
+    script: {type: string, minLength: 1}
+    ttlSecondsAfterFinished:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 2147483647
+      description: Delete after completion and this delay; omitted retains the execution.
 
-CommandInventoryCaptureGroupReference:
+CommandExecutorReference:
   type: object
   additionalProperties: false
   required: [name]
   properties:
     name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+CommandExecutionSnapshot:
+  type: object
+  additionalProperties: false
+  required: [executorUID, repository, provider, providerUID, providerName, branch, definition]
+  properties:
+    executorUID: {type: string}
+    repository:
+      $ref: '#/components/schemas/GitRepositorySpec'
+    provider:
+      $ref: '#/components/schemas/PipelineProviderSpec'
+    providerUID: {type: string}
+    providerName: {type: string}
+    branch: {type: string}
+    definition: {type: string}
 
 CommandStatus:
   type: object
@@ -33,11 +55,15 @@ CommandStatus:
   properties:
     phase:
       type: string
-      enum: [Pending, Published, Conflict, Failed]
+      enum: [Pending, Dispatching, Running, Succeeded, Failed]
     observedGeneration: {type: integer, format: int64, minimum: 0}
-    commandsPipelineRef:
+    snapshot:
+      $ref: '#/components/schemas/CommandExecutionSnapshot'
+    pipelineRef:
       $ref: '#/components/schemas/ResourceReference'
     revision: {type: string}
+    buildID: {type: integer, format: int64, minimum: 1}
+    completedAt: {type: string, format: date-time}
     conditions:
       type: array
       items:

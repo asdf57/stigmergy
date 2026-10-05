@@ -3,7 +3,10 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.etcd.yaml -f compose.op
 
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt test test-integration vet build run run-api run-local up up-api up-tools down logs openbao-root-token clean
+.PHONY: api-auth generate fmt test test-integration vet build run run-api run-local up up-api up-tools down logs openbao-root-token clean
+
+api-auth:
+	go run ./cmd/create-api-auth
 
 generate:
 	go generate ./...

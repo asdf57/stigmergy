@@ -7,11 +7,14 @@ info:
   description: Homelab API
 servers:
   - url: /
+security:
+  - BearerAuth: []
 tags:
   - name: System
 paths:
   /healthz:
     get:
+      security: []
       tags: [System]
       summary: Check process liveness
       operationId: getLiveness
@@ -24,6 +27,7 @@ paths:
                 $ref: '#/components/schemas/Health'
   /readyz:
     get:
+      security: []
       tags: [System]
       summary: Check storage readiness
       operationId: getReadiness
@@ -40,6 +44,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /ipxe/{mac}:
+    get:
+      security: []
+      tags: [System]
+      summary: Resolve the public iPXE boot script for a machine MAC
+      operationId: getIPXEBoot
+      parameters:
+        - name: mac
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: iPXE script; unresolved boot configuration produces a diagnostic script.
+          content:
+            text/plain:
+              schema: {type: string}
   /api/v1alpha1/resources:
     delete:
       tags: [System]
@@ -59,6 +80,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Paste your opaque API token without the Bearer prefix. Issued through API_AUTH_FILE, not JWT or OAuth. Resource permissions depend on the token's identity.
   schemas:
     Health:
       type: object

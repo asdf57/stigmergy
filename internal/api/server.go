@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/asdf57/stigmergy/internal/api/gen"
@@ -43,6 +44,10 @@ func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Dur
 	}
 
 	validate := nethttpmiddleware.OapiRequestValidatorWithOptions(specification, &nethttpmiddleware.Options{
+		// The outer WithAccessPolicy middleware authenticates and authorizes
+		// before validation. Use the library's standard hook to avoid a second
+		// auth check; main rejects missing policy unless explicit dev mode is set.
+		Options:              openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
 		DoNotValidateServers: true,
 		ErrorHandler:         server.handleValidationError,
 	})

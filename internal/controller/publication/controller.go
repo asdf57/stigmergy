@@ -120,6 +120,19 @@ func (r *Reconciler) conflictingPublication(ctx context.Context, publication reg
 	if err != nil {
 		return "", err
 	}
+	images, err := r.store.List(ctx, registry.ISOResource.Kind)
+	if err != nil {
+		return "", err
+	}
+	for _, raw := range images.Items {
+		image, err := registry.ISOResource.Decode(raw)
+		if err != nil {
+			return "", err
+		}
+		if publication.Spec.DestinationRef.Kind == "GitRepository" && image.Spec.BuildInputs.RepositoryRef.Name == publication.Spec.DestinationRef.Name && image.Spec.BuildInputs.Branch == publication.Spec.Target.Branch && publicationRootsOverlap(root, image.Spec.BuildInputs.Path) {
+			return "ISO/" + image.Metadata.Name, nil
+		}
+	}
 	publications, err := r.store.List(ctx, registry.InventoryPublicationResource.Kind)
 	if err != nil {
 		return "", fmt.Errorf("list InventoryPublications for target ownership: %w", err)

@@ -4,6 +4,14 @@ services:
       context: .
     environment:
       HTTP_ADDR: 0.0.0.0:8080
+      # Mount the policy file in a deployment override; no production defaults.
+      API_AUTH_FILE: ${API_AUTH_FILE:-}
+      ALLOW_UNAUTHENTICATED_API: ${ALLOW_UNAUTHENTICATED_API:-false}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+      ISO_ARTIFACT_BASE_URL: ${ISO_ARTIFACT_BASE_URL:-}
+      ISO_BUILDER_REPOSITORY: ${ISO_BUILDER_REPOSITORY:-https://github.com/asdf57/ansible-roles.git}
+      COMMAND_RUNNER_IMAGE: ${COMMAND_RUNNER_IMAGE:-}
+      COMMAND_RUNNER_PARAMETERS: ${COMMAND_RUNNER_PARAMETERS:-}
       ETCD_ENDPOINTS: ${ETCD_ENDPOINTS:-http://etcd:2379}
       # Available to an external SecretStore configured with
       # tokenEnvironmentVariable: OPENBAO_TOKEN.

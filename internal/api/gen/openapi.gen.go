@@ -129,22 +129,25 @@ func (e CommandListKind) Valid() bool {
 
 // Defines values for CommandStatusPhase.
 const (
-	CommandStatusPhaseConflict  CommandStatusPhase = "Conflict"
-	CommandStatusPhaseFailed    CommandStatusPhase = "Failed"
-	CommandStatusPhasePending   CommandStatusPhase = "Pending"
-	CommandStatusPhasePublished CommandStatusPhase = "Published"
+	CommandStatusPhaseDispatching CommandStatusPhase = "Dispatching"
+	CommandStatusPhaseFailed      CommandStatusPhase = "Failed"
+	CommandStatusPhasePending     CommandStatusPhase = "Pending"
+	CommandStatusPhaseRunning     CommandStatusPhase = "Running"
+	CommandStatusPhaseSucceeded   CommandStatusPhase = "Succeeded"
 )
 
 // Valid indicates whether the value is a known member of the CommandStatusPhase enum.
 func (e CommandStatusPhase) Valid() bool {
 	switch e {
-	case CommandStatusPhaseConflict:
+	case CommandStatusPhaseDispatching:
 		return true
 	case CommandStatusPhaseFailed:
 		return true
 	case CommandStatusPhasePending:
 		return true
-	case CommandStatusPhasePublished:
+	case CommandStatusPhaseRunning:
+		return true
+	case CommandStatusPhaseSucceeded:
 		return true
 	default:
 		return false
@@ -562,6 +565,216 @@ const (
 func (e GitRepositoryListKind) Valid() bool {
 	switch e {
 	case GitRepositoryListKindGitRepositoryList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOApiVersion.
+const (
+	ISOApiVersionHomelabIov1alpha1 ISOApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ISOApiVersion enum.
+func (e ISOApiVersion) Valid() bool {
+	switch e {
+	case ISOApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOKind.
+const (
+	ISOKindISO ISOKind = "ISO"
+)
+
+// Valid indicates whether the value is a known member of the ISOKind enum.
+func (e ISOKind) Valid() bool {
+	switch e {
+	case ISOKindISO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOArtifactType.
+const (
+	Initrd ISOArtifactType = "initrd"
+	Iso    ISOArtifactType = "iso"
+	Kernel ISOArtifactType = "kernel"
+	Rootfs ISOArtifactType = "rootfs"
+)
+
+// Valid indicates whether the value is a known member of the ISOArtifactType enum.
+func (e ISOArtifactType) Valid() bool {
+	switch e {
+	case Initrd:
+		return true
+	case Iso:
+		return true
+	case Kernel:
+		return true
+	case Rootfs:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOConditionStatus.
+const (
+	ISOConditionStatusFalse   ISOConditionStatus = "False"
+	ISOConditionStatusTrue    ISOConditionStatus = "True"
+	ISOConditionStatusUnknown ISOConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the ISOConditionStatus enum.
+func (e ISOConditionStatus) Valid() bool {
+	switch e {
+	case ISOConditionStatusFalse:
+		return true
+	case ISOConditionStatusTrue:
+		return true
+	case ISOConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOCreateApiVersion.
+const (
+	ISOCreateApiVersionHomelabIov1alpha1 ISOCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ISOCreateApiVersion enum.
+func (e ISOCreateApiVersion) Valid() bool {
+	switch e {
+	case ISOCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOCreateKind.
+const (
+	ISOCreateKindISO ISOCreateKind = "ISO"
+)
+
+// Valid indicates whether the value is a known member of the ISOCreateKind enum.
+func (e ISOCreateKind) Valid() bool {
+	switch e {
+	case ISOCreateKindISO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOListApiVersion.
+const (
+	ISOListApiVersionHomelabIov1alpha1 ISOListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the ISOListApiVersion enum.
+func (e ISOListApiVersion) Valid() bool {
+	switch e {
+	case ISOListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOListKind.
+const (
+	ISOListKindISOList ISOListKind = "ISOList"
+)
+
+// Valid indicates whether the value is a known member of the ISOListKind enum.
+func (e ISOListKind) Valid() bool {
+	switch e {
+	case ISOListKindISOList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOSpecArchitecture.
+const (
+	ISOSpecArchitectureAmd64 ISOSpecArchitecture = "amd64"
+)
+
+// Valid indicates whether the value is a known member of the ISOSpecArchitecture enum.
+func (e ISOSpecArchitecture) Valid() bool {
+	switch e {
+	case ISOSpecArchitectureAmd64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOSpecBootMode.
+const (
+	ISOSpecBootModeBios ISOSpecBootMode = "bios"
+	ISOSpecBootModeUefi ISOSpecBootMode = "uefi"
+)
+
+// Valid indicates whether the value is a known member of the ISOSpecBootMode enum.
+func (e ISOSpecBootMode) Valid() bool {
+	switch e {
+	case ISOSpecBootModeBios:
+		return true
+	case ISOSpecBootModeUefi:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOSpecDistribution.
+const (
+	Arch   ISOSpecDistribution = "arch"
+	Debian ISOSpecDistribution = "debian"
+)
+
+// Valid indicates whether the value is a known member of the ISOSpecDistribution enum.
+func (e ISOSpecDistribution) Valid() bool {
+	switch e {
+	case Arch:
+		return true
+	case Debian:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ISOStatusPhase.
+const (
+	ISOStatusPhaseConflict ISOStatusPhase = "Conflict"
+	ISOStatusPhaseFailed   ISOStatusPhase = "Failed"
+	ISOStatusPhasePending  ISOStatusPhase = "Pending"
+	ISOStatusPhaseReady    ISOStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the ISOStatusPhase enum.
+func (e ISOStatusPhase) Valid() bool {
+	switch e {
+	case ISOStatusPhaseConflict:
+		return true
+	case ISOStatusPhaseFailed:
+		return true
+	case ISOStatusPhasePending:
+		return true
+	case ISOStatusPhaseReady:
 		return true
 	default:
 		return false
@@ -1504,6 +1717,255 @@ func (e RouterStatusPhase) Valid() bool {
 	}
 }
 
+// Defines values for SSHCertificateApiVersion.
+const (
+	SSHCertificateApiVersionHomelabIov1alpha1 SSHCertificateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateApiVersion enum.
+func (e SSHCertificateApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateKind.
+const (
+	SSHCertificateKindSSHCertificate SSHCertificateKind = "SSHCertificate"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateKind enum.
+func (e SSHCertificateKind) Valid() bool {
+	switch e {
+	case SSHCertificateKindSSHCertificate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityApiVersion.
+const (
+	SSHCertificateAuthorityApiVersionHomelabIov1alpha1 SSHCertificateAuthorityApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityApiVersion enum.
+func (e SSHCertificateAuthorityApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityKind.
+const (
+	SSHCertificateAuthorityKindSSHCertificateAuthority SSHCertificateAuthorityKind = "SSHCertificateAuthority"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityKind enum.
+func (e SSHCertificateAuthorityKind) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityKindSSHCertificateAuthority:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityConditionStatus.
+const (
+	SSHCertificateAuthorityConditionStatusFalse   SSHCertificateAuthorityConditionStatus = "False"
+	SSHCertificateAuthorityConditionStatusTrue    SSHCertificateAuthorityConditionStatus = "True"
+	SSHCertificateAuthorityConditionStatusUnknown SSHCertificateAuthorityConditionStatus = "Unknown"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityConditionStatus enum.
+func (e SSHCertificateAuthorityConditionStatus) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityConditionStatusFalse:
+		return true
+	case SSHCertificateAuthorityConditionStatusTrue:
+		return true
+	case SSHCertificateAuthorityConditionStatusUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityCreateApiVersion.
+const (
+	SSHCertificateAuthorityCreateApiVersionHomelabIov1alpha1 SSHCertificateAuthorityCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityCreateApiVersion enum.
+func (e SSHCertificateAuthorityCreateApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityCreateKind.
+const (
+	SSHCertificateAuthorityCreateKindSSHCertificateAuthority SSHCertificateAuthorityCreateKind = "SSHCertificateAuthority"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityCreateKind enum.
+func (e SSHCertificateAuthorityCreateKind) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityCreateKindSSHCertificateAuthority:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityListApiVersion.
+const (
+	SSHCertificateAuthorityListApiVersionHomelabIov1alpha1 SSHCertificateAuthorityListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityListApiVersion enum.
+func (e SSHCertificateAuthorityListApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityListKind.
+const (
+	SSHCertificateAuthorityListKindSSHCertificateAuthorityList SSHCertificateAuthorityListKind = "SSHCertificateAuthorityList"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityListKind enum.
+func (e SSHCertificateAuthorityListKind) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityListKindSSHCertificateAuthorityList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateAuthorityStatusPhase.
+const (
+	SSHCertificateAuthorityStatusPhaseConflict SSHCertificateAuthorityStatusPhase = "Conflict"
+	SSHCertificateAuthorityStatusPhaseFailed   SSHCertificateAuthorityStatusPhase = "Failed"
+	SSHCertificateAuthorityStatusPhasePending  SSHCertificateAuthorityStatusPhase = "Pending"
+	SSHCertificateAuthorityStatusPhaseReady    SSHCertificateAuthorityStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateAuthorityStatusPhase enum.
+func (e SSHCertificateAuthorityStatusPhase) Valid() bool {
+	switch e {
+	case SSHCertificateAuthorityStatusPhaseConflict:
+		return true
+	case SSHCertificateAuthorityStatusPhaseFailed:
+		return true
+	case SSHCertificateAuthorityStatusPhasePending:
+		return true
+	case SSHCertificateAuthorityStatusPhaseReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateCreateApiVersion.
+const (
+	SSHCertificateCreateApiVersionHomelabIov1alpha1 SSHCertificateCreateApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateCreateApiVersion enum.
+func (e SSHCertificateCreateApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateCreateApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateCreateKind.
+const (
+	SSHCertificateCreateKindSSHCertificate SSHCertificateCreateKind = "SSHCertificate"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateCreateKind enum.
+func (e SSHCertificateCreateKind) Valid() bool {
+	switch e {
+	case SSHCertificateCreateKindSSHCertificate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateListApiVersion.
+const (
+	SSHCertificateListApiVersionHomelabIov1alpha1 SSHCertificateListApiVersion = "homelab.io/v1alpha1"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateListApiVersion enum.
+func (e SSHCertificateListApiVersion) Valid() bool {
+	switch e {
+	case SSHCertificateListApiVersionHomelabIov1alpha1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateListKind.
+const (
+	SSHCertificateListKindSSHCertificateList SSHCertificateListKind = "SSHCertificateList"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateListKind enum.
+func (e SSHCertificateListKind) Valid() bool {
+	switch e {
+	case SSHCertificateListKindSSHCertificateList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SSHCertificateStatusPhase.
+const (
+	SSHCertificateStatusPhaseConflict SSHCertificateStatusPhase = "Conflict"
+	SSHCertificateStatusPhaseFailed   SSHCertificateStatusPhase = "Failed"
+	SSHCertificateStatusPhasePending  SSHCertificateStatusPhase = "Pending"
+	SSHCertificateStatusPhaseReady    SSHCertificateStatusPhase = "Ready"
+)
+
+// Valid indicates whether the value is a known member of the SSHCertificateStatusPhase enum.
+func (e SSHCertificateStatusPhase) Valid() bool {
+	switch e {
+	case SSHCertificateStatusPhaseConflict:
+		return true
+	case SSHCertificateStatusPhaseFailed:
+		return true
+	case SSHCertificateStatusPhasePending:
+		return true
+	case SSHCertificateStatusPhaseReady:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SSHKeyPairApiVersion.
 const (
 	SSHKeyPairApiVersionHomelabIov1alpha1 SSHKeyPairApiVersion = "homelab.io/v1alpha1"
@@ -2076,16 +2538,16 @@ func (e ServerManagementInterfaceSelectorAttachedAtMachineLocation) Valid() bool
 
 // Defines values for ServerOperatingSystemArchitecture.
 const (
-	Amd64 ServerOperatingSystemArchitecture = "amd64"
-	Arm64 ServerOperatingSystemArchitecture = "arm64"
+	ServerOperatingSystemArchitectureAmd64 ServerOperatingSystemArchitecture = "amd64"
+	ServerOperatingSystemArchitectureArm64 ServerOperatingSystemArchitecture = "arm64"
 )
 
 // Valid indicates whether the value is a known member of the ServerOperatingSystemArchitecture enum.
 func (e ServerOperatingSystemArchitecture) Valid() bool {
 	switch e {
-	case Amd64:
+	case ServerOperatingSystemArchitectureAmd64:
 		return true
-	case Arm64:
+	case ServerOperatingSystemArchitectureArm64:
 		return true
 	default:
 		return false
@@ -2094,16 +2556,16 @@ func (e ServerOperatingSystemArchitecture) Valid() bool {
 
 // Defines values for ServerOperatingSystemBootMode.
 const (
-	Bios ServerOperatingSystemBootMode = "bios"
-	Uefi ServerOperatingSystemBootMode = "uefi"
+	ServerOperatingSystemBootModeBios ServerOperatingSystemBootMode = "bios"
+	ServerOperatingSystemBootModeUefi ServerOperatingSystemBootMode = "uefi"
 )
 
 // Valid indicates whether the value is a known member of the ServerOperatingSystemBootMode enum.
 func (e ServerOperatingSystemBootMode) Valid() bool {
 	switch e {
-	case Bios:
+	case ServerOperatingSystemBootModeBios:
 		return true
-	case Uefi:
+	case ServerOperatingSystemBootModeUefi:
 		return true
 	default:
 		return false
@@ -2250,8 +2712,10 @@ type Command struct {
 	ApiVersion CommandApiVersion `json:"apiVersion"`
 	Kind       CommandKind       `json:"kind"`
 	Metadata   Metadata          `json:"metadata"`
-	Spec       CommandSpec       `json:"spec"`
-	Status     *CommandStatus    `json:"status,omitempty"`
+
+	// Spec Immutable after creation. Create a new Command to run again.
+	Spec   CommandSpec    `json:"spec"`
+	Status *CommandStatus `json:"status,omitempty"`
 }
 
 // CommandApiVersion defines model for Command.ApiVersion.
@@ -2277,7 +2741,9 @@ type CommandCreate struct {
 	ApiVersion CommandCreateApiVersion `json:"apiVersion"`
 	Kind       CommandCreateKind       `json:"kind"`
 	Metadata   Metadata                `json:"metadata"`
-	Spec       CommandSpec             `json:"spec"`
+
+	// Spec Immutable after creation. Create a new Command to run again.
+	Spec CommandSpec `json:"spec"`
 }
 
 // CommandCreateApiVersion defines model for CommandCreate.ApiVersion.
@@ -2286,9 +2752,21 @@ type CommandCreateApiVersion string
 // CommandCreateKind defines model for CommandCreate.Kind.
 type CommandCreateKind string
 
-// CommandInventoryCaptureGroupReference defines model for CommandInventoryCaptureGroupReference.
-type CommandInventoryCaptureGroupReference struct {
-	Name string `json:"name"`
+// CommandExecutionSnapshot defines model for CommandExecutionSnapshot.
+type CommandExecutionSnapshot struct {
+	Branch       string               `json:"branch"`
+	Definition   string               `json:"definition"`
+	ExecutorUID  string               `json:"executorUID"`
+	Provider     PipelineProviderSpec `json:"provider"`
+	ProviderName string               `json:"providerName"`
+	ProviderUID  string               `json:"providerUID"`
+	Repository   GitRepositorySpec    `json:"repository"`
+}
+
+// CommandExecutorReference defines model for CommandExecutorReference.
+type CommandExecutorReference struct {
+	Name string  `json:"name"`
+	Uid  *string `json:"uid,omitempty"`
 }
 
 // CommandList defines model for CommandList.
@@ -2305,19 +2783,25 @@ type CommandListApiVersion string
 // CommandListKind defines model for CommandList.Kind.
 type CommandListKind string
 
-// CommandSpec defines model for CommandSpec.
+// CommandSpec Immutable after creation. Create a new Command to run again.
 type CommandSpec struct {
-	InventoryCaptureGroupRef CommandInventoryCaptureGroupReference `json:"inventoryCaptureGroupRef"`
-	Script                   string                                `json:"script"`
+	CommandsPipelineRef CommandExecutorReference `json:"commandsPipelineRef"`
+	Script              string                   `json:"script"`
+
+	// TtlSecondsAfterFinished Delete after completion and this delay; omitted retains the execution.
+	TtlSecondsAfterFinished *int64 `json:"ttlSecondsAfterFinished,omitempty"`
 }
 
 // CommandStatus defines model for CommandStatus.
 type CommandStatus struct {
-	CommandsPipelineRef *ResourceReference  `json:"commandsPipelineRef,omitempty"`
-	Conditions          *[]CommandCondition `json:"conditions,omitempty"`
-	ObservedGeneration  *int64              `json:"observedGeneration,omitempty"`
-	Phase               *CommandStatusPhase `json:"phase,omitempty"`
-	Revision            *string             `json:"revision,omitempty"`
+	BuildID            *int64                    `json:"buildID,omitempty"`
+	CompletedAt        *time.Time                `json:"completedAt,omitempty"`
+	Conditions         *[]CommandCondition       `json:"conditions,omitempty"`
+	ObservedGeneration *int64                    `json:"observedGeneration,omitempty"`
+	Phase              *CommandStatusPhase       `json:"phase,omitempty"`
+	PipelineRef        *ResourceReference        `json:"pipelineRef,omitempty"`
+	Revision           *string                   `json:"revision,omitempty"`
+	Snapshot           *CommandExecutionSnapshot `json:"snapshot,omitempty"`
 }
 
 // CommandStatusPhase defines model for CommandStatus.Phase.
@@ -2395,18 +2879,21 @@ type CommandsPipelineRepositoryReference struct {
 
 // CommandsPipelineSpec defines model for CommandsPipelineSpec.
 type CommandsPipelineSpec struct {
-	CommandPath              *string                                        `json:"commandPath,omitempty"`
+	CommandTemplate          *ScheduledCommandTemplate                      `json:"commandTemplate,omitempty"`
 	CommandsRepositoryRef    CommandsPipelineRepositoryReference            `json:"commandsRepositoryRef"`
 	InventoryCaptureGroupRef CommandsPipelineInventoryCaptureGroupReference `json:"inventoryCaptureGroupRef"`
 	PipelineProviderRef      CommandsPipelineProviderReference              `json:"pipelineProviderRef"`
+
+	// Schedule Optional controller interval; each tick creates a fresh Command, skipping overlapping scheduled runs.
+	Schedule *string `json:"schedule,omitempty"`
 }
 
 // CommandsPipelineStatus defines model for CommandsPipelineStatus.
 type CommandsPipelineStatus struct {
 	Conditions         *[]CommandsPipelineCondition `json:"conditions,omitempty"`
+	LastScheduledAt    *time.Time                   `json:"lastScheduledAt,omitempty"`
 	ObservedGeneration *int64                       `json:"observedGeneration,omitempty"`
 	Phase              *CommandsPipelineStatusPhase `json:"phase,omitempty"`
-	PipelineRef        *ResourceReference           `json:"pipelineRef,omitempty"`
 }
 
 // CommandsPipelineStatusPhase defines model for CommandsPipelineStatus.Phase.
@@ -2604,6 +3091,136 @@ type GitRepositoryStatus struct {
 type Health struct {
 	Status string `json:"status"`
 }
+
+// ISO defines model for ISO.
+type ISO struct {
+	ApiVersion ISOApiVersion `json:"apiVersion"`
+	Kind       ISOKind       `json:"kind"`
+	Metadata   Metadata      `json:"metadata"`
+	Spec       ISOSpec       `json:"spec"`
+	Status     *ISOStatus    `json:"status,omitempty"`
+}
+
+// ISOApiVersion defines model for ISO.ApiVersion.
+type ISOApiVersion string
+
+// ISOKind defines model for ISO.Kind.
+type ISOKind string
+
+// ISOArtifact defines model for ISOArtifact.
+type ISOArtifact struct {
+	Sha256 string          `json:"sha256"`
+	Type   ISOArtifactType `json:"type"`
+	Url    string          `json:"url"`
+}
+
+// ISOArtifactType defines model for ISOArtifact.Type.
+type ISOArtifactType string
+
+// ISOBuildInputs defines model for ISOBuildInputs.
+type ISOBuildInputs struct {
+	Branch        string       `json:"branch"`
+	Path          string       `json:"path"`
+	RepositoryRef ISOReference `json:"repositoryRef"`
+}
+
+// ISOCompletedBuild defines model for ISOCompletedBuild.
+type ISOCompletedBuild struct {
+	Id                string            `json:"id"`
+	InputRevision     string            `json:"inputRevision"`
+	SourceRevisions   map[string]string `json:"sourceRevisions"`
+	StartedAt         time.Time         `json:"startedAt"`
+	TrustBundleDigest string            `json:"trustBundleDigest"`
+}
+
+// ISOCondition defines model for ISOCondition.
+type ISOCondition struct {
+	Message            *string            `json:"message,omitempty"`
+	ObservedGeneration *int64             `json:"observedGeneration,omitempty"`
+	Reason             string             `json:"reason"`
+	Status             ISOConditionStatus `json:"status"`
+	Type               string             `json:"type"`
+}
+
+// ISOConditionStatus defines model for ISOCondition.Status.
+type ISOConditionStatus string
+
+// ISOCreate defines model for ISOCreate.
+type ISOCreate struct {
+	ApiVersion ISOCreateApiVersion `json:"apiVersion"`
+	Kind       ISOCreateKind       `json:"kind"`
+	Metadata   Metadata            `json:"metadata"`
+	Spec       ISOSpec             `json:"spec"`
+}
+
+// ISOCreateApiVersion defines model for ISOCreate.ApiVersion.
+type ISOCreateApiVersion string
+
+// ISOCreateKind defines model for ISOCreate.Kind.
+type ISOCreateKind string
+
+// ISOList defines model for ISOList.
+type ISOList struct {
+	ApiVersion ISOListApiVersion `json:"apiVersion"`
+	Items      []ISO             `json:"items"`
+	Kind       ISOListKind       `json:"kind"`
+	Metadata   ListMetadata      `json:"metadata"`
+}
+
+// ISOListApiVersion defines model for ISOList.ApiVersion.
+type ISOListApiVersion string
+
+// ISOListKind defines model for ISOList.Kind.
+type ISOListKind string
+
+// ISOReference defines model for ISOReference.
+type ISOReference struct {
+	Name string  `json:"name"`
+	Uid  *string `json:"uid,omitempty"`
+}
+
+// ISOSpec defines model for ISOSpec.
+type ISOSpec struct {
+	Architecture               ISOSpecArchitecture `json:"architecture"`
+	BootMode                   ISOSpecBootMode     `json:"bootMode"`
+	BuildInputs                ISOBuildInputs      `json:"buildInputs"`
+	Distribution               ISOSpecDistribution `json:"distribution"`
+	PipelineProviderRef        ISOReference        `json:"pipelineProviderRef"`
+	SshCertificateAuthorityRef ISOReference        `json:"sshCertificateAuthorityRef"`
+	Version                    string              `json:"version"`
+}
+
+// ISOSpecArchitecture defines model for ISOSpec.Architecture.
+type ISOSpecArchitecture string
+
+// ISOSpecBootMode defines model for ISOSpec.BootMode.
+type ISOSpecBootMode string
+
+// ISOSpecDistribution defines model for ISOSpec.Distribution.
+type ISOSpecDistribution string
+
+// ISOStatus defines model for ISOStatus.
+type ISOStatus struct {
+	Artifacts                *[]ISOArtifact     `json:"artifacts,omitempty"`
+	AuthorityRef             *ResourceReference `json:"authorityRef,omitempty"`
+	CompletedBuild           *ISOCompletedBuild `json:"completedBuild,omitempty"`
+	Conditions               *[]ISOCondition    `json:"conditions,omitempty"`
+	DesiredTrustBundleDigest *string            `json:"desiredTrustBundleDigest,omitempty"`
+	InputRevision            *string            `json:"inputRevision,omitempty"`
+	ObservedGeneration       *int64             `json:"observedGeneration,omitempty"`
+	Phase                    *ISOStatusPhase    `json:"phase,omitempty"`
+	PipelineRef              *ResourceReference `json:"pipelineRef,omitempty"`
+	ProviderRef              *ResourceReference `json:"providerRef,omitempty"`
+	PublishedBranch          *string            `json:"publishedBranch,omitempty"`
+
+	// PublishedInputContent Canonical image configuration used to match completed builds.
+	PublishedInputContent *string            `json:"publishedInputContent,omitempty"`
+	PublishedPath         *string            `json:"publishedPath,omitempty"`
+	RepositoryRef         *ResourceReference `json:"repositoryRef,omitempty"`
+}
+
+// ISOStatusPhase defines model for ISOStatus.Phase.
+type ISOStatusPhase string
 
 // InventoryCaptureAnsibleGroup defines model for InventoryCaptureAnsibleGroup.
 type InventoryCaptureAnsibleGroup struct {
@@ -3423,6 +4040,184 @@ type RouterStatus struct {
 // RouterStatusPhase defines model for RouterStatus.Phase.
 type RouterStatusPhase string
 
+// SSHAuthorityKeyReference defines model for SSHAuthorityKeyReference.
+type SSHAuthorityKeyReference struct {
+	Name string  `json:"name"`
+	Uid  *string `json:"uid,omitempty"`
+}
+
+// SSHAuthorityTrustedKey defines model for SSHAuthorityTrustedKey.
+type SSHAuthorityTrustedKey struct {
+	Fingerprint string            `json:"fingerprint"`
+	KeyPairRef  ResourceReference `json:"keyPairRef"`
+	PublicKey   string            `json:"publicKey"`
+}
+
+// SSHCertificate defines model for SSHCertificate.
+type SSHCertificate struct {
+	ApiVersion SSHCertificateApiVersion `json:"apiVersion"`
+	Kind       SSHCertificateKind       `json:"kind"`
+	Metadata   Metadata                 `json:"metadata"`
+	Spec       SSHCertificateSpec       `json:"spec"`
+	Status     *SSHCertificateStatus    `json:"status,omitempty"`
+}
+
+// SSHCertificateApiVersion defines model for SSHCertificate.ApiVersion.
+type SSHCertificateApiVersion string
+
+// SSHCertificateKind defines model for SSHCertificate.Kind.
+type SSHCertificateKind string
+
+// SSHCertificateAuthority defines model for SSHCertificateAuthority.
+type SSHCertificateAuthority struct {
+	ApiVersion SSHCertificateAuthorityApiVersion `json:"apiVersion"`
+	Kind       SSHCertificateAuthorityKind       `json:"kind"`
+	Metadata   Metadata                          `json:"metadata"`
+	Spec       SSHCertificateAuthoritySpec       `json:"spec"`
+	Status     *SSHCertificateAuthorityStatus    `json:"status,omitempty"`
+}
+
+// SSHCertificateAuthorityApiVersion defines model for SSHCertificateAuthority.ApiVersion.
+type SSHCertificateAuthorityApiVersion string
+
+// SSHCertificateAuthorityKind defines model for SSHCertificateAuthority.Kind.
+type SSHCertificateAuthorityKind string
+
+// SSHCertificateAuthorityCondition defines model for SSHCertificateAuthorityCondition.
+type SSHCertificateAuthorityCondition struct {
+	Message            *string                                `json:"message,omitempty"`
+	ObservedGeneration *int64                                 `json:"observedGeneration,omitempty"`
+	Reason             string                                 `json:"reason"`
+	Status             SSHCertificateAuthorityConditionStatus `json:"status"`
+	Type               string                                 `json:"type"`
+}
+
+// SSHCertificateAuthorityConditionStatus defines model for SSHCertificateAuthorityCondition.Status.
+type SSHCertificateAuthorityConditionStatus string
+
+// SSHCertificateAuthorityCreate defines model for SSHCertificateAuthorityCreate.
+type SSHCertificateAuthorityCreate struct {
+	ApiVersion SSHCertificateAuthorityCreateApiVersion `json:"apiVersion"`
+	Kind       SSHCertificateAuthorityCreateKind       `json:"kind"`
+	Metadata   Metadata                                `json:"metadata"`
+	Spec       SSHCertificateAuthoritySpec             `json:"spec"`
+}
+
+// SSHCertificateAuthorityCreateApiVersion defines model for SSHCertificateAuthorityCreate.ApiVersion.
+type SSHCertificateAuthorityCreateApiVersion string
+
+// SSHCertificateAuthorityCreateKind defines model for SSHCertificateAuthorityCreate.Kind.
+type SSHCertificateAuthorityCreateKind string
+
+// SSHCertificateAuthorityList defines model for SSHCertificateAuthorityList.
+type SSHCertificateAuthorityList struct {
+	ApiVersion SSHCertificateAuthorityListApiVersion `json:"apiVersion"`
+	Items      []SSHCertificateAuthority             `json:"items"`
+	Kind       SSHCertificateAuthorityListKind       `json:"kind"`
+	Metadata   ListMetadata                          `json:"metadata"`
+}
+
+// SSHCertificateAuthorityListApiVersion defines model for SSHCertificateAuthorityList.ApiVersion.
+type SSHCertificateAuthorityListApiVersion string
+
+// SSHCertificateAuthorityListKind defines model for SSHCertificateAuthorityList.Kind.
+type SSHCertificateAuthorityListKind string
+
+// SSHCertificateAuthoritySpec defines model for SSHCertificateAuthoritySpec.
+type SSHCertificateAuthoritySpec struct {
+	SigningKeyRef  SSHAuthorityKeyReference   `json:"signingKeyRef"`
+	TrustedKeyRefs []SSHAuthorityKeyReference `json:"trustedKeyRefs"`
+}
+
+// SSHCertificateAuthorityStatus defines model for SSHCertificateAuthorityStatus.
+type SSHCertificateAuthorityStatus struct {
+	Conditions         *[]SSHCertificateAuthorityCondition `json:"conditions,omitempty"`
+	ObservedGeneration *int64                              `json:"observedGeneration,omitempty"`
+	Phase              *SSHCertificateAuthorityStatusPhase `json:"phase,omitempty"`
+	SigningKeyRef      *ResourceReference                  `json:"signingKeyRef,omitempty"`
+	TrustBundle        *[]SSHAuthorityTrustedKey           `json:"trustBundle,omitempty"`
+	TrustBundleDigest  *string                             `json:"trustBundleDigest,omitempty"`
+}
+
+// SSHCertificateAuthorityStatusPhase defines model for SSHCertificateAuthorityStatus.Phase.
+type SSHCertificateAuthorityStatusPhase string
+
+// SSHCertificateCreate defines model for SSHCertificateCreate.
+type SSHCertificateCreate struct {
+	ApiVersion SSHCertificateCreateApiVersion `json:"apiVersion"`
+	Kind       SSHCertificateCreateKind       `json:"kind"`
+	Metadata   Metadata                       `json:"metadata"`
+	Spec       SSHCertificateSpec             `json:"spec"`
+}
+
+// SSHCertificateCreateApiVersion defines model for SSHCertificateCreate.ApiVersion.
+type SSHCertificateCreateApiVersion string
+
+// SSHCertificateCreateKind defines model for SSHCertificateCreate.Kind.
+type SSHCertificateCreateKind string
+
+// SSHCertificateList defines model for SSHCertificateList.
+type SSHCertificateList struct {
+	ApiVersion SSHCertificateListApiVersion `json:"apiVersion"`
+	Items      []SSHCertificate             `json:"items"`
+	Kind       SSHCertificateListKind       `json:"kind"`
+	Metadata   ListMetadata                 `json:"metadata"`
+}
+
+// SSHCertificateListApiVersion defines model for SSHCertificateList.ApiVersion.
+type SSHCertificateListApiVersion string
+
+// SSHCertificateListKind defines model for SSHCertificateList.Kind.
+type SSHCertificateListKind string
+
+// SSHCertificateReference defines model for SSHCertificateReference.
+type SSHCertificateReference struct {
+	Name string  `json:"name"`
+	Uid  *string `json:"uid,omitempty"`
+}
+
+// SSHCertificateSecretStoreReference defines model for SSHCertificateSecretStoreReference.
+type SSHCertificateSecretStoreReference struct {
+	Name string `json:"name"`
+}
+
+// SSHCertificateSpec defines model for SSHCertificateSpec.
+type SSHCertificateSpec struct {
+	AuthorityRef SSHCertificateReference `json:"authorityRef"`
+	KeyPairRef   SSHCertificateReference `json:"keyPairRef"`
+	Path         string                  `json:"path"`
+	Principals   []string                `json:"principals"`
+
+	// RenewBefore Must be at least one minute and less than ttl.
+	RenewBefore    string                             `json:"renewBefore"`
+	SecretStoreRef SSHCertificateSecretStoreReference `json:"secretStoreRef"`
+
+	// Ttl User-certificate lifetime; controller enforces 5 minutes to 7 days.
+	Ttl string `json:"ttl"`
+}
+
+// SSHCertificateStatus defines model for SSHCertificateStatus.
+type SSHCertificateStatus struct {
+	AuthorityRef *ResourceReference `json:"authorityRef,omitempty"`
+
+	// Certificate Public OpenSSH user certificate; never private key material.
+	Certificate        *string                    `json:"certificate,omitempty"`
+	KeyPairRef         *ResourceReference         `json:"keyPairRef,omitempty"`
+	Message            *string                    `json:"message,omitempty"`
+	ObservedGeneration *int64                     `json:"observedGeneration,omitempty"`
+	Phase              *SSHCertificateStatusPhase `json:"phase,omitempty"`
+	Reason             *string                    `json:"reason,omitempty"`
+	RenewAt            *time.Time                 `json:"renewAt,omitempty"`
+	SecretRef          *ResourceReference         `json:"secretRef,omitempty"`
+	Serial             *string                    `json:"serial,omitempty"`
+	SigningKeyRef      *ResourceReference         `json:"signingKeyRef,omitempty"`
+	ValidAfter         *time.Time                 `json:"validAfter,omitempty"`
+	ValidBefore        *time.Time                 `json:"validBefore,omitempty"`
+}
+
+// SSHCertificateStatusPhase defines model for SSHCertificateStatus.Phase.
+type SSHCertificateStatusPhase string
+
 // SSHKeyPair defines model for SSHKeyPair.
 type SSHKeyPair struct {
 	ApiVersion SSHKeyPairApiVersion `json:"apiVersion"`
@@ -3505,6 +4300,12 @@ type SSHKeyPairStatus struct {
 
 // SSHKeyPairStatusPhase defines model for SSHKeyPairStatus.Phase.
 type SSHKeyPairStatusPhase string
+
+// ScheduledCommandTemplate defines model for ScheduledCommandTemplate.
+type ScheduledCommandTemplate struct {
+	Script                  string `json:"script"`
+	TtlSecondsAfterFinished *int64 `json:"ttlSecondsAfterFinished,omitempty"`
+}
 
 // Secret defines model for Secret.
 type Secret struct {
@@ -3658,6 +4459,11 @@ type ServerAgentStatus struct {
 	Version      *string    `json:"version,omitempty"`
 }
 
+// ServerBootSpec defines model for ServerBootSpec.
+type ServerBootSpec struct {
+	IsoRef ServerDependencyReference `json:"isoRef"`
+}
+
 // ServerChecksum defines model for ServerChecksum.
 type ServerChecksum struct {
 	Algorithm ServerChecksumAlgorithm `json:"algorithm"`
@@ -3693,6 +4499,12 @@ type ServerCreateApiVersion string
 
 // ServerCreateKind defines model for ServerCreate.Kind.
 type ServerCreateKind string
+
+// ServerDependencyReference defines model for ServerDependencyReference.
+type ServerDependencyReference struct {
+	Name string  `json:"name"`
+	Uid  *string `json:"uid,omitempty"`
+}
 
 // ServerFeatureFlags defines model for ServerFeatureFlags.
 type ServerFeatureFlags struct {
@@ -3879,37 +4691,49 @@ type ServerSSHStatus struct {
 	AuthorizedKeys []ServerSSHAuthorizedKeyStatus `json:"authorizedKeys"`
 }
 
+// ServerSSHTrustStatus defines model for ServerSSHTrustStatus.
+type ServerSSHTrustStatus struct {
+	AuthorityRef ResourceReference `json:"authorityRef"`
+	PublicBundle string            `json:"publicBundle"`
+}
+
 // ServerSpec defines model for ServerSpec.
 type ServerSpec struct {
-	DomainName      *string                   `json:"domainName,omitempty"`
-	FeatureFlags    *ServerFeatureFlags       `json:"featureFlags,omitempty"`
-	Groups          *[]string                 `json:"groups,omitempty"`
-	HostName        *string                   `json:"hostName,omitempty"`
-	MachineSelector ServerMachineSelector     `json:"machineSelector"`
-	Networking      *ServerNetworkingSpec     `json:"networking,omitempty"`
-	OperatingSystem *ServerOperatingSystem    `json:"operatingSystem,omitempty"`
-	Packages        *[]string                 `json:"packages,omitempty"`
-	Provisioning    *ServerProvisioningSpec   `json:"provisioning,omitempty"`
-	Reconciliation  *ServerReconciliationSpec `json:"reconciliation,omitempty"`
-	Sysctls         *map[string]string        `json:"sysctls,omitempty"`
-	Users           *[]ServerUser             `json:"users,omitempty"`
+	Boot                       *ServerBootSpec            `json:"boot,omitempty"`
+	DomainName                 *string                    `json:"domainName,omitempty"`
+	FeatureFlags               *ServerFeatureFlags        `json:"featureFlags,omitempty"`
+	Groups                     *[]string                  `json:"groups,omitempty"`
+	HostName                   *string                    `json:"hostName,omitempty"`
+	MachineSelector            ServerMachineSelector      `json:"machineSelector"`
+	Networking                 *ServerNetworkingSpec      `json:"networking,omitempty"`
+	OperatingSystem            *ServerOperatingSystem     `json:"operatingSystem,omitempty"`
+	Packages                   *[]string                  `json:"packages,omitempty"`
+	Provisioning               *ServerProvisioningSpec    `json:"provisioning,omitempty"`
+	Reconciliation             *ServerReconciliationSpec  `json:"reconciliation,omitempty"`
+	SshCertificateAuthorityRef *ServerDependencyReference `json:"sshCertificateAuthorityRef,omitempty"`
+	Sysctls                    *map[string]string         `json:"sysctls,omitempty"`
+	Users                      *[]ServerUser              `json:"users,omitempty"`
 }
 
 // ServerStatus defines model for ServerStatus.
 type ServerStatus struct {
-	Agent              *ServerAgentStatus        `json:"agent,omitempty"`
-	Conditions         *[]ServerCondition        `json:"conditions,omitempty"`
-	Features           *ServerFeatureStatuses    `json:"features,omitempty"`
-	Fqdn               *string                   `json:"fqdn,omitempty"`
-	MachineRef         *ResourceReference        `json:"machineRef,omitempty"`
-	Networking         *ServerNetworkingStatus   `json:"networking,omitempty"`
-	ObservedAddresses  *[]string                 `json:"observedAddresses,omitempty"`
-	ObservedGeneration *int64                    `json:"observedGeneration,omitempty"`
-	Phase              *string                   `json:"phase,omitempty"`
-	Provisioning       *ServerProvisioningStatus `json:"provisioning,omitempty"`
-	ResourceSummary    *ServerResourceSummary    `json:"resourceSummary,omitempty"`
-	Ssh                *ServerSSHStatus          `json:"ssh,omitempty"`
-	SystemStats        *ServerSystemStats        `json:"systemStats,omitempty"`
+	Agent                         *ServerAgentStatus        `json:"agent,omitempty"`
+	BootISORef                    *ResourceReference        `json:"bootISORef,omitempty"`
+	Conditions                    *[]ServerCondition        `json:"conditions,omitempty"`
+	DesiredSSHTrustBundleDigest   *string                   `json:"desiredSSHTrustBundleDigest,omitempty"`
+	Features                      *ServerFeatureStatuses    `json:"features,omitempty"`
+	Fqdn                          *string                   `json:"fqdn,omitempty"`
+	InstalledSSHTrustBundleDigest *string                   `json:"installedSSHTrustBundleDigest,omitempty"`
+	MachineRef                    *ResourceReference        `json:"machineRef,omitempty"`
+	Networking                    *ServerNetworkingStatus   `json:"networking,omitempty"`
+	ObservedAddresses             *[]string                 `json:"observedAddresses,omitempty"`
+	ObservedGeneration            *int64                    `json:"observedGeneration,omitempty"`
+	Phase                         *string                   `json:"phase,omitempty"`
+	Provisioning                  *ServerProvisioningStatus `json:"provisioning,omitempty"`
+	ResourceSummary               *ServerResourceSummary    `json:"resourceSummary,omitempty"`
+	Ssh                           *ServerSSHStatus          `json:"ssh,omitempty"`
+	SshTrust                      *ServerSSHTrustStatus     `json:"sshTrust,omitempty"`
+	SystemStats                   *ServerSystemStats        `json:"systemStats,omitempty"`
 }
 
 // ServerSystemStats defines model for ServerSystemStats.
@@ -4033,6 +4857,15 @@ type PutCommandsPipelineParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchCommandsPipelineStatusApplicationMergePatchPlusJSONBody defines parameters for PatchCommandsPipelineStatus.
+type PatchCommandsPipelineStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchCommandsPipelineStatusParams defines parameters for PatchCommandsPipelineStatus.
+type PatchCommandsPipelineStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteCommandParams defines parameters for DeleteCommand.
 type DeleteCommandParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4052,6 +4885,15 @@ type PatchCommandParams struct {
 type PutCommandParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchCommandStatusApplicationMergePatchPlusJSONBody defines parameters for PatchCommandStatus.
+type PatchCommandStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchCommandStatusParams defines parameters for PatchCommandStatus.
+type PatchCommandStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteDNSRecordParams defines parameters for DeleteDNSRecord.
@@ -4075,6 +4917,15 @@ type PutDNSRecordParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchDNSRecordStatusApplicationMergePatchPlusJSONBody defines parameters for PatchDNSRecordStatus.
+type PatchDNSRecordStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchDNSRecordStatusParams defines parameters for PatchDNSRecordStatus.
+type PatchDNSRecordStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteGitRepositoryParams defines parameters for DeleteGitRepository.
 type DeleteGitRepositoryParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4094,6 +4945,15 @@ type PatchGitRepositoryParams struct {
 type PutGitRepositoryParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchGitRepositoryStatusApplicationMergePatchPlusJSONBody defines parameters for PatchGitRepositoryStatus.
+type PatchGitRepositoryStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchGitRepositoryStatusParams defines parameters for PatchGitRepositoryStatus.
+type PatchGitRepositoryStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteInventoryCaptureGroupParams defines parameters for DeleteInventoryCaptureGroup.
@@ -4117,6 +4977,15 @@ type PutInventoryCaptureGroupParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchInventoryCaptureGroupStatusApplicationMergePatchPlusJSONBody defines parameters for PatchInventoryCaptureGroupStatus.
+type PatchInventoryCaptureGroupStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchInventoryCaptureGroupStatusParams defines parameters for PatchInventoryCaptureGroupStatus.
+type PatchInventoryCaptureGroupStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteInventoryPublicationParams defines parameters for DeleteInventoryPublication.
 type DeleteInventoryPublicationParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4136,6 +5005,45 @@ type PatchInventoryPublicationParams struct {
 type PutInventoryPublicationParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchInventoryPublicationStatusApplicationMergePatchPlusJSONBody defines parameters for PatchInventoryPublicationStatus.
+type PatchInventoryPublicationStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchInventoryPublicationStatusParams defines parameters for PatchInventoryPublicationStatus.
+type PatchInventoryPublicationStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteISOParams defines parameters for DeleteISO.
+type DeleteISOParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchISOApplicationMergePatchPlusJSONBody defines parameters for PatchISO.
+type PatchISOApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchISOParams defines parameters for PatchISO.
+type PatchISOParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutISOParams defines parameters for PutISO.
+type PutISOParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchISOStatusApplicationMergePatchPlusJSONBody defines parameters for PatchISOStatus.
+type PatchISOStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchISOStatusParams defines parameters for PatchISOStatus.
+type PatchISOStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteMachineReportParams defines parameters for DeleteMachineReport.
@@ -4171,6 +5079,15 @@ type PutMachineParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchMachineStatusApplicationMergePatchPlusJSONBody defines parameters for PatchMachineStatus.
+type PatchMachineStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchMachineStatusParams defines parameters for PatchMachineStatus.
+type PatchMachineStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeletePipelineProviderParams defines parameters for DeletePipelineProvider.
 type DeletePipelineProviderParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4190,6 +5107,15 @@ type PatchPipelineProviderParams struct {
 type PutPipelineProviderParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchPipelineProviderStatusApplicationMergePatchPlusJSONBody defines parameters for PatchPipelineProviderStatus.
+type PatchPipelineProviderStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchPipelineProviderStatusParams defines parameters for PatchPipelineProviderStatus.
+type PatchPipelineProviderStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeletePipelineParams defines parameters for DeletePipeline.
@@ -4213,6 +5139,15 @@ type PutPipelineParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchPipelineStatusApplicationMergePatchPlusJSONBody defines parameters for PatchPipelineStatus.
+type PatchPipelineStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchPipelineStatusParams defines parameters for PatchPipelineStatus.
+type PatchPipelineStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteRouterParams defines parameters for DeleteRouter.
 type DeleteRouterParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4232,6 +5167,15 @@ type PatchRouterParams struct {
 type PutRouterParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchRouterStatusApplicationMergePatchPlusJSONBody defines parameters for PatchRouterStatus.
+type PatchRouterStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchRouterStatusParams defines parameters for PatchRouterStatus.
+type PatchRouterStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteSecretStoreParams defines parameters for DeleteSecretStore.
@@ -4276,6 +5220,15 @@ type PutSecretParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchSecretStatusApplicationMergePatchPlusJSONBody defines parameters for PatchSecretStatus.
+type PatchSecretStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSecretStatusParams defines parameters for PatchSecretStatus.
+type PatchSecretStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteServerParams defines parameters for DeleteServer.
 type DeleteServerParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4295,6 +5248,75 @@ type PatchServerParams struct {
 type PutServerParams struct {
 	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
 	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchServerStatusApplicationMergePatchPlusJSONBody defines parameters for PatchServerStatus.
+type PatchServerStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchServerStatusParams defines parameters for PatchServerStatus.
+type PatchServerStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteSSHCertificateAuthorityParams defines parameters for DeleteSSHCertificateAuthority.
+type DeleteSSHCertificateAuthorityParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchSSHCertificateAuthorityApplicationMergePatchPlusJSONBody defines parameters for PatchSSHCertificateAuthority.
+type PatchSSHCertificateAuthorityApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHCertificateAuthorityParams defines parameters for PatchSSHCertificateAuthority.
+type PatchSSHCertificateAuthorityParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutSSHCertificateAuthorityParams defines parameters for PutSSHCertificateAuthority.
+type PutSSHCertificateAuthorityParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchSSHCertificateAuthorityStatusApplicationMergePatchPlusJSONBody defines parameters for PatchSSHCertificateAuthorityStatus.
+type PatchSSHCertificateAuthorityStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHCertificateAuthorityStatusParams defines parameters for PatchSSHCertificateAuthorityStatus.
+type PatchSSHCertificateAuthorityStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// DeleteSSHCertificateParams defines parameters for DeleteSSHCertificate.
+type DeleteSSHCertificateParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PatchSSHCertificateApplicationMergePatchPlusJSONBody defines parameters for PatchSSHCertificate.
+type PatchSSHCertificateApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHCertificateParams defines parameters for PatchSSHCertificate.
+type PatchSSHCertificateParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
+// PutSSHCertificateParams defines parameters for PutSSHCertificate.
+type PutSSHCertificateParams struct {
+	// IfMatch Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// PatchSSHCertificateStatusApplicationMergePatchPlusJSONBody defines parameters for PatchSSHCertificateStatus.
+type PatchSSHCertificateStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHCertificateStatusParams defines parameters for PatchSSHCertificateStatus.
+type PatchSSHCertificateStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
 }
 
 // DeleteSSHKeyPairParams defines parameters for DeleteSSHKeyPair.
@@ -4318,6 +5340,15 @@ type PutSSHKeyPairParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchSSHKeyPairStatusApplicationMergePatchPlusJSONBody defines parameters for PatchSSHKeyPairStatus.
+type PatchSSHKeyPairStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchSSHKeyPairStatusParams defines parameters for PatchSSHKeyPairStatus.
+type PatchSSHKeyPairStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // DeleteUsernamePasswordCredentialParams defines parameters for DeleteUsernamePasswordCredential.
 type DeleteUsernamePasswordCredentialParams struct {
 	// IfMatch ETag or resourceVersion returned by the latest read
@@ -4339,6 +5370,15 @@ type PutUsernamePasswordCredentialParams struct {
 	IfMatch *string `json:"If-Match,omitempty"`
 }
 
+// PatchUsernamePasswordCredentialStatusApplicationMergePatchPlusJSONBody defines parameters for PatchUsernamePasswordCredentialStatus.
+type PatchUsernamePasswordCredentialStatusApplicationMergePatchPlusJSONBody map[string]interface{}
+
+// PatchUsernamePasswordCredentialStatusParams defines parameters for PatchUsernamePasswordCredentialStatus.
+type PatchUsernamePasswordCredentialStatusParams struct {
+	// IfMatch ETag or resourceVersion returned by the latest read
+	IfMatch string `json:"If-Match"`
+}
+
 // CreateCommandJSONRequestBody defines body for CreateCommand for application/json ContentType.
 type CreateCommandJSONRequestBody = CommandCreate
 
@@ -4351,11 +5391,17 @@ type PatchCommandsPipelineApplicationMergePatchPlusJSONRequestBody PatchCommands
 // PutCommandsPipelineJSONRequestBody defines body for PutCommandsPipeline for application/json ContentType.
 type PutCommandsPipelineJSONRequestBody = CommandsPipelineCreate
 
+// PatchCommandsPipelineStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchCommandsPipelineStatus for application/merge-patch+json ContentType.
+type PatchCommandsPipelineStatusApplicationMergePatchPlusJSONRequestBody PatchCommandsPipelineStatusApplicationMergePatchPlusJSONBody
+
 // PatchCommandApplicationMergePatchPlusJSONRequestBody defines body for PatchCommand for application/merge-patch+json ContentType.
 type PatchCommandApplicationMergePatchPlusJSONRequestBody PatchCommandApplicationMergePatchPlusJSONBody
 
 // PutCommandJSONRequestBody defines body for PutCommand for application/json ContentType.
 type PutCommandJSONRequestBody = CommandCreate
+
+// PatchCommandStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchCommandStatus for application/merge-patch+json ContentType.
+type PatchCommandStatusApplicationMergePatchPlusJSONRequestBody PatchCommandStatusApplicationMergePatchPlusJSONBody
 
 // CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
 type CreateDNSRecordJSONRequestBody = DNSRecordCreate
@@ -4366,6 +5412,9 @@ type PatchDNSRecordApplicationMergePatchPlusJSONRequestBody PatchDNSRecordApplic
 // PutDNSRecordJSONRequestBody defines body for PutDNSRecord for application/json ContentType.
 type PutDNSRecordJSONRequestBody = DNSRecordCreate
 
+// PatchDNSRecordStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchDNSRecordStatus for application/merge-patch+json ContentType.
+type PatchDNSRecordStatusApplicationMergePatchPlusJSONRequestBody PatchDNSRecordStatusApplicationMergePatchPlusJSONBody
+
 // CreateGitRepositoryJSONRequestBody defines body for CreateGitRepository for application/json ContentType.
 type CreateGitRepositoryJSONRequestBody = GitRepositoryCreate
 
@@ -4374,6 +5423,9 @@ type PatchGitRepositoryApplicationMergePatchPlusJSONRequestBody PatchGitReposito
 
 // PutGitRepositoryJSONRequestBody defines body for PutGitRepository for application/json ContentType.
 type PutGitRepositoryJSONRequestBody = GitRepositoryCreate
+
+// PatchGitRepositoryStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchGitRepositoryStatus for application/merge-patch+json ContentType.
+type PatchGitRepositoryStatusApplicationMergePatchPlusJSONRequestBody PatchGitRepositoryStatusApplicationMergePatchPlusJSONBody
 
 // CreateInventoryCaptureGroupJSONRequestBody defines body for CreateInventoryCaptureGroup for application/json ContentType.
 type CreateInventoryCaptureGroupJSONRequestBody = InventoryCaptureGroupCreate
@@ -4384,6 +5436,9 @@ type PatchInventoryCaptureGroupApplicationMergePatchPlusJSONRequestBody PatchInv
 // PutInventoryCaptureGroupJSONRequestBody defines body for PutInventoryCaptureGroup for application/json ContentType.
 type PutInventoryCaptureGroupJSONRequestBody = InventoryCaptureGroupCreate
 
+// PatchInventoryCaptureGroupStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchInventoryCaptureGroupStatus for application/merge-patch+json ContentType.
+type PatchInventoryCaptureGroupStatusApplicationMergePatchPlusJSONRequestBody PatchInventoryCaptureGroupStatusApplicationMergePatchPlusJSONBody
+
 // CreateInventoryPublicationJSONRequestBody defines body for CreateInventoryPublication for application/json ContentType.
 type CreateInventoryPublicationJSONRequestBody = InventoryPublicationCreate
 
@@ -4392,6 +5447,21 @@ type PatchInventoryPublicationApplicationMergePatchPlusJSONRequestBody PatchInve
 
 // PutInventoryPublicationJSONRequestBody defines body for PutInventoryPublication for application/json ContentType.
 type PutInventoryPublicationJSONRequestBody = InventoryPublicationCreate
+
+// PatchInventoryPublicationStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchInventoryPublicationStatus for application/merge-patch+json ContentType.
+type PatchInventoryPublicationStatusApplicationMergePatchPlusJSONRequestBody PatchInventoryPublicationStatusApplicationMergePatchPlusJSONBody
+
+// CreateISOJSONRequestBody defines body for CreateISO for application/json ContentType.
+type CreateISOJSONRequestBody = ISOCreate
+
+// PatchISOApplicationMergePatchPlusJSONRequestBody defines body for PatchISO for application/merge-patch+json ContentType.
+type PatchISOApplicationMergePatchPlusJSONRequestBody PatchISOApplicationMergePatchPlusJSONBody
+
+// PutISOJSONRequestBody defines body for PutISO for application/json ContentType.
+type PutISOJSONRequestBody = ISOCreate
+
+// PatchISOStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchISOStatus for application/merge-patch+json ContentType.
+type PatchISOStatusApplicationMergePatchPlusJSONRequestBody PatchISOStatusApplicationMergePatchPlusJSONBody
 
 // CreateMachineReportJSONRequestBody defines body for CreateMachineReport for application/json ContentType.
 type CreateMachineReportJSONRequestBody = MachineReportCreate
@@ -4408,6 +5478,9 @@ type PatchMachineApplicationMergePatchPlusJSONRequestBody PatchMachineApplicatio
 // PutMachineJSONRequestBody defines body for PutMachine for application/json ContentType.
 type PutMachineJSONRequestBody = MachineCreate
 
+// PatchMachineStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchMachineStatus for application/merge-patch+json ContentType.
+type PatchMachineStatusApplicationMergePatchPlusJSONRequestBody PatchMachineStatusApplicationMergePatchPlusJSONBody
+
 // CreatePipelineProviderJSONRequestBody defines body for CreatePipelineProvider for application/json ContentType.
 type CreatePipelineProviderJSONRequestBody = PipelineProviderCreate
 
@@ -4416,6 +5489,9 @@ type PatchPipelineProviderApplicationMergePatchPlusJSONRequestBody PatchPipeline
 
 // PutPipelineProviderJSONRequestBody defines body for PutPipelineProvider for application/json ContentType.
 type PutPipelineProviderJSONRequestBody = PipelineProviderCreate
+
+// PatchPipelineProviderStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchPipelineProviderStatus for application/merge-patch+json ContentType.
+type PatchPipelineProviderStatusApplicationMergePatchPlusJSONRequestBody PatchPipelineProviderStatusApplicationMergePatchPlusJSONBody
 
 // CreatePipelineJSONRequestBody defines body for CreatePipeline for application/json ContentType.
 type CreatePipelineJSONRequestBody = PipelineCreate
@@ -4426,6 +5502,9 @@ type PatchPipelineApplicationMergePatchPlusJSONRequestBody PatchPipelineApplicat
 // PutPipelineJSONRequestBody defines body for PutPipeline for application/json ContentType.
 type PutPipelineJSONRequestBody = PipelineCreate
 
+// PatchPipelineStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchPipelineStatus for application/merge-patch+json ContentType.
+type PatchPipelineStatusApplicationMergePatchPlusJSONRequestBody PatchPipelineStatusApplicationMergePatchPlusJSONBody
+
 // CreateRouterJSONRequestBody defines body for CreateRouter for application/json ContentType.
 type CreateRouterJSONRequestBody = RouterCreate
 
@@ -4434,6 +5513,9 @@ type PatchRouterApplicationMergePatchPlusJSONRequestBody PatchRouterApplicationM
 
 // PutRouterJSONRequestBody defines body for PutRouter for application/json ContentType.
 type PutRouterJSONRequestBody = RouterCreate
+
+// PatchRouterStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchRouterStatus for application/merge-patch+json ContentType.
+type PatchRouterStatusApplicationMergePatchPlusJSONRequestBody PatchRouterStatusApplicationMergePatchPlusJSONBody
 
 // CreateSecretStoreJSONRequestBody defines body for CreateSecretStore for application/json ContentType.
 type CreateSecretStoreJSONRequestBody = SecretStoreCreate
@@ -4453,6 +5535,9 @@ type PatchSecretApplicationMergePatchPlusJSONRequestBody PatchSecretApplicationM
 // PutSecretJSONRequestBody defines body for PutSecret for application/json ContentType.
 type PutSecretJSONRequestBody = SecretCreate
 
+// PatchSecretStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchSecretStatus for application/merge-patch+json ContentType.
+type PatchSecretStatusApplicationMergePatchPlusJSONRequestBody PatchSecretStatusApplicationMergePatchPlusJSONBody
+
 // CreateServerJSONRequestBody defines body for CreateServer for application/json ContentType.
 type CreateServerJSONRequestBody = ServerCreate
 
@@ -4461,6 +5546,33 @@ type PatchServerApplicationMergePatchPlusJSONRequestBody PatchServerApplicationM
 
 // PutServerJSONRequestBody defines body for PutServer for application/json ContentType.
 type PutServerJSONRequestBody = ServerCreate
+
+// PatchServerStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchServerStatus for application/merge-patch+json ContentType.
+type PatchServerStatusApplicationMergePatchPlusJSONRequestBody PatchServerStatusApplicationMergePatchPlusJSONBody
+
+// CreateSSHCertificateAuthorityJSONRequestBody defines body for CreateSSHCertificateAuthority for application/json ContentType.
+type CreateSSHCertificateAuthorityJSONRequestBody = SSHCertificateAuthorityCreate
+
+// PatchSSHCertificateAuthorityApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHCertificateAuthority for application/merge-patch+json ContentType.
+type PatchSSHCertificateAuthorityApplicationMergePatchPlusJSONRequestBody PatchSSHCertificateAuthorityApplicationMergePatchPlusJSONBody
+
+// PutSSHCertificateAuthorityJSONRequestBody defines body for PutSSHCertificateAuthority for application/json ContentType.
+type PutSSHCertificateAuthorityJSONRequestBody = SSHCertificateAuthorityCreate
+
+// PatchSSHCertificateAuthorityStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHCertificateAuthorityStatus for application/merge-patch+json ContentType.
+type PatchSSHCertificateAuthorityStatusApplicationMergePatchPlusJSONRequestBody PatchSSHCertificateAuthorityStatusApplicationMergePatchPlusJSONBody
+
+// CreateSSHCertificateJSONRequestBody defines body for CreateSSHCertificate for application/json ContentType.
+type CreateSSHCertificateJSONRequestBody = SSHCertificateCreate
+
+// PatchSSHCertificateApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHCertificate for application/merge-patch+json ContentType.
+type PatchSSHCertificateApplicationMergePatchPlusJSONRequestBody PatchSSHCertificateApplicationMergePatchPlusJSONBody
+
+// PutSSHCertificateJSONRequestBody defines body for PutSSHCertificate for application/json ContentType.
+type PutSSHCertificateJSONRequestBody = SSHCertificateCreate
+
+// PatchSSHCertificateStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHCertificateStatus for application/merge-patch+json ContentType.
+type PatchSSHCertificateStatusApplicationMergePatchPlusJSONRequestBody PatchSSHCertificateStatusApplicationMergePatchPlusJSONBody
 
 // CreateSSHKeyPairJSONRequestBody defines body for CreateSSHKeyPair for application/json ContentType.
 type CreateSSHKeyPairJSONRequestBody = SSHKeyPairCreate
@@ -4471,6 +5583,9 @@ type PatchSSHKeyPairApplicationMergePatchPlusJSONRequestBody PatchSSHKeyPairAppl
 // PutSSHKeyPairJSONRequestBody defines body for PutSSHKeyPair for application/json ContentType.
 type PutSSHKeyPairJSONRequestBody = SSHKeyPairCreate
 
+// PatchSSHKeyPairStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchSSHKeyPairStatus for application/merge-patch+json ContentType.
+type PatchSSHKeyPairStatusApplicationMergePatchPlusJSONRequestBody PatchSSHKeyPairStatusApplicationMergePatchPlusJSONBody
+
 // CreateUsernamePasswordCredentialJSONRequestBody defines body for CreateUsernamePasswordCredential for application/json ContentType.
 type CreateUsernamePasswordCredentialJSONRequestBody = UsernamePasswordCredentialCreate
 
@@ -4480,170 +5595,232 @@ type PatchUsernamePasswordCredentialApplicationMergePatchPlusJSONRequestBody Pat
 // PutUsernamePasswordCredentialJSONRequestBody defines body for PutUsernamePasswordCredential for application/json ContentType.
 type PutUsernamePasswordCredentialJSONRequestBody = UsernamePasswordCredentialCreate
 
+// PatchUsernamePasswordCredentialStatusApplicationMergePatchPlusJSONRequestBody defines body for PatchUsernamePasswordCredentialStatus for application/merge-patch+json ContentType.
+type PatchUsernamePasswordCredentialStatusApplicationMergePatchPlusJSONRequestBody PatchUsernamePasswordCredentialStatusApplicationMergePatchPlusJSONBody
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

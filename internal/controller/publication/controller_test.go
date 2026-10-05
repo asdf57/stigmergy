@@ -192,7 +192,7 @@ func TestReconcileAllowsOverlappingPublicationRootsOnDifferentBranches(t *testin
 
 func TestReferencedSSHKeyPairIsRequiredWhenConfigured(t *testing.T) {
 	publisher := NewGitPublisher(newFakeStore())
-	_, err := publisher.authentication(context.Background(), apigen.GitRepositorySpec{
+	_, err := publisher.Authentication(context.Background(), apigen.GitRepositorySpec{
 		Authentication: &apigen.GitRepositoryAuthentication{SshKeyPairRef: "git-ssh-key"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "SSHKeyPair") {

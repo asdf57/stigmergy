@@ -19,11 +19,12 @@ type Definition struct {
 	SpecSchema        string
 	StatusSchema      string
 	DefaultFinalizers []string
+	ImmutableSpec     bool
 	DecodeSpec        func(json.RawMessage) (any, error)
 	DecodeStoredSpec  func(map[string]any) (any, error)
 }
 
-func NewDefinition[T any](apiVersion, pathPrefix, kind, plural, statusSchema string, defaultFinalizers []string) Definition {
+func NewDefinition[T any](apiVersion, pathPrefix, kind, plural, statusSchema string, defaultFinalizers []string, immutableSpec ...bool) Definition {
 	decode := func(encoded json.RawMessage) (T, error) {
 		var value T
 		if err := json.Unmarshal(encoded, &value); err != nil {
@@ -40,6 +41,7 @@ func NewDefinition[T any](apiVersion, pathPrefix, kind, plural, statusSchema str
 		SpecSchema:        reflect.TypeFor[T]().Name(),
 		StatusSchema:      statusSchema,
 		DefaultFinalizers: append([]string(nil), defaultFinalizers...),
+		ImmutableSpec:     len(immutableSpec) > 0 && immutableSpec[0],
 		DecodeSpec: func(encoded json.RawMessage) (any, error) {
 			return decode(encoded)
 		},

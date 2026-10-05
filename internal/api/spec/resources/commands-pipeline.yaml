@@ -1,4 +1,4 @@
-# CommandsPipeline declares a provider-neutral Git-triggered command runner for one inventory capture group.
+# CommandsPipeline declares reusable command runner settings and an optional request schedule.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
@@ -20,9 +20,20 @@ CommandsPipelineSpec:
       $ref: '#/components/schemas/CommandsPipelineInventoryCaptureGroupReference'
     pipelineProviderRef:
       $ref: '#/components/schemas/CommandsPipelineProviderReference'
-    commandPath:
+    schedule:
       type: string
-      minLength: 1
+      pattern: '^[1-9][0-9]*(s|m|h)$'
+      description: Optional controller interval; each tick creates a fresh Command, skipping overlapping scheduled runs.
+    commandTemplate:
+      $ref: '#/components/schemas/ScheduledCommandTemplate'
+
+ScheduledCommandTemplate:
+  type: object
+  additionalProperties: false
+  required: [script]
+  properties:
+    script: {type: string, minLength: 1}
+    ttlSecondsAfterFinished: {type: integer, format: int64, minimum: 0, maximum: 2147483647}
 
 CommandsPipelineRepositoryReference:
   type: object
@@ -53,8 +64,7 @@ CommandsPipelineStatus:
       type: string
       enum: [Pending, Ready, Conflict, Failed]
     observedGeneration: {type: integer, format: int64, minimum: 0}
-    pipelineRef:
-      $ref: '#/components/schemas/ResourceReference'
+    lastScheduledAt: {type: string, format: date-time}
     conditions:
       type: array
       items:

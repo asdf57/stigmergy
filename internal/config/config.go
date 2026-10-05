@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,35 +10,55 @@ import (
 )
 
 type Config struct {
-	HTTPAddr               string
-	EtcdEndpoints          []string
-	EtcdPrefix             string
-	DialTimeout            time.Duration
-	RequestTimeout         time.Duration
-	ShutdownTimeout        time.Duration
-	LogLevel               slog.Level
-	CommandRunnerImage     string
-	PublicAPIURL           string
-	AnsibleRolesRepository string
-	AnsibleRolesRevision   string
+	ISOBuilderRepository      string
+	CommandRunnerParameters   map[string]string
+	ISODaemonRepository       string
+	ISODaemonRevision         string
+	ISOArtifactBaseURL        string
+	ISOUploadPasswordVariable string
+	APIAuthFile               string
+	AllowUnauthenticatedAPI   bool
+	HTTPAddr                  string
+	EtcdEndpoints             []string
+	EtcdPrefix                string
+	DialTimeout               time.Duration
+	RequestTimeout            time.Duration
+	ShutdownTimeout           time.Duration
+	LogLevel                  slog.Level
+	CommandRunnerImage        string
+	PublicAPIURL              string
+	AnsibleRolesRepository    string
+	AnsibleRolesRevision      string
 }
 
 func Load() (Config, error) {
 	config := Config{
-		HTTPAddr:               envOr("HTTP_ADDR", "127.0.0.1:8080"),
-		EtcdEndpoints:          splitCSV(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379")),
-		EtcdPrefix:             envOr("ETCD_PREFIX", "/homelab/v1"),
-		DialTimeout:            5 * time.Second,
-		RequestTimeout:         10 * time.Second,
-		ShutdownTimeout:        10 * time.Second,
-		LogLevel:               slog.LevelInfo,
-		CommandRunnerImage:     strings.TrimSpace(os.Getenv("COMMAND_RUNNER_IMAGE")),
-		PublicAPIURL:           strings.TrimSpace(os.Getenv("PUBLIC_API_URL")),
-		AnsibleRolesRepository: envOr("ANSIBLE_ROLES_REPOSITORY", "git@github.com:asdf57/ansible-roles.git"),
-		AnsibleRolesRevision:   envOr("ANSIBLE_ROLES_REVISION", "main"),
+		ISOBuilderRepository:      envOr("ISO_BUILDER_REPOSITORY", "https://github.com/asdf57/ansible-roles.git"),
+		ISODaemonRepository:       envOr("ISO_DAEMON_REPOSITORY", "https://github.com/asdf57/homelabd.git"),
+		ISODaemonRevision:         envOr("ISO_DAEMON_REVISION", "main"),
+		ISOArtifactBaseURL:        strings.TrimSpace(os.Getenv("ISO_ARTIFACT_BASE_URL")),
+		ISOUploadPasswordVariable: envOr("ISO_UPLOAD_PASSWORD_VARIABLE", "file-registry"),
+		APIAuthFile:               strings.TrimSpace(os.Getenv("API_AUTH_FILE")),
+		AllowUnauthenticatedAPI:   os.Getenv("ALLOW_UNAUTHENTICATED_API") == "true",
+		HTTPAddr:                  envOr("HTTP_ADDR", "127.0.0.1:8080"),
+		EtcdEndpoints:             splitCSV(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379")),
+		EtcdPrefix:                envOr("ETCD_PREFIX", "/homelab/v1"),
+		DialTimeout:               5 * time.Second,
+		RequestTimeout:            10 * time.Second,
+		ShutdownTimeout:           10 * time.Second,
+		LogLevel:                  slog.LevelInfo,
+		CommandRunnerImage:        strings.TrimSpace(os.Getenv("COMMAND_RUNNER_IMAGE")),
+		PublicAPIURL:              strings.TrimSpace(os.Getenv("PUBLIC_API_URL")),
+		AnsibleRolesRepository:    envOr("ANSIBLE_ROLES_REPOSITORY", "https://github.com/asdf57/ansible-roles.git"),
+		AnsibleRolesRevision:      envOr("ANSIBLE_ROLES_REVISION", "main"),
 	}
 
 	var err error
+	if value := os.Getenv("COMMAND_RUNNER_PARAMETERS"); value != "" {
+		if err := json.Unmarshal([]byte(value), &config.CommandRunnerParameters); err != nil {
+			return Config{}, fmt.Errorf("COMMAND_RUNNER_PARAMETERS must be a JSON object of string parameters")
+		}
+	}
 	if config.DialTimeout, err = durationEnv("ETCD_DIAL_TIMEOUT", config.DialTimeout); err != nil {
 		return Config{}, err
 	}

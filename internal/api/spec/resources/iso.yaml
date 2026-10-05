@@ -1,0 +1,95 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: ISO
+  plural: isos
+  spec-schema: ISOSpec
+  status-schema: ISOStatus
+  operations: [create, list, get, put, patch, delete, delete-collection]
+  finalizers: [homelab.io/iso-cleanup]
+
+ISOSpec:
+  type: object
+  additionalProperties: false
+  required: [distribution, version, architecture, bootMode, pipelineProviderRef, sshCertificateAuthorityRef, buildInputs]
+  properties:
+    distribution: {type: string, enum: [arch, debian]}
+    version: {type: string, minLength: 1}
+    architecture: {type: string, enum: [amd64]}
+    bootMode: {type: string, enum: [uefi, bios]}
+    pipelineProviderRef: {$ref: '#/ISOReference'}
+    sshCertificateAuthorityRef: {$ref: '#/ISOReference'}
+    buildInputs: {$ref: '#/ISOBuildInputs'}
+
+ISOReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+ISOBuildInputs:
+  type: object
+  additionalProperties: false
+  required: [repositoryRef, branch, path]
+  properties:
+    repositoryRef: {$ref: '#/ISOReference'}
+    branch: {type: string, minLength: 1}
+    path: {type: string, minLength: 1}
+
+ISOStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string, enum: [Pending, Ready, Conflict, Failed]}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    pipelineRef: {$ref: '#/components/schemas/ResourceReference'}
+    authorityRef: {$ref: '#/components/schemas/ResourceReference'}
+    repositoryRef: {$ref: '#/components/schemas/ResourceReference'}
+    providerRef: {$ref: '#/components/schemas/ResourceReference'}
+    inputRevision: {type: string}
+    publishedInputContent: {type: string, description: Canonical image configuration used to match completed builds.}
+    publishedBranch: {type: string}
+    publishedPath: {type: string}
+    desiredTrustBundleDigest: {type: string}
+    completedBuild: {$ref: '#/ISOCompletedBuild'}
+    artifacts:
+      type: array
+      items: {$ref: '#/ISOArtifact'}
+    conditions:
+      type: array
+      items: {$ref: '#/ISOCondition'}
+
+ISOArtifact:
+  type: object
+  additionalProperties: false
+  required: [type, url, sha256]
+  properties:
+    type: {type: string, enum: [iso, kernel, initrd, rootfs]}
+    url: {type: string, format: uri}
+    sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+
+ISOCompletedBuild:
+  type: object
+  additionalProperties: false
+  required: [id, startedAt, inputRevision, sourceRevisions, trustBundleDigest]
+  properties:
+    id: {type: string}
+    startedAt: {type: string, format: date-time}
+    inputRevision: {type: string}
+    trustBundleDigest: {type: string}
+    sourceRevisions:
+      type: object
+      additionalProperties: {type: string}
+
+ISOCondition:
+  type: object
+  additionalProperties: false
+  required: [type, status, reason]
+  properties:
+    type: {type: string, minLength: 1}
+    status: {type: string, enum: ['True', 'False', Unknown]}
+    reason: {type: string, minLength: 1}
+    message: {type: string}
+    observedGeneration: {type: integer, format: int64, minimum: 0}

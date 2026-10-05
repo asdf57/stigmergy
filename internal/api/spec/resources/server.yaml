@@ -15,6 +15,8 @@ ServerSpec:
   properties:
     machineSelector:
       $ref: '#/components/schemas/ServerMachineSelector'
+    boot: {$ref: '#/ServerBootSpec'}
+    sshCertificateAuthorityRef: {$ref: '#/ServerDependencyReference'}
     hostName: {type: string, minLength: 1}
     domainName: {type: string, minLength: 1}
     operatingSystem:
@@ -40,6 +42,21 @@ ServerSpec:
       $ref: '#/components/schemas/ServerReconciliationSpec'
     networking:
       $ref: '#/components/schemas/ServerNetworkingSpec'
+
+ServerBootSpec:
+  type: object
+  additionalProperties: false
+  required: [isoRef]
+  properties:
+    isoRef: {$ref: '#/ServerDependencyReference'}
+
+ServerDependencyReference:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
 
 ServerMachineSelector:
   type: object
@@ -206,6 +223,7 @@ ServerStatus:
   properties:
     phase: {type: string}
     machineRef: {$ref: '#/components/schemas/ResourceReference'}
+    bootISORef: {$ref: '#/components/schemas/ResourceReference'}
     fqdn: {type: string}
     observedAddresses:
       type: array
@@ -217,10 +235,21 @@ ServerStatus:
     systemStats: {$ref: '#/components/schemas/ServerSystemStats'}
     networking: {$ref: '#/components/schemas/ServerNetworkingStatus'}
     ssh: {$ref: '#/components/schemas/ServerSSHStatus'}
+    sshTrust: {$ref: '#/ServerSSHTrustStatus'}
+    desiredSSHTrustBundleDigest: {type: string}
+    installedSSHTrustBundleDigest: {type: string}
     observedGeneration: {type: integer, format: int64, minimum: 0}
     conditions:
       type: array
       items: {$ref: '#/components/schemas/ServerCondition'}
+
+ServerSSHTrustStatus:
+  type: object
+  additionalProperties: false
+  required: [authorityRef, publicBundle]
+  properties:
+    authorityRef: {$ref: '#/components/schemas/ResourceReference'}
+    publicBundle: {type: string}
 
 ServerAgentStatus:
   type: object

@@ -18,6 +18,7 @@ import (
 	"github.com/asdf57/stigmergy/internal/controller/commandspipeline"
 	"github.com/asdf57/stigmergy/internal/controller/dns"
 	"github.com/asdf57/stigmergy/internal/controller/inventory"
+	"github.com/asdf57/stigmergy/internal/controller/iso"
 	"github.com/asdf57/stigmergy/internal/controller/machine"
 	"github.com/asdf57/stigmergy/internal/controller/pipeline"
 	"github.com/asdf57/stigmergy/internal/controller/pipelineprovider"
@@ -25,8 +26,13 @@ import (
 	routercontroller "github.com/asdf57/stigmergy/internal/controller/router"
 	"github.com/asdf57/stigmergy/internal/controller/secret"
 	servercontroller "github.com/asdf57/stigmergy/internal/controller/server"
+	"github.com/asdf57/stigmergy/internal/controller/serverssh"
+	"github.com/asdf57/stigmergy/internal/controller/sshauthority"
+	"github.com/asdf57/stigmergy/internal/controller/sshcertificate"
 	"github.com/asdf57/stigmergy/internal/controller/sshkeypair"
 	usernamepassword "github.com/asdf57/stigmergy/internal/controller/usernamepassword"
+	"github.com/asdf57/stigmergy/internal/gitpublication"
+	"github.com/asdf57/stigmergy/internal/isobuild"
 	etcdstore "github.com/asdf57/stigmergy/internal/store/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -68,6 +74,17 @@ func run() error {
 	resourceStore := etcdstore.New(etcdClient, configuration.EtcdPrefix)
 
 	handler := api.New(logger, resourceStore, configuration.RequestTimeout)
+	if configuration.APIAuthFile != "" {
+		policy, err := api.LoadAccessPolicy(configuration.APIAuthFile)
+		if err != nil {
+			return err
+		}
+		handler = api.WithAccessPolicy(handler, policy)
+	} else if !configuration.AllowUnauthenticatedAPI {
+		return errors.New("API_AUTH_FILE is required; ALLOW_UNAUTHENTICATED_API=true is an explicit development-only override")
+	} else {
+		logger.Warn("API caller authentication is disabled; do not use production CA keys")
+	}
 	server := &http.Server{
 		Addr:              configuration.HTTPAddr,
 		Handler:           handler,
@@ -79,6 +96,8 @@ func run() error {
 	machineReportController := controller.NewController(machineReportReconciler)
 	serverReconciler := servercontroller.NewReconciler(resourceStore)
 	serverController := controller.NewController(serverReconciler)
+	serverSSHReconciler := serverssh.NewReconciler(resourceStore)
+	serverSSHController := controller.NewController(serverSSHReconciler)
 	inventoryReconciler := inventory.NewInventoryCaptureGroupReconciler(resourceStore)
 	inventoryController := controller.NewController(inventoryReconciler)
 	publicationReconciler := publication.NewReconciler(resourceStore)
@@ -87,6 +106,14 @@ func run() error {
 	secretController := controller.NewController(secretReconciler)
 	sshKeyPairReconciler := sshkeypair.NewReconciler(resourceStore)
 	sshKeyPairController := controller.NewController(sshKeyPairReconciler)
+	sshAuthorityReconciler := sshauthority.NewReconciler(resourceStore)
+	sshAuthorityController := controller.NewControllerWithResync(sshAuthorityReconciler, 30*time.Second)
+	sshCertificateReconciler := sshcertificate.NewReconciler(resourceStore)
+	sshCertificateController := controller.NewControllerWithResync(sshCertificateReconciler, 30*time.Second)
+	isoReconciler := iso.NewReconciler(resourceStore, gitpublication.NewGitPublisher(resourceStore),
+		&isobuild.CopypartyReader{BaseURL: configuration.ISOArtifactBaseURL, Client: &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("artifact redirects are not accepted") }}},
+		isobuild.Config{BuilderRepository: configuration.ISOBuilderRepository, BuilderBranch: configuration.AnsibleRolesRevision, DaemonRepository: configuration.ISODaemonRepository, DaemonBranch: configuration.ISODaemonRevision, PublicAPIURL: configuration.PublicAPIURL, ArtifactBaseURL: configuration.ISOArtifactBaseURL, UploadPasswordVariable: configuration.ISOUploadPasswordVariable})
+	isoController := controller.NewControllerWithResync(isoReconciler, 30*time.Second)
 	usernamePasswordReconciler := usernamepassword.NewReconciler(resourceStore)
 	usernamePasswordController := controller.NewController(usernamePasswordReconciler)
 	routerReconciler := routercontroller.NewReconciler(resourceStore)
@@ -97,15 +124,17 @@ func run() error {
 	pipelineProviderController := controller.NewController(pipelineProviderReconciler)
 	pipelineReconciler := pipeline.NewReconciler(resourceStore)
 	pipelineController := controller.NewController(pipelineReconciler)
-	commandsPipelineReconciler := commandspipeline.NewReconciler(resourceStore, commandspipeline.Config{
+	commandConfig := commandspipeline.Config{
 		CommandRunnerImage:     configuration.CommandRunnerImage,
 		PublicAPIURL:           configuration.PublicAPIURL,
 		AnsibleRolesRepository: configuration.AnsibleRolesRepository,
 		AnsibleRolesRevision:   configuration.AnsibleRolesRevision,
-	})
-	commandsPipelineController := controller.NewController(commandsPipelineReconciler)
-	commandReconciler := command.NewReconciler(resourceStore)
-	commandController := controller.NewController(commandReconciler)
+		RunnerParameters:       configuration.CommandRunnerParameters,
+	}
+	commandsPipelineReconciler := commandspipeline.NewReconciler(resourceStore, commandConfig)
+	commandsPipelineController := controller.NewControllerWithResync(commandsPipelineReconciler, 30*time.Second)
+	commandReconciler := command.NewReconciler(resourceStore, commandConfig)
+	commandController := controller.NewControllerWithResync(commandReconciler, 30*time.Second)
 
 	inventoryWatches := []controller.Watch{
 		{Kind: registry.InventoryCaptureGroupResource.Kind, Mapper: controller.IdentityMapper},
@@ -119,12 +148,52 @@ func run() error {
 		resourceStore,
 		[]controller.Registration{
 			{
+				Name: "ssh-certificate-controller", Controller: sshCertificateController,
+				Watches: []controller.Watch{
+					{Kind: registry.SSHCertificateResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SSHCertificateAuthorityResource.Kind, Mapper: sshCertificateReconciler.RequestsForDependency},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: sshCertificateReconciler.RequestsForDependency},
+					{Kind: registry.SecretResource.Kind, Mapper: sshCertificateReconciler.RequestsForDependency},
+				},
+			},
+			{
+				Name: "server-ssh-controller", Controller: serverSSHController,
+				Watches: []controller.Watch{
+					{Kind: registry.ServerResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: serverSSHReconciler.RequestsForSSHKeyPair},
+					{Kind: registry.SSHCertificateAuthorityResource.Kind, Mapper: serverSSHReconciler.RequestsForAuthority},
+					{Kind: registry.ISOResource.Kind, Mapper: serverSSHReconciler.RequestsForISO},
+				},
+			},
+			{
+				Name: "iso-controller", Controller: isoController,
+				Watches: []controller.Watch{
+					{Kind: registry.ISOResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SSHCertificateAuthorityResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+					{Kind: registry.GitRepositoryResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+					{Kind: registry.PipelineProviderResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+					{Kind: registry.PipelineResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+					{Kind: registry.InventoryPublicationResource.Kind, Mapper: isoReconciler.RequestsForDependency},
+				},
+			},
+			{
+				Name: "ssh-certificate-authority-controller", Controller: sshAuthorityController,
+				Watches: []controller.Watch{
+					{Kind: registry.SSHCertificateAuthorityResource.Kind, Mapper: controller.IdentityMapper},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: sshAuthorityReconciler.RequestsForKey},
+				},
+			},
+			{
 				Name: "command-controller", Controller: commandController,
 				Watches: []controller.Watch{
 					{Kind: registry.CommandResource.Kind, Mapper: commandReconciler.RequestsForCommand},
 					{Kind: registry.CommandsPipelineResource.Kind, Mapper: commandReconciler.RequestsForCommandsPipeline},
-					{Kind: registry.GitRepositoryResource.Kind, Mapper: commandReconciler.RequestsForGitRepository},
-					{Kind: registry.SSHKeyPairResource.Kind, Mapper: commandReconciler.RequestsForSSHKeyPair},
+					{Kind: registry.GitRepositoryResource.Kind, Mapper: commandReconciler.RequestsForDependency},
+					{Kind: registry.SSHKeyPairResource.Kind, Mapper: commandReconciler.RequestsForDependency},
+					{Kind: registry.PipelineResource.Kind, Mapper: commandReconciler.RequestsForDependency},
+					{Kind: registry.PipelineProviderResource.Kind, Mapper: commandReconciler.RequestsForDependency},
+					{Kind: registry.UsernamePasswordCredentialResource.Kind, Mapper: commandReconciler.RequestsForDependency},
 				},
 			},
 			{
@@ -196,9 +265,7 @@ func run() error {
 				Controller: sshKeyPairController,
 				Watches: []controller.Watch{
 					{Kind: registry.SSHKeyPairResource.Kind, Mapper: controller.IdentityMapper},
-					{Kind: registry.SSHKeyPairResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSSHKeyPair},
 					{Kind: registry.SecretResource.Kind, Mapper: sshKeyPairReconciler.RequestsForSecret},
-					{Kind: registry.ServerResource.Kind, Mapper: controller.IdentityMapper},
 				},
 			},
 			{

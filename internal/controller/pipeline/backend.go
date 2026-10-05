@@ -76,7 +76,7 @@ func (b *FlyBackend) Delete(ctx context.Context, provider registry.PipelineProvi
 }
 
 func (b *FlyBackend) login(ctx context.Context, home string, provider registry.PipelineProvider, credential registry.UsernamePasswordCredential) error {
-	return b.run(ctx, home, "login", "-t", "stigmergy", "-c", provider.Spec.Url, "-n", provider.Spec.Team, "-u", credential.Spec.Username, "-p", credential.Spec.Password)
+	return b.run(ctx, home, "login", "-t", "stigmergy", "-c", provider.Spec.Url, "-n", providerTeam(provider), "-u", credential.Spec.Username, "-p", credential.Spec.Password)
 }
 
 func (b *FlyBackend) run(ctx context.Context, home string, args ...string) error {

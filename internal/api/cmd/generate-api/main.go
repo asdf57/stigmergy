@@ -24,14 +24,15 @@ var (
 )
 
 type resourceMetadata struct {
-	APIVersion   string   `yaml:"api-version"`
-	PathPrefix   string   `yaml:"path-prefix"`
-	Kind         string   `yaml:"kind"`
-	Plural       string   `yaml:"plural"`
-	SpecSchema   string   `yaml:"spec-schema"`
-	StatusSchema string   `yaml:"status-schema"`
-	Operations   []string `yaml:"operations"`
-	Finalizers   []string `yaml:"finalizers"`
+	APIVersion    string   `yaml:"api-version"`
+	PathPrefix    string   `yaml:"path-prefix"`
+	Kind          string   `yaml:"kind"`
+	Plural        string   `yaml:"plural"`
+	SpecSchema    string   `yaml:"spec-schema"`
+	StatusSchema  string   `yaml:"status-schema"`
+	Operations    []string `yaml:"operations"`
+	Finalizers    []string `yaml:"finalizers"`
+	ImmutableSpec bool     `yaml:"immutable-spec"`
 }
 
 type resourceModule struct {
@@ -59,6 +60,7 @@ func main() {
 	for _, module := range modules {
 		addResource(base, module)
 	}
+	addAuthResponses(base)
 	base["x-stigmergy-file-purpose"] = "Generated, self-contained OpenAPI document used for code generation, validation, Swagger UI, and /openapi.json."
 
 	encoded, err := json.MarshalIndent(base, "", "  ")
@@ -231,6 +233,13 @@ func addResource(root map[string]any, module resourceModule) {
 	if operations["delete"] {
 		item["delete"] = deleteOperation(metadata)
 	}
+	if metadata.ImmutableSpec {
+		for _, method := range []string{"put", "patch"} {
+			if operation, ok := item[method].(map[string]any); ok {
+				operation["description"] = fmt.Sprint(operation["description"]) + " This resource's spec is immutable after creation; changes return 422. Create a new resource for another execution."
+			}
+		}
+	}
 	if len(item) > 0 {
 		item["parameters"] = []any{nameParameter()}
 	}
@@ -239,6 +248,38 @@ func addResource(root map[string]any, module resourceModule) {
 	}
 	if len(item) > 0 {
 		paths[itemPath] = item
+	}
+	if metadata.StatusSchema != "" {
+		operation := patchOperation(metadata)
+		operation["operationId"] = "patch" + metadata.Kind + "Status"
+		operation["summary"] = "Merge-patch " + metadata.Kind + " status"
+		operation["description"] = "Update only status using {metadata: {uid}, status: {...}} and required If-Match. Separate status-subresource authorization applies; spec and other metadata writes are forbidden."
+		paths[itemPath+"/status"] = map[string]any{"parameters": []any{nameParameter()}, "patch": operation}
+	}
+}
+
+// Global bearer security is inherited by generated operations. Only explicit
+// public operations opt out; keep authentication failures in every client contract.
+func addAuthResponses(root map[string]any) {
+	for _, item := range requiredMap(root, "paths") {
+		pathItem, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, method := range []string{"get", "post", "put", "patch", "delete", "head", "options"} {
+			operation, ok := pathItem[method].(map[string]any)
+			if !ok {
+				continue
+			}
+			if security, exists := operation["security"]; exists {
+				if requirements, ok := security.([]any); ok && len(requirements) == 0 {
+					continue
+				}
+			}
+			responses := requiredMap(operation, "responses")
+			responses["401"] = errorResponse("Missing or invalid API bearer token")
+			responses["403"] = errorResponse("Authenticated identity is not permitted to perform this operation")
+		}
 	}
 }
 
@@ -575,7 +616,7 @@ func writeRegistry(path, modelsImport, resourceImport string, modules []resource
 		metadata := module.Metadata
 		fmt.Fprintf(
 			&source,
-			"var %sResource = %sDefinition{Definition: NewDefinition[apigen.%s](%q, %q, %q, %q, %q, %#v)}\n",
+			"var %sResource = %sDefinition{Definition: NewDefinition[apigen.%s](%q, %q, %q, %q, %q, %#v, %t)}\n",
 			metadata.Kind,
 			metadata.Kind,
 			metadata.SpecSchema,
@@ -585,6 +626,7 @@ func writeRegistry(path, modelsImport, resourceImport string, modules []resource
 			metadata.Plural,
 			metadata.StatusSchema,
 			metadata.Finalizers,
+			metadata.ImmutableSpec,
 		)
 	}
 	source.WriteString("\n")
