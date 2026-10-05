@@ -23,8 +23,8 @@ func prepareBootstrap(directory, source, output string) error {
 	for _, identity := range policy.Identities {
 		tokens[identity.Name] = identity.Token
 	}
-	if tokens["admin"] == "" || tokens["runner"] == "" {
-		return fmt.Errorf("admin and runner identities are required")
+	if tokens["admin"] == "" || tokens["runner"] == "" || tokens["agent"] == "" {
+		return fmt.Errorf("admin, runner and agent identities are required")
 	}
 	data, err := os.ReadFile(source)
 	if err != nil {
@@ -34,7 +34,7 @@ func prepareBootstrap(directory, source, output string) error {
 	for _, line := range strings.Split(string(data), "\n") {
 		key, _, _ := strings.Cut(line, "=")
 		switch key {
-		case "STIGMERGY_API_TOKEN", "STIGMERGY_API_POLICY", "STIGMERGY_RUNNER_API_TOKEN":
+		case "STIGMERGY_API_TOKEN", "STIGMERGY_API_POLICY", "STIGMERGY_RUNNER_API_TOKEN", "STIGMERGY_AGENT_API_TOKEN":
 			continue
 		}
 		if line != "" {
@@ -45,7 +45,7 @@ func prepareBootstrap(directory, source, output string) error {
 	if err != nil {
 		return err
 	}
-	lines = append(lines, "STIGMERGY_API_TOKEN="+tokens["admin"], "STIGMERGY_API_POLICY="+string(document), "STIGMERGY_RUNNER_API_TOKEN="+tokens["runner"])
+	lines = append(lines, "STIGMERGY_API_TOKEN="+tokens["admin"], "STIGMERGY_API_POLICY="+string(document), "STIGMERGY_RUNNER_API_TOKEN="+tokens["runner"], "STIGMERGY_AGENT_API_TOKEN="+tokens["agent"])
 	if err := os.MkdirAll(filepath.Dir(output), 0700); err != nil {
 		return err
 	}

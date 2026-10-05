@@ -15,6 +15,7 @@ type Config struct {
 	ISODaemonRepository       string
 	ISODaemonRevision         string
 	ISOArtifactBaseURL        string
+	ISOArtifactPassword       string
 	ISOUploadPasswordVariable string
 	APIAuthFile               string
 	AllowUnauthenticatedAPI   bool
@@ -37,6 +38,7 @@ func Load() (Config, error) {
 		ISODaemonRepository:       envOr("ISO_DAEMON_REPOSITORY", "https://github.com/asdf57/homelabd.git"),
 		ISODaemonRevision:         envOr("ISO_DAEMON_REVISION", "main"),
 		ISOArtifactBaseURL:        strings.TrimSpace(os.Getenv("ISO_ARTIFACT_BASE_URL")),
+		ISOArtifactPassword:       os.Getenv("ISO_ARTIFACT_PASSWORD"),
 		ISOUploadPasswordVariable: envOr("ISO_UPLOAD_PASSWORD_VARIABLE", "file-registry"),
 		APIAuthFile:               strings.TrimSpace(os.Getenv("API_AUTH_FILE")),
 		AllowUnauthenticatedAPI:   os.Getenv("ALLOW_UNAUTHENTICATED_API") == "true",

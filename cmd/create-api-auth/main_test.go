@@ -54,7 +54,7 @@ func TestPrepareBootstrapPreservesSettingsAndNeverOverwrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "CONCOURSE_PASSWORD=fixture\n") || strings.Contains(string(data), "TOKEN=old") || !strings.Contains(string(data), "STIGMERGY_RUNNER_API_TOKEN=") {
+	if !strings.Contains(string(data), "CONCOURSE_PASSWORD=fixture\n") || strings.Contains(string(data), "TOKEN=old") || !strings.Contains(string(data), "STIGMERGY_RUNNER_API_TOKEN=") || !strings.Contains(string(data), "STIGMERGY_AGENT_API_TOKEN=") {
 		t.Fatal("incorrect credential composition")
 	}
 	info, _ := os.Stat(output)

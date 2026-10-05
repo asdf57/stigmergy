@@ -46,7 +46,7 @@ func generate(directory string) error {
 		return err
 	}
 	// Docker --env-file accepts this single-line JSON verbatim; do not shell-source it.
-	environment := fmt.Sprintf("STIGMERGY_API_TOKEN=%s\nSTIGMERGY_API_POLICY=%s\nSTIGMERGY_RUNNER_API_TOKEN=%s\n", policy.Identities[0].Token, document, policy.Identities[2].Token)
+	environment := fmt.Sprintf("STIGMERGY_API_TOKEN=%s\nSTIGMERGY_API_POLICY=%s\nSTIGMERGY_RUNNER_API_TOKEN=%s\nSTIGMERGY_AGENT_API_TOKEN=%s\n", policy.Identities[0].Token, document, policy.Identities[2].Token, policy.Identities[1].Token)
 	return os.WriteFile(filepath.Join(directory, "bootstrap.env"), []byte(environment), 0600)
 }
 

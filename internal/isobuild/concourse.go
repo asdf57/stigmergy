@@ -17,6 +17,7 @@ type Config struct {
 	PublicAPIURL           string
 	ArtifactBaseURL        string
 	UploadPasswordVariable string
+	AgentTokenVariable     string
 }
 
 // Input content is compared directly against manifests, independent of commits
@@ -27,7 +28,7 @@ func Inputs(image registry.ISO, digest string, config Config) (string, error) {
 	}
 	value := map[string]any{
 		"isoUid": image.Metadata.UID, "distribution": image.Spec.Distribution, "version": image.Spec.Version,
-		"architecture": image.Spec.Architecture, "bootMode": image.Spec.BootMode, "trustBundleDigest": digest, "recipeVersion": "1",
+		"architecture": image.Spec.Architecture, "bootMode": image.Spec.BootMode, "trustBundleDigest": digest, "recipeVersion": "1", "agentEnrollment": "embedded",
 		"apiEndpoint": config.PublicAPIURL, "artifactBaseURL": strings.TrimRight(config.ArtifactBaseURL, "/"),
 		"builderRepository": config.BuilderRepository, "builderBranch": config.BuilderBranch,
 		"daemonRepository": config.DaemonRepository, "daemonBranch": config.DaemonBranch,
@@ -74,7 +75,11 @@ func RenderConcourse(image registry.ISO, repository registry.GitRepository, gitK
 	if image.Spec.Distribution == "debian" {
 		builderRepo, builderTag = "debian", "trixie"
 	}
-	build := task(builderRepo, builderTag, "/bin/bash", []string{"image-inputs", "builder", "homelabd", "homelabd-bin"}, []string{"image-output"}, map[string]any{"IMAGE_INPUT_PATH": image.Spec.BuildInputs.Path})
+	agentVariable := config.AgentTokenVariable
+	if agentVariable == "" {
+		agentVariable = "stigmergy-agent-token"
+	}
+	build := task(builderRepo, builderTag, "/bin/bash", []string{"image-inputs", "builder", "homelabd", "homelabd-bin"}, []string{"image-output"}, map[string]any{"IMAGE_INPUT_PATH": image.Spec.BuildInputs.Path, "HOMELABD_API_TOKEN": "((" + agentVariable + "))"})
 	build["run"] = map[string]any{"path": "/bin/bash", "args": []string{"builder/roles/os/files/ci/build-image.sh"}}
 	publish := task("python", "3.13-alpine", "python3", []string{"builder", "image-output"}, nil, map[string]any{"FILE_REGISTRY_PASSWORD": "((" + config.UploadPasswordVariable + "))"})
 	publish["run"] = map[string]any{"path": "python3", "args": []string{"builder/roles/os/files/ci/publish.py"}}

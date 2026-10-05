@@ -22,7 +22,7 @@ func TestPipelineUsesSnapshotsSourcesAndVersionedScripts(t *testing.T) {
 	if err := yaml.Unmarshal([]byte(result), &parsed); err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"images/test/**", "roles/os/files/**", "((automation/git.privateKey))", "ci/build-image.sh", "ci/publish.py", "serial: true", "((upload))"} {
+	for _, expected := range []string{"images/test/**", "roles/os/files/**", "((automation/git.privateKey))", "ci/build-image.sh", "ci/publish.py", "serial: true", "((upload))", "HOMELABD_API_TOKEN: ((stigmergy-agent-token))"} {
 		if !strings.Contains(result, expected) {
 			t.Fatal("missing", expected)
 		}

@@ -433,10 +433,15 @@ snapshot; authority identity and current desired trust are rechecked. Status
 permissions are separate from spec permissions. Initially the trusted runner
 has broad Server-status permission; field-level ownership is deferred.
 
-Public live images do not contain API bearer tokens. Enroll their daemon using
-a separate restricted token over trusted console/verified SSH before disk
-provisioning; preserve that enrollment in the installed system. Concourse's
-external-store policy must explicitly exclude CA private material.
+Live images embed only the restricted agent API token, injected through private
+Concourse credentials rather than Git. The shared installer creates root-owned
+/etc/homelabd (0700) and its environment file (0600); disk provisioning preserves
+the enrollment. ISO and netboot artifacts must require authenticated reads:
+anyone who downloads an image can extract its token. The publisher fails closed
+if storage allows anonymous reads. Token rotation requires rebuilding all images.
+Unauthenticated iPXE downloads cannot consume these private artifacts; authenticated
+netboot delivery is a separate requirement, without public storage credentials.
+Concourse's external-store policy must explicitly exclude CA private material.
 
 The management username and managed-Linux inventory ansible_user remain fixed
 to ansible. Ordinary user creation belongs to the provisioning playbook.

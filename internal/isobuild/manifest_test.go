@@ -15,6 +15,11 @@ import (
 func TestManifestSelectionMatchesContentLifetimeAndStartOrder(t *testing.T) {
 	manifests := map[string]Manifest{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("PW") != "pipeline:test-only" {
+			t.Error("missing artifact-reader credentials")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 		if r.URL.RawQuery == "ls" {
 			files := []map[string]string{{"href": "https://evil.invalid/steal"}, {"href": "../other.json"}}
 			for id := range manifests {
@@ -48,7 +53,7 @@ func TestManifestSelectionMatchesContentLifetimeAndStartOrder(t *testing.T) {
 	replacement := manifests[ids[3]]
 	replacement.ISOUID = "replaced-lifetime"
 	manifests[ids[3]] = replacement
-	reader := &CopypartyReader{BaseURL: server.URL, Client: server.Client()}
+	reader := &CopypartyReader{BaseURL: server.URL, Client: server.Client(), Password: "test-only"}
 	latest, err := reader.Latest(context.Background(), "iso-uid", "current", "digest")
 	if err != nil || latest == nil || latest.BuildID != ids[1] {
 		t.Fatalf("selection: %+v %v", latest, err)

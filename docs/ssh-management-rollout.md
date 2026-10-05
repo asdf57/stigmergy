@@ -81,7 +81,8 @@ Configure the API deployment:
 | Setting | Purpose |
 | --- | --- |
 | `PUBLIC_API_URL` | HTTPS API address used by images and runners. |
-| `ISO_ARTIFACT_BASE_URL` | HTTPS Copyparty base URL, with public artifact/manifest reads. |
+| `ISO_ARTIFACT_BASE_URL` | HTTPS Copyparty base URL; ISO artifacts and manifests require authentication. |
+| `ISO_ARTIFACT_PASSWORD` | Private controller credential for reading Copyparty artifacts; supplied from `FILE_REGISTRY_PASSWORD`. |
 | `ISO_BUILDER_REPOSITORY` | Public HTTPS ansible-roles repository; defaults to the project repository. |
 | `ANSIBLE_ROLES_REVISION` | Builder and provisioning source branch. |
 | `ISO_DAEMON_REPOSITORY`, `ISO_DAEMON_REVISION` | Public HTTPS homelabd source and branch. |
@@ -177,10 +178,17 @@ image explicitly for Debian hosts. Bootstrap-image selection is separate from
 the installed operating system. iPXE refuses unresolved/replaced image identities
 and incompatible authorities rather than falling back to distro aliases.
 
-Live images contain no API bearer token. Enroll each daemon separately over a
-trusted console or verified SSH connection: install root-owned
-`/etc/homelabd/environment`, mode 0600, containing `API_TOKEN=<restricted-agent-token>`,
-then restart homelabd. A live-host source installation can instead receive
+Live images embed the restricted agent token through Concourse's private
+`stigmergy-agent-token` credential, never through Git. The installer creates
+root-owned `/etc/homelabd` (0700) and `environment` (0600), containing
+`API_TOKEN=<restricted-agent-token>`. Provisioning preserves this enrollment.
+Token rotation requires rebuilding every image. Anyone able to read an image
+can extract its token: filesystem permissions do not prevent offline extraction.
+The Copyparty `iso-resources` volume therefore requires authentication, and the
+publisher refuses anonymous-readable storage. Download ISOs with the `pipeline`
+account. Unauthenticated iPXE artifact downloads cannot boot these private images;
+authenticated netboot delivery must be configured separately, without exposing
+storage passwords in public boot scripts. A live-host source installation can receive
 `HOMELABD_API_TOKEN_FILE=/absolute/token-file` and
 `SSH_CA_BUNDLE_SOURCE=/absolute/public-bundle` when running `setup/install.sh`.
 Do not copy the admin or runner token into the daemon.
