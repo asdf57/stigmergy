@@ -40,6 +40,9 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, request controller.Req
 	if err != nil {
 		return fmt.Errorf("decode Server %q: %w", request.Name, err)
 	}
+	if server.Metadata.DeletionTimestamp != nil {
+		return r.releaseMachines(ctx, server.Metadata.Name, server.Metadata.UID, nil)
+	}
 
 	location := canonicalLocation(server.Spec.MachineSelector.Location)
 	machines, err := r.store.List(ctx, registry.MachineResource.Kind)

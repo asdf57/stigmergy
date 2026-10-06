@@ -8,6 +8,10 @@
 
 ## Summary
 
+Recurring external operator pipelines, automatic Server host-key ownership,
+and first-boot enrollment are developed in
+[RFC 0002](0002-external-operators-and-first-boot-ssh-trust.md).
+
 The immediate goal is to create SSH CA key pairs, resolve their public trust
 bundle, and build that bundle into bootable images. Reuse the existing key,
 secret, Git, and pipeline resources. Add ISO orchestration and CA trust

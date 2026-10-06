@@ -3436,6 +3436,40 @@ components:
             required:
                 - enabled
             type: object
+        ServerHostSSHStatus:
+            additionalProperties: false
+            properties:
+                bootstrapPublicKey:
+                    type: string
+                fingerprint:
+                    type: string
+                installedFingerprint:
+                    type: string
+                installedKeyPairRef:
+                    $ref: '#/components/schemas/ResourceReference'
+                keyPairRef:
+                    $ref: '#/components/schemas/ResourceReference'
+                keyReady:
+                    type: boolean
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - BootstrapPinned
+                        - Ready
+                        - Failed
+                        - Conflict
+                    type: string
+                publicKey:
+                    type: string
+                reason:
+                    type: string
+            type: object
         ServerInstallationSource:
             additionalProperties: false
             properties:
@@ -3794,6 +3828,8 @@ components:
                     $ref: '#/components/schemas/ServerFeatureStatuses'
                 fqdn:
                     type: string
+                hostSSH:
+                    $ref: '#/components/schemas/ServerHostSSHStatus'
                 installedSSHTrustBundleDigest:
                     type: string
                 machineRef:

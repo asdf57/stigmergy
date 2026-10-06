@@ -38,6 +38,7 @@ authenticated API traffic over HTTPS. Policy updates take effect after restart.
     {"name":"runner", "token":"RUNNER_TOKEN", "permissions":[
       {"kind":"InventoryCaptureGroup", "methods":["GET"]},
       {"kind":"Server", "methods":["GET"]},
+      {"kind":"SSHKeyPair", "methods":["GET"]},
       {"kind":"Server", "subresource":"status", "methods":["PATCH"]}
     ]}
   ]
@@ -58,7 +59,7 @@ and restart the API before creating CA Secrets. Do not use
 `ALLOW_UNAUTHENTICATED_API=true` with real private material.
 
 Bootstrap API tasks and `homelab-init/upload.sh` send the admin bearer token.
-The web and Android clients accept a session-only bearer token.
+The web and Android clients accept a bearer token.
 
 To test from Swagger, open `/docs/`, click **Authorize**, and paste the token
 without the `Bearer ` prefix. **Try it out** automatically sends the standard
@@ -91,20 +92,28 @@ Configure the API deployment:
 
 The full bootstrap Compose template supplies runner parameters referring to
 `((stigmergy-runner-token))`, `((ssh/clients/ansible-runner.privateKey))`,
-`((ansible-runner-certificate))`, and `((ansible-known-hosts))`.
-Create the runner-token and known-hosts credentials as `Secret` resources with
-data `{"value":"..."}` and paths matching those variable names at `SecretStore/openbao`.
+and `((ansible-runner-certificate))`. Bootstrap creates the runner-token Secret;
+its value must match the runner API policy. Managed Server known_hosts is generated
+from verified Server public identities, not a separate manually uploaded Secret.
 SSHCertificateController owns the certificate Secret; do not upload a competing
-manual Secret at `ansible-runner-certificate`. The runner token must match
-its API policy identity. Provision known hosts from independently
-verified host keys, not an unverified `ssh-keyscan` or daemon report.
-Key known-hosts entries by Server name, using `HostKeyAlias=inventory_hostname`,
-not merely by a discovered IP address: an agent must not redirect a Server's
-provisioning to another trusted fleet member. The shipped server variables and
-trust playbook set that alias. Preserve this invariant in custom inventories.
+manual Secret at `ansible-runner-certificate`. Connections use a Server-UID-bound
+HostKeyAlias so trusting another fleet member cannot authenticate this Server.
+Existing private API policies must grant the runner GET SSHKeyPair in addition to
+its existing inventory/Server reads and Server/status PATCH. Preserve existing
+token values when editing the policy and its private bootstrap env-file.
+For existing standups, `go run ./cmd/create-api-auth --policy-source
+.local/api-auth/api-access.json --output-dir .local/api-auth-operators` prepares
+a fresh private directory with the same tokens and only the extra runner read.
+Then use that directory with --bootstrap-env-source/--bootstrap-env-output to
+compose a fresh private initialization env-file; original files are preserved.
 
-Concourse's OpenBao policy now permits only these credentials, the runner key,
-Git authentication, and publishing credentials. Apply the revised policy to
+Concourse's OpenBao policy permits these credentials, the runner key,
+Git authentication, publishing credentials, and the host operator's AppRole
+credentials. The separate ssh-host-operator policy grants reads only below
+kv2/data/secrets/ssh/hosts/ plus revocation of its own short-lived tokens.
+It cannot read CA signing keys. Bootstrap creates this AppRole and persists
+its enrollment credentials at ssh-host-operator-auth without replacing them
+on reruns. Apply the policies to
 existing OpenBao deployments too; changing a checked-in policy does not revoke
 permissions until OpenBao receives it. Bootstrap writes it on each bootstrap
 run. Additional Git keys require deliberate policy grants, never a CA wildcard.
@@ -125,7 +134,14 @@ input repository. New homelab-init manifests create:
 - `GitRepository/iso-build-inputs` (the dedicated `asdf57/iso-data` repository,
   branch `iso-build-inputs`);
 - `ISO/debian-trixie-amd64` and `ISO/arch-rolling-amd64`;
-- a generic `ssh-trust` inventory group and CommandsPipeline with schedule/commandTemplate (fresh disposable Commands are created each interval).
+- InventoryCaptureGroup/ssh-managed and Pipeline/reconcile-ssh-host-keys-ssh-managed.
+
+ServerHostKeyController creates SSHKeyPair/server-host-<Server UID> automatically
+using SERVER_HOST_KEY_SECRET_STORE (default openbao), at ssh/hosts/<Server UID>.
+Do not create per-Server SSHKeyPair manifests. Its public projection is
+status.hostSSH.keyPairRef/publicKey/fingerprint/keyReady; the external operator
+separately reports installedKeyPairRef/installedFingerprint/observedGeneration
+and phase. Missing or replaced established keys are not silently regenerated.
 
 Apply through `homelab-init/upload.sh` using the admin token. Local
 `groupVarsRef` conveniences are expanded from `GroupVars/*.yml` into ordinary
@@ -199,21 +215,43 @@ For an interactive runner, pass homelabc `run` the absolute paths:
 --api-token-file /path/runner-token
 --ssh-private-key-file /path/runner-key
 --ssh-certificate-file /path/runner-key-cert.pub
---ssh-known-hosts-file /path/verified-known-hosts
 ```
 
 Files are mounted read-only and must be readable by container UID 1000. Runner
-initialization fails closed if credentials are missing. It never enumerates
-Server key references or downloads arbitrary private Secrets.
+initialization resolves the capture group and verified Server public identities
+through the API and refuses unmanaged hosts. It never downloads host private keys.
+An optional explicit --ssh-known-hosts-file supports non-Server administrative
+inventories; ordinary commands never perform TOFU automatically.
 
 Provisioning defaults to management access enabled, installs the same fixed
 account service/timer and daemon into `/mnt`, preserves the separate agent
 enrollment, and disables root SSH. Enrollment is checked before disk changes.
 Ordinary users and their keys remain Ansible's responsibility.
-The installed OS receives the verified live SSH host keys to preserve identity
-across its first reboot. A later fresh live-image boot generates new host keys
-and needs trusted-console verification/enrollment again; unattended SSH host
-certificate issuance is not implemented by this milestone.
+The installed OS receives the verified managed live SSH host key to preserve
+identity across its first reboot. Provisioning checks that the live private key
+derives the desired public identity before copying it into /mnt.
+
+The host-key operator runs every five minutes, or via a manual Concourse trigger.
+For a fresh Server, it authenticates as ansible using accept-new on the first
+SSH connection, persists the initial public pin through conditional Server/status
+PATCH, then uses strict checking on retries. Only after pin persistence does it
+read the managed private host key from OpenBao, install it atomically, validate
+and reload sshd, and verify a fresh connection against ONLY the managed key.
+The bootstrap pin is removed after verified convergence. Keys are staged in
+private temporary directories, never pipeline outputs or Git.
+
+This is TOFU: a first-contact impersonator can receive the managed private host
+key. The public embedded agent token and its discovery claims do not authenticate
+machines. V1 explicitly trusts first-contact network/address selection. No KVM
+or console integration participates in enrollment.
+
+Unexpected key changes stop the operator and commands. A planned fresh ISO boot
+requires the administrator to pause the operator, GET the Server, then PATCH its
+/status using metadata.uid and If-Match, clearing hostSSH.bootstrapPublicKey,
+installedKeyPairRef and installedFingerprint to null and setting phase Pending.
+Resume the operator only after checking the intended address/binding. Keep the
+controller-owned keyPairRef/publicKey/fingerprint; reenrollment reinstalls the
+same identity. There is no automatic reset on a verification failure.
 
 The effective sshd configuration must not trust daemon-writable key sources.
 Operator-supplied Match blocks and drop-ins must preserve this boundary.
@@ -223,16 +261,19 @@ silently adopt or delete an unrecognized identity.
 
 ## 5. Rotate installed trust without provisioning disks
 
-After confirming a Server is installed/enrolled, add the opt-in label
-`homelab.io/ssh-management: enabled`. The dedicated `ssh-trust` CommandsPipeline
-creates a fresh disposable Command every five minutes from commandTemplate,
-with one-day TTL, invoking only `plays/ssh_trust.yml`. It skips overlapping
-scheduled runs. Completion, build IDs and cleanup are tracked per request.
-The playbook installs trust, validates/reloads SSH, reconnects using verified
-host keys and a CA certificate, and PATCHes the Server object's status through
-`/api/v1alpha1/servers/<name>/status`. It sends `If-Match` with the verified
-snapshot's resourceVersion and a body containing `metadata.uid` plus
-`status.installedSSHTrustBundleDigest`. Server/CA lifetime and desired digest
+Add the opt-in label `homelab.io/ssh-management: enabled` to Servers before
+bootstrap. One persistent Pipeline/reconcile-ssh-host-keys-ssh-managed has a
+serial operator job and a Concourse time resource (5m). Its manifest lives in
+homelab-init/Pipeline; upload.sh applies it and the existing generic Pipeline
+controller configures Concourse. No API scheduler creates Commands for its ticks.
+Each build consumes a Git-pinned ansible-roles revision and reads current API
+state. After host-key verification, plays/ssh_trust.yml installs user-CA trust,
+validates/reloads SSH, and reconnects using verified host keys and a CA certificate.
+The Python operator then rereads current state and PATCHes both host identity
+observations and installedSSHTrustBundleDigest through the Server's /status.
+It uses the current If-Match revision, preserves unrelated writers, retries
+status conflicts, and verifies the UID, generation, binding and desired digest
+still match the state actually installed. Server/CA lifetime and desired digest
 checks remain. A disk checksum alone or daemon report does not establish convergence.
 
 All resource types with status schemas support the same generic PATCH endpoint.
@@ -242,6 +283,15 @@ broad Server-status permission for now, not field-level ownership enforcement.
 It cannot edit Server spec. Treat it as a trusted status writer; finer-grained
 status authorization is deferred.
 
+Operator orchestration: ansible-roles/operators/ssh_host_keys.py; reusable API/SSH
+primitives: operators/common.py; ordinary runner trust: operators/runner_trust.py;
+installation: plays/ssh_host_keys.yml and roles/ssh_host_key. The runner's
+profile.d/init.sh initializes operator credentials without requiring a prebuilt
+known_hosts file; the operator constructs scoped trust before any Ansible call.
+One pass is bounded, handles other targets after a per-target failure, and fails
+the build for failed actionable targets. Pending key/address/CA dependencies are
+reported as pending. Keep host-key operator groups nonoverlapping in v1.
+
 Add a new key to `trustedKeyRefs`, retain the old signer during image and host
 rollout, verify a controlled certificate signed by the new key, then switch the
 signer. Keep old trust for offline hosts/media and outstanding certificates.
@@ -250,6 +300,12 @@ and images cannot be retired through their protected lifecycle until consumers
 are removed or changed.
 
 ## Validation boundary
+
+When applying over an existing installation, stop/remove the previous recurring
+trust executor and its owned requests/pipeline before activating the operator.
+The manifest uploader upserts declared resources; removing a file alone does not
+delete an already deployed resource. Do not run two host-key operators against
+overlapping target groups.
 
 Unit/integration tests exercise publication ownership/no-op/cleanup, resource
 identity replacement, stale manifest selection, CA rotation, API permissions and

@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	ServerHostKeySecretStore  string
 	ISOBuilderRepository      string
 	CommandRunnerParameters   map[string]string
 	ISODaemonRepository       string
@@ -33,6 +34,7 @@ type Config struct {
 
 func Load() (Config, error) {
 	config := Config{
+		ServerHostKeySecretStore:  envOr("SERVER_HOST_KEY_SECRET_STORE", "openbao"),
 		ISOBuilderRepository:      envOr("ISO_BUILDER_REPOSITORY", "https://github.com/asdf57/ansible-roles.git"),
 		ISODaemonRepository:       envOr("ISO_DAEMON_REPOSITORY", "https://github.com/asdf57/homelabd.git"),
 		ISODaemonRevision:         envOr("ISO_DAEMON_REVISION", "main"),

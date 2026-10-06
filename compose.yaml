@@ -12,6 +12,7 @@ services:
       ISO_BUILDER_REPOSITORY: ${ISO_BUILDER_REPOSITORY:-https://github.com/asdf57/ansible-roles.git}
       COMMAND_RUNNER_IMAGE: ${COMMAND_RUNNER_IMAGE:-}
       COMMAND_RUNNER_PARAMETERS: ${COMMAND_RUNNER_PARAMETERS:-}
+      SERVER_HOST_KEY_SECRET_STORE: ${SERVER_HOST_KEY_SECRET_STORE:-openbao}
       ETCD_ENDPOINTS: ${ETCD_ENDPOINTS:-http://etcd:2379}
       # Available to an external SecretStore configured with
       # tokenEnvironmentVariable: OPENBAO_TOKEN.

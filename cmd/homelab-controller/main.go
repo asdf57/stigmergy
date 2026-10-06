@@ -96,6 +96,8 @@ func run() error {
 	machineReportController := controller.NewController(machineReportReconciler)
 	serverReconciler := servercontroller.NewReconciler(resourceStore)
 	serverController := controller.NewController(serverReconciler)
+	serverHostKeyReconciler := servercontroller.NewHostKeyReconciler(resourceStore, configuration.ServerHostKeySecretStore)
+	serverHostKeyController := controller.NewController(serverHostKeyReconciler)
 	serverSSHReconciler := serverssh.NewReconciler(resourceStore)
 	serverSSHController := controller.NewController(serverSSHReconciler)
 	inventoryReconciler := inventory.NewInventoryCaptureGroupReconciler(resourceStore)
@@ -235,6 +237,14 @@ func run() error {
 				Watches: []controller.Watch{
 					{Kind: "Server", Mapper: controller.IdentityMapper},
 					{Kind: "Machine", Mapper: serverReconciler.RequestsForMachine},
+				},
+			},
+			{
+				Name: "server-host-key-controller", Controller: serverHostKeyController,
+				Watches: []controller.Watch{
+					{Kind: "Server", Mapper: controller.IdentityMapper},
+					{Kind: "SSHKeyPair", Mapper: serverHostKeyReconciler.RequestsForDependency},
+					{Kind: "SecretStore", Mapper: serverHostKeyReconciler.RequestsForDependency},
 				},
 			},
 			{

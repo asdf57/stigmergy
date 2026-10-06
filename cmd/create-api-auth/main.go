@@ -25,7 +25,7 @@ func generate(directory string) error {
 	permissions := map[string][]api.AccessPermission{
 		"admin":  {{Kind: "*", Methods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"}}},
 		"agent":  {{Kind: "MachineReport", Methods: []string{"POST"}}, {Kind: "Server", Methods: []string{"GET"}}},
-		"runner": {{Kind: "InventoryCaptureGroup", Methods: []string{"GET"}}, {Kind: "Server", Methods: []string{"GET"}}, {Kind: "Server", Subresource: "status", Methods: []string{"PATCH"}}},
+		"runner": {{Kind: "InventoryCaptureGroup", Methods: []string{"GET"}}, {Kind: "Server", Methods: []string{"GET"}}, {Kind: "SSHKeyPair", Methods: []string{"GET"}}, {Kind: "Server", Subresource: "status", Methods: []string{"PATCH"}}},
 	}
 	for _, name := range []string{"admin", "agent", "runner"} {
 		bytes := make([]byte, 32)
@@ -52,9 +52,22 @@ func generate(directory string) error {
 
 func main() {
 	directory := flag.String("output-dir", ".local/api-auth", "fresh private output directory")
+	policySource := flag.String("policy-source", "", "existing policy to copy with runner public host-key reads; preserves all tokens")
 	source := flag.String("bootstrap-env-source", "", "existing Docker env-file to combine with the private API credentials")
 	output := flag.String("bootstrap-env-output", "", "fresh private combined Docker env-file (never overwrites)")
 	flag.Parse()
+	if *policySource != "" {
+		if *source != "" || *output != "" {
+			fmt.Fprintln(os.Stderr, "prepare the policy directory before composing its bootstrap environment")
+			os.Exit(1)
+		}
+		if err := prepareOperatorPolicy(*policySource, *directory); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println("Prepared private operator policy; existing tokens preserved and no credentials printed.")
+		return
+	}
 	if *source != "" || *output != "" {
 		if err := prepareBootstrap(*directory, *source, *output); err != nil {
 			fmt.Fprintln(os.Stderr, err)
