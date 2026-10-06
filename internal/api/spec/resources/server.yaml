@@ -172,6 +172,8 @@ ServerProvisioningSpec:
   required: [enabled]
   properties:
     enabled: {type: boolean}
+    reprovision: {type: integer, format: int64, minimum: 0, default: 0}
+    targetDisk: {type: string, pattern: '^/dev/disk/by-id/[^/]+$'}
 
 ServerReconciliationSpec:
   type: object
@@ -284,7 +286,16 @@ ServerProvisioningStatus:
   required: [provisioned]
   properties:
     provisioned: {type: boolean}
-    phase: {type: string}
+    observedReprovision: {type: integer, format: int64, minimum: 0}
+    requestedReprovision: {type: integer, format: int64, minimum: 0}
+    phase: {type: string, enum: [PreparingBoot, AwaitingLive, Installing, AwaitingInstalled, Verifying, Succeeded, Blocked]}
+    maintenance: {type: boolean}
+    bootTarget: {type: string, enum: [live, installed]}
+    sourceBootID: {type: string}
+    liveBootID: {type: string}
+    netbootArmed: {type: boolean}
+    bootstrapPublicKey: {type: string}
+    snapshot: {$ref: '#/ServerProvisioningSnapshot'}
     attemptID: {type: string}
     attemptNumber: {type: integer, minimum: 0}
     observedServerGeneration: {type: integer, format: int64, minimum: 0}
@@ -293,6 +304,29 @@ ServerProvisioningStatus:
     completedAt: {type: string, format: date-time}
     backendRunID: {type: string}
     message: {type: string}
+
+ServerProvisioningSnapshot:
+  type: object
+  additionalProperties: false
+  required: [serverUID, machineRef, keyPairRef, isoRef, authorityRef, trustBundleDigest, isoBuildID, distribution, artifacts, targetDisk, diskIdentity, bootMAC, inputs, codeRevision, planDigest]
+  properties:
+    serverUID: {type: string, minLength: 1}
+    machineRef: {$ref: '#/components/schemas/ResourceReference'}
+    keyPairRef: {$ref: '#/components/schemas/ResourceReference'}
+    isoRef: {$ref: '#/components/schemas/ResourceReference'}
+    authorityRef: {$ref: '#/components/schemas/ResourceReference'}
+    trustBundleDigest: {type: string}
+    isoBuildID: {type: string, minLength: 1}
+    distribution: {type: string, enum: [arch, debian]}
+    artifacts:
+      type: array
+      items: {$ref: '#/components/schemas/ISOArtifact'}
+    targetDisk: {type: string, pattern: '^/dev/disk/by-id/[^/]+$'}
+    diskIdentity: {type: object, additionalProperties: true}
+    bootMAC: {type: string, pattern: '^[a-f0-9]{2}(:[a-f0-9]{2}){5}$'}
+    inputs: {type: object, additionalProperties: true}
+    codeRevision: {type: string, minLength: 1}
+    planDigest: {type: string, minLength: 1}
 
 ServerResourceSummary:
   type: object

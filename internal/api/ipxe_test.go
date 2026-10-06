@@ -23,6 +23,36 @@ type ipxeStore struct {
 	server  resource.Resource
 }
 
+func TestPinnedBootDoesNotFollowNewISOOrAuthorityBuild(t *testing.T) {
+	resources := testutil.NewStore(
+		resource.Resource{Kind: "ISO", Metadata: resource.Metadata{Name: "iso", UID: "iso-uid"}},
+		resource.Resource{Kind: "SSHCertificateAuthority", Metadata: resource.Metadata{Name: "ca", UID: "ca-uid"}},
+		resource.Resource{Kind: "SSHKeyPair", Metadata: resource.Metadata{Name: "key", UID: "key-uid"}},
+	)
+	host := registry.NewServer(resource.Metadata{Name: "host", UID: "host-uid"}, apigen.ServerSpec{})
+	ref := apigen.ResourceReference{Name: "machine", Uid: "machine-uid"}
+	snapshot := apigen.ServerProvisioningSnapshot{ServerUID: "host-uid", MachineRef: ref,
+		IsoRef: apigen.ResourceReference{Name: "iso", Uid: "iso-uid"}, AuthorityRef: apigen.ResourceReference{Name: "ca", Uid: "ca-uid"},
+		KeyPairRef: apigen.ResourceReference{Name: "key", Uid: "key-uid"}, Distribution: "debian", IsoBuildID: "old-build",
+		Artifacts: []apigen.ISOArtifact{{Type: "kernel", Url: "https://files.example/old-build/kernel"}, {Type: "initrd", Url: "https://files.example/old-build/initrd"}, {Type: "rootfs", Url: "https://files.example/old-build/rootfs"}}}
+	host.Status = &apigen.ServerStatus{MachineRef: &ref, Provisioning: &apigen.ServerProvisioningStatus{Snapshot: &snapshot}}
+	api := &Server{store: resources}
+	boot := func() string {
+		w := httptest.NewRecorder()
+		api.servePinnedBoot(w, httptest.NewRequest("GET", "/ipxe/test", nil), host)
+		return w.Body.String()
+	}
+	if body := boot(); !strings.Contains(body, "old-build/kernel") || strings.Contains(body, "exit 1") {
+		t.Fatal(body)
+	}
+	replaced := resources.Resources["ISO/iso"]
+	replaced.Metadata.UID = "replacement"
+	resources.Resources["ISO/iso"] = replaced
+	if !strings.Contains(boot(), "exit 1") {
+		t.Fatal("booted replacement identity")
+	}
+}
+
 func TestISOBootRefusesStaleTrustAndReplacedIdentities(t *testing.T) {
 	image := resource.Resource{APIVersion: resource.APIVersion, Kind: "ISO", Metadata: resource.Metadata{Name: "image", UID: "image-uid", Generation: 1, ResourceVersion: "1"}, Spec: map[string]any{"distribution": "debian", "sshCertificateAuthorityRef": map[string]any{"name": "ca"}}, Status: map[string]any{"phase": "Ready", "observedGeneration": 1, "desiredTrustBundleDigest": "digest", "authorityRef": map[string]any{"name": "ca", "uid": "ca-uid"}, "artifacts": []any{map[string]any{"type": "kernel", "url": "https://files.example/vmlinuz", "sha256": strings.Repeat("a", 64)}, map[string]any{"type": "initrd", "url": "https://files.example/initrd.img", "sha256": strings.Repeat("a", 64)}, map[string]any{"type": "rootfs", "url": "https://files.example/rootfs", "sha256": strings.Repeat("a", 64)}}}}
 	authority := resource.Resource{APIVersion: resource.APIVersion, Kind: "SSHCertificateAuthority", Metadata: resource.Metadata{Name: "ca", UID: "ca-uid", Generation: 1}, Spec: map[string]any{}, Status: map[string]any{"phase": "Ready", "observedGeneration": 1, "trustBundleDigest": "digest"}}
@@ -73,7 +103,7 @@ func (s *ipxeStore) Get(_ context.Context, kind, name string) (resource.Resource
 	return resource.Resource{}, store.ErrNotFound
 }
 
-func TestIPXEResolvesServerBoundByPortLocation(t *testing.T) {
+func TestIPXEBoundServerWithoutProvisioningDoesNotBootLive(t *testing.T) {
 	t.Parallel()
 
 	server := registry.NewServer(resource.Metadata{Name: "desktop", UID: "server-uid"}, apigen.ServerSpec{
@@ -87,6 +117,7 @@ func TestIPXEResolvesServerBoundByPortLocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	storedServer.Status = map[string]any{"machineRef": map[string]any{"name": "machine-1", "uid": "machine-uid"}}
 	machine := registry.NewMachine(resource.Metadata{Name: "machine-1", UID: "machine-uid"}, apigen.MachineSpec{
 		Location: apigen.MachineLocation{LldpPort: "ether3", SwitchMac: "00:11:22:33:44:55"},
 	})
@@ -112,7 +143,7 @@ func TestIPXEResolvesServerBoundByPortLocation(t *testing.T) {
 	if contentType := response.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/plain") {
 		t.Fatalf("Content-Type = %q", contentType)
 	}
-	want := "#!ipxe\necho Booting desktop\nchain /debian_boot.ipxe\n"
+	want := "#!ipxe\necho No eligible live provisioning request\nsleep 10\nexit 1\n"
 	if response.Body.String() != want {
 		t.Fatalf("body = %q, want %q", response.Body.String(), want)
 	}

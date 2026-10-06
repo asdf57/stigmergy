@@ -109,6 +109,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		v.Status.Revision = &result.Revision
 		return r.save(ctx, v, apigen.CommandStatusPhasePending, "InputsPublished", "Immutable script inputs published")
 	}
+	blocked, err := r.maintenanceActive(ctx)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return r.save(ctx, v, apigen.CommandStatusPhasePending, "ProvisioningMaintenance", "Administrative dispatch is paused while a Server is in provisioning maintenance")
+	}
 	acquired, err := r.acquire(ctx, v)
 	if err != nil {
 		return err
@@ -151,6 +158,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	if err != nil {
 		return err
 	}
+	// The provisioner drains a Command already past its durable dispatch claim.
+	blocked, err = r.maintenanceActive(ctx)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return r.save(ctx, updated, apigen.CommandStatusPhaseFailed, "ProvisioningMaintenance", "Not submitted: provisioning reserved execution during dispatch")
+	}
 	build, err := r.backend.Trigger(ctx, provider, credential, name)
 	if err != nil {
 		return r.save(ctx, updated, apigen.CommandStatusPhaseDispatching, "SubmissionUncertain", "Submission result is unknown; observing builds without resubmitting")
@@ -158,6 +173,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	updated.Status.BuildID = &build.ID
 	return r.saveBuild(ctx, updated, build)
 }
+
+// A conservative platform-wide gate includes overlapping capture groups.
+// Already submitted builds are drained by the provisioner before reboot/erase.
+func (r *Reconciler) maintenanceActive(ctx context.Context) (bool, error) {
+	servers, err := r.store.List(ctx, registry.ServerResource.Kind)
+	if err != nil {
+		return false, err
+	}
+	for _, server := range servers.Items {
+		p, _ := server.Status["provisioning"].(map[string]any)
+		if p["maintenance"] == true {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *Reconciler) accept(ctx context.Context, v registry.Command) error {
 	raw, err := r.store.Get(ctx, registry.CommandsPipelineResource.Kind, v.Spec.CommandsPipelineRef.Name)
 	if errors.Is(err, store.ErrNotFound) {

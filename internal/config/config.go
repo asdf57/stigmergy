@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	DiscoveryISO              string
 	ServerHostKeySecretStore  string
 	ISOBuilderRepository      string
 	CommandRunnerParameters   map[string]string
@@ -34,6 +35,7 @@ type Config struct {
 
 func Load() (Config, error) {
 	config := Config{
+		DiscoveryISO:              strings.TrimSpace(os.Getenv("DISCOVERY_ISO")),
 		ServerHostKeySecretStore:  envOr("SERVER_HOST_KEY_SECRET_STORE", "openbao"),
 		ISOBuilderRepository:      envOr("ISO_BUILDER_REPOSITORY", "https://github.com/asdf57/ansible-roles.git"),
 		ISODaemonRepository:       envOr("ISO_DAEMON_REPOSITORY", "https://github.com/asdf57/homelabd.git"),

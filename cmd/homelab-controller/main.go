@@ -73,7 +73,7 @@ func run() error {
 
 	resourceStore := etcdstore.New(etcdClient, configuration.EtcdPrefix)
 
-	handler := api.New(logger, resourceStore, configuration.RequestTimeout)
+	handler := api.New(logger, resourceStore, configuration.RequestTimeout, configuration.DiscoveryISO)
 	if configuration.APIAuthFile != "" {
 		policy, err := api.LoadAccessPolicy(configuration.APIAuthFile)
 		if err != nil {

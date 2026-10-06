@@ -10,7 +10,7 @@ import (
 )
 
 // Prepare an independent private policy directory without rotating any token
-// or overwriting the source. Only the runner's public host-key read is added.
+// or overwriting the source. Add public dependency and execution-state reads.
 func prepareOperatorPolicy(source, directory string) error {
 	policy, err := api.LoadAccessPolicy(source)
 	if err != nil {
@@ -25,18 +25,20 @@ func prepareOperatorPolicy(source, directory string) error {
 			continue
 		}
 		runnerFound = true
-		permitted := false
-		for _, permission := range identity.Permissions {
-			if permission.Kind == "SSHKeyPair" && permission.Subresource == "" && len(permission.ResourceNames) == 0 {
-				for _, method := range permission.Methods {
-					if method == "GET" {
-						permitted = true
+		for _, kind := range []string{"SSHKeyPair", "Machine", "ISO", "SSHCertificateAuthority", "Command"} {
+			permitted := false
+			for _, permission := range identity.Permissions {
+				if permission.Kind == kind && permission.Subresource == "" && len(permission.ResourceNames) == 0 {
+					for _, method := range permission.Methods {
+						if method == "GET" {
+							permitted = true
+						}
 					}
 				}
 			}
-		}
-		if !permitted {
-			identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: "SSHKeyPair", Methods: []string{"GET"}})
+			if !permitted {
+				identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: kind, Methods: []string{"GET"}})
+			}
 		}
 	}
 	if !runnerFound || tokens["admin"] == "" || tokens["agent"] == "" {

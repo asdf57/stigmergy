@@ -39,6 +39,10 @@ authenticated API traffic over HTTPS. Policy updates take effect after restart.
       {"kind":"InventoryCaptureGroup", "methods":["GET"]},
       {"kind":"Server", "methods":["GET"]},
       {"kind":"SSHKeyPair", "methods":["GET"]},
+      {"kind":"Machine", "methods":["GET"]},
+      {"kind":"ISO", "methods":["GET"]},
+      {"kind":"SSHCertificateAuthority", "methods":["GET"]},
+      {"kind":"Command", "methods":["GET"]},
       {"kind":"Server", "subresource":"status", "methods":["PATCH"]}
     ]}
   ]

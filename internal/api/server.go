@@ -25,9 +25,10 @@ type Server struct {
 	requestTimeout time.Duration
 	openAPI        *openapi3.T
 	resources      map[string]registry.Definition
+	discoveryISO   string
 }
 
-func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Duration) http.Handler {
+func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Duration, discoveryISO ...string) http.Handler {
 	specification, err := apigen.GetSpec()
 	if err != nil {
 		panic(fmt.Errorf("load embedded OpenAPI specification: %w", err))
@@ -38,6 +39,9 @@ func New(logger *slog.Logger, resourceStore store.Store, requestTimeout time.Dur
 		requestTimeout: requestTimeout,
 		openAPI:        specification,
 		resources:      make(map[string]registry.Definition, len(registry.Definitions)),
+	}
+	if len(discoveryISO) > 0 {
+		server.discoveryISO = discoveryISO[0]
 	}
 	for _, definition := range registry.Definitions {
 		server.resources[definition.CollectionPath] = definition

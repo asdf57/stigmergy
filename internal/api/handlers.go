@@ -225,6 +225,10 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 			return
 		}
 		observed := existing
+		if err := validateProvisioningSpec(existing, candidate.Spec, conditional); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+			return
+		}
 		existing.Spec = candidate.Spec
 		existing.Metadata.Labels = candidate.Metadata.Labels
 		existing.Metadata.Annotations = candidate.Metadata.Annotations
@@ -300,6 +304,10 @@ func (s *Server) patchResource(w http.ResponseWriter, r *http.Request, definitio
 	}
 	if definition.ImmutableSpec && !resource.EqualJSON(existing.Spec, validated) {
 		writeError(w, http.StatusUnprocessableEntity, "Immutable", "spec is immutable; create a new resource to execute again")
+		return
+	}
+	if err := validateProvisioningSpec(existing, validated, true); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
 	}
 	existing.Spec = validated

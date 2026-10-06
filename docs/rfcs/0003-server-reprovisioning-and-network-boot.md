@@ -3,7 +3,7 @@
 - Status: Draft; no provisioning implementation or hardware changes authorized by this RFC
 - Created: 2026-10-06
 - Scope: initial provisioning, explicit reprovision requests, API state, external execution,
-  PXE boot selection, and the installed/live SSH transition
+  GRUB/iPXE boot selection, and the installed/live SSH transition
 - Related: [RFC 0001](0001-iso-pipelines-and-ssh-management-access.md),
   [RFC 0002](0002-external-operators-and-first-boot-ssh-trust.md)
 
@@ -19,11 +19,16 @@ The API validates and stores desired/observed state and renders boot instruction
 One persistent Concourse operator executes the existing Ansible provisioning
 code. homelabd reports discovery; it does not provision disks or certify success.
 
-Every normal reboot enters a persistent iPXE bootstrap first, whether the
-previous environment was a live ISO or an installed OS. Configure firmware once
-to prefer network boot or a dedicated persistent iPXE USB. Both lead to the same
-API boot decision. Initial discovery, live provisioning and installed-OS boot
-are different outcomes of that decision, not different provisioning systems.
+Firmware normally boots disk GRUB. GRUB defaults to the installed OS and has one
+stable Homelab netboot entry that launches iPXE. For an authorized reprovision,
+the operator selects that entry for one boot, then reboots into the API-selected
+live ISO. Initial installation may start from an already-running live ISO, as
+Beelink does today; firmware PXE is not a prerequisite for that path.
+
+Normal installed boots do not depend on the API or network. A permanent boot USB,
+firmware PXE-first setup, protected bootstrap partition, and automatic recovery
+from a destroyed bootloader are not v1 requirements. The owner accepts manually
+repairing/booting a live image if GRUB, its disk, or the OS becomes unusable.
 
 Do not add a ProvisioningRequest, per-attempt Pipeline, automatic Command, or
 generic workflow engine in v1. Concourse retains execution logs; Server status
@@ -65,13 +70,15 @@ Gaps that must be closed:
 
 - Reboot/GRUB/NIC errors are currently broadly ignored.
 - Port 22 opening does not prove the intended host, boot session, or environment.
-- /ipxe/<mac> currently serves a configured live ISO regardless of whether a
-  reprovision is active: this would loop with permanent firmware PXE-first.
+- /ipxe/<mac> currently serves a configured live ISO without attempt pinning.
+  It must distinguish discovery from an active attempt and refuse stale or
+  unresolved attempt state. It does not need to choose the installed OS on every
+  normal boot: GRUB already does that locally.
 - Existing GRUB snippets disagree on names/IDs and chainloading. Passing iPXE
   commands as GRUB chainloader arguments is not a validated substitute for
   an embedded iPXE script or DHCP-delivered script.
-- Existing Linux-priority boot services can set BootNext to the current disk
-  entry and conflict with a deliberate network-boot request.
+- Existing boot-priority services must be reviewed so they do not bypass disk
+  GRUB or alter its deliberately armed one-shot netboot selection.
 - The SSH operator must not treat the deliberate live-image key change as an
   ordinary managed connection, nor race the provisioning operator.
 - InventoryCaptureGroup/servers can be Partial because Desktop is undiscovered.
@@ -118,7 +125,7 @@ status:
     observedServerGeneration: 12
     currentStage: PreparingBoot
     backendRunID: <Concourse-build-id>
-    bootTarget: live
+    bootTarget: live # Attempt intent, not the routing policy for every normal boot.
     startedAt: <timestamp>
 ```
 
@@ -209,14 +216,16 @@ Code placement:
   regenerated API/OpenAPI/client types.
 - stigmergy/internal/api: monotonic/active-attempt validation using current stored
   state and conditional updates; no custom reprovision action endpoint.
-- stigmergy/internal/api/ipxe.go: lifecycle-aware live/local boot routing.
+- stigmergy/internal/api/ipxe.go: discovery and attempt-pinned live boot routing;
+  no installed-loader chainloading or routine installed-boot dependency on the API.
 - Existing Server controllers: dependency readiness and identity relationships,
   preserving operator-owned provisioning status.
 - ansible-roles/operators/provisioning.py: bounded orchestration, attempt claiming,
   stage validation, SSH transitions, recovery and generic /status reporting.
 - ansible-roles/plays/provision.yml and roles/provision: reusable installation
   stages, not a second provisioning implementation in Python.
-- ansible-roles/roles/grub: one validated stable iPXE entry and GRUB environment.
+- ansible-roles/roles/grub: one validated stable iPXE entry, installed-OS default,
+  and tested one-shot GRUB environment handling.
 - Existing prime_nic.yml: the reviewed hardware workaround.
 - homelab-init/Pipeline: shared lifecycle job declarations; reuse ssh-managed.
 - homelabd: boot/session observations only if existing reports lack them.
@@ -230,111 +239,178 @@ attempt at a time in the single v1 job. Scheduled idle passes are safe no-ops.
 A provisioning operator may run longer than the SSH operator; configure stage
 and overall timeouts for real installation durations rather than inheriting 15m.
 
-## 5. Boot design: always enter the persistent iPXE bootstrap
-
-Choose either persistent entry path during the machine's one-time setup:
+## 5. Boot design: local GRUB default, one-shot netboot
 
 ```text
-Firmware default network boot -> iPXE --+
-                                       +-> API boot decision -> live ISO
-Firmware default boot USB ----> iPXE --+                     -> installed OS
+Normal boot:       firmware -> disk GRUB -> installed OS
+Reprovision boot:  firmware -> disk GRUB -> iPXE -> API -> pinned live ISO
+Initial install:   existing live session OR manually booted ISO/PXE -> operator
+Final reboot:      newly installed disk GRUB -> installed OS
 ```
 
-For network boot, firmware fetches the iPXE EFI binary from boot infrastructure.
-For USB boot, a small persistent boot image contains iPXE and its bootstrap
-script. The USB is not the selected distro's live image; it only obtains an
-address and contacts the common API-backed boot endpoint. An embedded script
-can contact that endpoint without relying on a DHCP-provided boot filename.
+### 5.1 Installed boot contract
+
+Install disk GRUB in the existing UEFI provisioning path, with:
+
+- The installed OS as the persistent default.
+- One stable menu-entry ID, homelab-netboot, displayed as Homelab netboot.
+- A locally installed, reviewed UEFI iPXE binary containing the common bootstrap
+  script. The GRUB entry chainloads that binary; do not depend on unverified
+  chainloader argument handling to deliver the script.
+- A known GRUB environment-block location and a configuration that honors and
+  consumes next_entry while keeping the installed OS as the normal default.
+- A visible, bounded menu timeout for manual intervention.
+
+The UEFI disk entry must reference the new GRUB installation and remain the
+normal firmware boot target. Repartitioning can invalidate the old partition
+identity even when its display name still exists; the install role must create
+or update the correct entry and verify its loader/partition, rather than relying
+on the current Debian entry surviving an Arch installation. Standard UEFI entry
+management is distinct from changing vendor BIOS settings. If the required
+firmware entry cannot be established, report a blocked final boot and request
+manual setup; do not silently declare installation successful.
+
+The netboot entry is not the persistent default. Use grub-reboot homelab-netboot
+for the next boot only; do not use grub-set-default to permanently select live.
+Read back the requested entry with grub-editenv before issuing a reboot.
+Selection is local privileged work by the provisioning role, not a new API
+action or permission granted to homelabd.
+
+The supported filesystem/storage layout must allow GRUB to clear its one-shot
+environment value at boot. A successful grub-reboot command and readback alone
+do not prove that: test consumption across a real reboot. Do not claim support
+for arbitrary RAID, encryption or filesystems before validating the environment
+block placement. See the [GRUB manual](https://www.gnu.org/software/grub/manual/grub/grub.html)
+for next_entry, grub-reboot and environment-block restrictions.
+
+Build one compatible iPXE artifact with an embedded bootstrap script in the
+existing boot-infrastructure build/setup path; do not add another API resource
+kind or per-Server iPXE build. The embedded script obtains networking, determines
+the chosen boot NIC/MAC, and chains the existing /ipxe/<mac> endpoint. It need
+not depend on PXE boot filenames or proxy-DHCP because GRUB already loaded iPXE.
+The script contains public boot configuration, not a new privileged API token.
 See [iPXE embedded scripts](https://ipxe.org/embed).
 
-Configure firmware once to prefer the chosen entry path, with an explicit tested
-recovery/fallback policy. An iPXE image cannot override firmware selection.
-UEFI variable writes from Linux may work even without a programmable firmware
-settings UI; test them rather than assuming they work. If unavailable, select
-network/USB first manually once. OS reboots and live-image reboots then use the
-same persistent entry without repeated BIOS interaction. A one-boot BootNext
-override alone does not establish this invariant.
-[efibootmgr documentation](https://github.com/rhboot/efibootmgr/blob/main/README)
-distinguishes persistent BootOrder from BootNext.
+A locally installed iPXE binary may use its own NIC driver or UEFI network
+interfaces; compatibility must be tested on Beelink. Do not assume GRUB launching
+iPXE eliminates the NIC priming requirement. Check Secure Boot state and the
+actual trust/signing requirements for GRUB -> iPXE; do not silently disable
+Secure Boot or TLS validation.
 
-Server.spec.boot.isoRef selects the live execution image;
-Server.spec.operatingSystem selects the OS installed on the target disk. They
-must not be conflated. The API decides when to serve live artifacts versus the
-verified installed loader. A long-running live instance therefore returns to
-live after an ordinary reboot for as long as that is the API's boot decision.
-Booting live never independently authorizes erasure.
+### 5.2 Discovery and API-selected live image
 
-The preferred bootstrap lives outside the replaceable OS. A dedicated USB must
-remain attached and must be excluded from every wipe/partition operation. With
-firmware network boot, the bootstrap is on the network, not on the OS disk.
-Disk GRUB remains the installed OS loader, not the control point that must be
-recreated before a live instance can reboot. Keep/reconcile existing GRUB iPXE
-entries only as deliberate recovery tools; grub-reboot is not required on every
-reprovision in this model.
+Server.spec.boot.isoRef selects the live execution image.
+Server.spec.operatingSystem selects the installed OS. Booting the live image
+never independently authorizes installation.
 
-If a disk-resident iPXE bootstrap is added later, its EFI partition must be
-protected independently of root installation and whole-disk erasure must be
-replaced with scoped partition operations. That is not a requirement for the
-network/USB v1 entry paths.
+For an unknown/unbound MAC, explicitly configure one existing Ready ISO as a
+deployment-level discovery image, initially the existing Arch image. This allows
+the agent to report and LLDP binding to resolve MAC -> Machine -> Server. Discovery
+is not permission to erase. A manually booted live image can submit the same
+reports without first passing through iPXE.
 
-Lifecycle-aware /ipxe/<mac> behavior:
+Once bound:
 
-There is a first-boot discovery dependency: MAC -> Machine -> Server requires
-the live agent to report before the LLDP-based Server binding can exist. Firmware
-PXE cannot submit that report. For an unknown/unbound MAC, explicitly configure
-one existing Ready ISO as a deployment-level discovery image (initially the
-existing Arch image). Boot it only for discovery/enrollment, never installation
-without a bound, eligible Server. It is not a new resource kind or a per-host
-pipeline. Do not use this discovery fallback for a known Server with unresolved
-or replaced ISO/CA references. Once bound, use its selected compatible boot ISO
-and install its spec.operatingSystem. The image supplies a compatible trusted
-management CA; validate that enrollment can proceed before selecting it.
+- An active attempt requiring live execution serves its pinned immutable ISO
+  build. A newly published ISO or changed CA bundle cannot change that attempt.
+- An eligible first-install host without a claimed attempt may receive its
+  compatible Ready ISO for enrollment. Claim and pin the actual live build
+  before destructive execution.
+- A known Server with no eligible/active live request, a paused/disabled request,
+  an installed-verification stage, stale binding, or missing required artifacts
+  receives a clear non-installing boot error/prompt rather than silently serving
+  a new installation environment. Do not fall back to the unknown-MAC image.
+- A failed destructive attempt does not automatically become a new eligible
+  attempt just because requestedReprovision still exceeds observedReprovision.
 
-Routing after binding:
+The API does not chainload the installed disk. Normal boot and final boot use
+GRUB's local installed-OS entry, independent of network/API availability.
+Unexpected manual netboot can stop at a recovery prompt; it never records success.
 
-- Active, dependency-ready attempt in a live-required stage: serve the pinned
-  immutable ISO build from the attempt, not whichever build is newest now.
-- Eligible first installation before claim: serve the Server's compatible Ready
-  boot ISO for discovery/enrollment; claim and pin its actual build before any
-  destructive operation. Counter 0 must not route such a host straight to disk.
-- Already provisioned with no newer request, provisioning disabled, or final
-  installed-boot stage: return to the local disk path. An unsafe failed attempt
-  is not silently reauthorized by this routing decision.
-- Invalid/stale binding, missing pinned artifacts, or unresolved required state:
-  report the error and perform no destructive operation. Operator preflight
-  must refuse the reboot; unexpected network boot needs a tested recovery path.
+If Beelink's current live session is compatible and its actual build can be
+identified and pinned, use it directly. If the session cannot satisfy the
+preflight/identity/ISO contract, stop for a deliberate live-image boot; do not
+guess its build or reboot hoping a usable GRUB exists. ISO builders/agent reports
+must expose a non-secret immutable build identifier if existing reports lack it.
 
-For installed boot, select the installed OS's distinct EFI loader and partition
-identity directly from iPXE. Do not reboot or restart the USB/firmware iPXE entry;
-that would loop back to the API. iPXE's sanboot supports UEFI filename/partition
-selection and local boot, but the exact loader/partition selection must be
-tested on Beelink. Do not assume BIOS drive 0x80 identifies the SSD when a USB is
-also present. See [iPXE sanboot](https://ipxe.org/cmd/sanboot).
+### 5.3 Arming and consuming a reprovision boot
 
-Bound network/API failures and use only a previously validated local loader as
-fallback, or present a recovery prompt when no installed loader is available.
-Fallback never authorizes installation and never records provisioning success.
-Do not depend on exiting iPXE to make firmware select the correct next device.
-TLS capabilities, Secure Boot compatibility and this NIC's driver behavior
-remain hardware acceptance requirements, not guarantees of an image format.
+For an installed Server, the operator must:
 
-Beelink PXE acceptance checklist:
+1. Verify the strict managed SSH identity, installed marker and current boot ID.
+   Check disk GRUB, the stable menu ID, iPXE artifact and environment block.
+2. Claim/pin the attempt, drain administrative work, and persist PreparingBoot.
+   Verify the pinned ISO is reachable and the boot endpoint resolves this exact
+   Machine/Server to this attempt before touching local boot selection.
+3. Prime and read back the selected NIC, persist live intent/AwaitingLive and
+   source boot ID, then arm grub-reboot and verify its readback.
+4. Recheck ownership, request, pause state and dependencies before issuing the
+   normal OS reboot. If cancellation/preparation fails before reboot, clear and
+   verify removal of the pending one-shot entry before releasing the attempt.
+5. Await both a changed boot session and the pinned live environment. Port 22
+   reopening is insufficient. Use the scoped live SSH handoff in section 8.
 
-1. Inspect efibootmgr -v, actual boot NIC/MAC, firmware mode and Secure Boot.
-2. Validate proxy-DHCP on Beelink's actual L2 segment, avoiding a competing DHCP
-   lease server. Verify UEFI client architecture matching and next-server access.
-3. Firmware PXE clients receive a bootable iPXE EFI binary; iPXE clients receive
-   boot.ipxe. Distinguish them to prevent chainloading iPXE into itself.
-4. Check HTTP/TFTP/TLS capabilities of the selected iPXE binary and chain path.
-   Do not silently disable TLS verification to make boot work.
-5. Verify MAC -> Machine -> Server UID resolution and compatible Ready ISO/CA.
-6. Test persistent entry -> live, live reboot -> live, installed reboot -> iPXE
-   -> installed, and network/API failure without a bootstrap recursion loop.
-7. Disable/reconcile competing Linux-priority BootNext writers.
-8. Test live-to-live and the installed loader handoff non-destructively; verify
-   a full installed-to-live-to-installed cycle on a disposable VM before an erase.
+Arming and rebooting are not atomic. If the operator crashes between them,
+inspect boot ID, pending GRUB entry and attempt checkpoint before deciding what
+happened. Do not repeatedly reboot or rearm on each schedule tick. If it is
+definitely still the original installed session and no destructive stage began,
+safe preparation can resume within the same claimed attempt. An unaccounted
+boot/session or uncertain pending entry blocks for inspection.
 
-Do not change boot order now simply because a reprovision was requested in prose.
+The one-shot entry is normally consumed before iPXE runs. A networking/API failure
+therefore must not leave netboot as the persistent default. Bound boot-script
+retries and present a recovery prompt. Another reboot should return to the old OS
+if it is intact and one-shot consumption passed hardware acceptance; do not
+automatically reboot indefinitely or mark the request successful.
+
+Keep the boot checkpoint within the existing attempt status: source boot ID,
+stable menu-entry ID, arming timestamp/readback outcome and expected live build.
+It records observed progress, not a command queue or another desired-state
+resource. A lost update after arming requires inspection of local grubenv and
+the current session; neither API status nor grubenv alone proves a reboot ran.
+
+### 5.4 Live execution, final boot and manual recovery
+
+During installation the live OS remains in memory while the approved disk is
+repartitioned. Reinstall GRUB, its environment block, local iPXE artifact and
+stable netboot entry as part of the new OS. Verify the persistent default is the
+new installed OS and there is no pending next_entry before final reboot.
+
+A whole-disk replacement can temporarily destroy GRUB. That is accepted in v1:
+if power is lost or the live session crashes during that window, the owner
+manually boots a live image or repairs GRUB. Do not claim that a reboot from an
+arbitrary live session will return to live, or that the operator can recover an
+unbootable disk through the API. Keep the machine in live until a bootable new
+installation is verified; do not schedule casual reboots mid-installation.
+
+An ordinary live reboot is not a persistent live-mode guarantee. Before erasure,
+it may boot the previous OS; after erasure and before bootloader installation it
+may fail; after successful installation it should boot the new OS. The operator
+classifies the actual session and blocks rather than blindly repeating a wipe.
+
+No protected bootstrap partition, permanent USB, firmware PXE-first setup,
+iPXE sanboot selection, or PiKVM automation is required. Manual recovery does not
+implicitly authorize restarting destructive work: verify the attempt, marker,
+disk identity and checkpoint before continuing or requesting a fresh attempt.
+
+### 5.5 Boot acceptance checklist
+
+1. Inspect UEFI/Secure Boot, disk identity, boot NIC/MAC and the current GRUB path.
+2. In a disposable UEFI VM, prove normal GRUB boot reaches the installed OS
+   with the API/network unavailable.
+3. Prove the stable netboot entry chainloads the reviewed iPXE artifact, reaches
+   /ipxe/<mac>, and boots the pinned live image without a recursion loop.
+4. Prove grub-reboot selects netboot once, GRUB consumes next_entry, and the next
+   normal boot defaults to the OS. Test the actual proposed disk layout.
+5. Validate Beelink's iPXE NIC support and WoL/EEE priming before an authorized
+   reprovision. Check/reconcile competing boot-selection services.
+6. Test unknown-MAC discovery, a bound eligible first installation, and refusal
+   for stale/unresolved/noneligible known Server requests.
+7. Test timeout, cancellation after arming, crash before reboot, accidental
+   reboot, and failed installation. No case may silently authorize another wipe.
+8. Verify final boot uses the restored disk GRUB and installed marker; document
+   the manual recovery procedure for a destroyed bootloader.
+
 These are implementation/acceptance tasks, not changes performed by this RFC.
 
 ## 6. Preserve the Beelink NIC workaround
@@ -375,9 +451,10 @@ Pending -> PreparingBoot -> AwaitingLive -> Installing
 3. Check installed/live state over authenticated SSH, not a discovery report alone.
    Establish the currently trusted boot session and collect disk serial/WWN,
    size, mounts, boot mode and boot NIC.
-4. Verify the persistent network/USB bootstrap and prime the boot NIC. Commit
-   the live boot target and stage before issuing the normal reboot. If already live, verify
-   that it is the intended live environment before proceeding.
+4. If installed, verify disk GRUB/iPXE, prime the NIC, persist live intent and
+   arm/read back the one-shot netboot entry before the normal reboot. If already
+   live, verify and pin the actual compatible environment; skip the GRUB/reboot
+   step. Neither a live marker alone nor a scheduled tick authorizes erasure.
 5. Await a changed boot session and the intended live-image environment over SSH.
    Fresh discovery can refresh the address, not approve a changed machine.
 6. Enroll the live instance under the provisioning attempt's scoped SSH transition.
@@ -385,15 +462,18 @@ Pending -> PreparingBoot -> AwaitingLive -> Installing
 7. Persist Installing before destructive work. Revalidate counter, binding,
    dependencies, stable disk identity, mount constraints and pinned plan. Erase
    only the approved physical disk; reject USB/media disks and ambiguous matches.
-   Record the selected persistent bootstrap and explicitly exclude its device.
+   Exclude all live-media/USB devices and reject the live runtime's backing disk
+   as a target unless the role explicitly proves its execution is independent
+   of that disk. The existing SSD's partitions require intentional replacement.
 8. Partition/install using the existing roles. Preserve the managed host key,
    CA bundle, fixed ansible account service/timer and restricted daemon token.
    Write a root-owned installation marker containing Server UID, attempt ID,
    request counter, root filesystem identity and applied non-secret plan digest.
-9. Install the OS's GRUB/EFI loader without displacing the persistent iPXE entry.
-   Record its verified partition identity and loader path. Commit installed
-   boot target before final reboot; iPXE selects that distinct loader rather
-   than booting live again or recursively booting the bootstrap.
+9. Install/verify disk GRUB, installed-OS default, stable netboot entry, local
+   iPXE artifact and writable/consumable environment block. Clear pending
+   next_entry. Record the root/EFI partition identities and loader path.
+   Persist AwaitingInstalled/installed intent and the live boot ID before final
+   reboot. Firmware -> disk GRUB -> installed OS is the intended final path.
 10. Verify a fresh strict managed-key connection, a changed boot ID, installed
     root (not overlay/live), installation marker, expected OS and critical
     management services. Finish required post-provision work without another wipe.
@@ -436,7 +516,10 @@ distributed lock that is not implemented.
 
 Recovery rules:
 
-- Before destructive stages: re-inspect and retry only safe preparation.
+- Before destructive stages: re-inspect and retry only safe preparation; account
+  for an armed GRUB next_entry and source boot ID. Before releasing an attempt,
+  clear any pending netboot selection on a reachable installed host. If cleanup
+  cannot be verified, report unresolved boot selection and block new attempts.
 - AwaitingInstalled/Verifying: inspect the marker and strict managed identity;
   resume verification without repeating installation.
 - Interrupted Installing: block automatic retry unless inspection proves an
@@ -459,10 +542,11 @@ against request/attempt state before reenabling execution.
 1. Add schemas, API transition validation and tests; regenerate docs/clients.
 2. Refactor the playbook into bounded, observable stages; remove ignored boot
    failures and implicit API/Server creation from the execution-only path.
-3. Implement discovery-image bootstrap, lifecycle-aware pinned PXE routing and
-   local fallback tests, including unknown MAC -> report -> LLDP binding.
-4. Test Beelink's persistent network/USB entry, live-to-live reboot, installed
-   loader selection, boot order and targeted WoL/EEE priming non-destructively.
+3. Implement discovery and attempt-pinned /ipxe routing, including unknown
+   MAC -> report -> LLDP binding and refusal for noneligible known requests.
+4. Standardize the disk GRUB/iPXE role and test one-shot environment consumption,
+   OS-default final boot, API-independent normal boots, and targeted NIC priming.
+   Do not require firmware PXE or permanent USB for the current live-first path.
 5. Implement scoped SSH transition, shared execution coordination and markers.
 6. Add the provisioning job to the shared lifecycle pipeline; start with no request.
 7. Run preflight-only tests: partial inventory, disk ambiguity, stale UID/ETag,
@@ -472,11 +556,13 @@ against request/attempt state before reenabling execution.
    ordinary edits do not reinstall, and crashes/retries cannot blindly rewipe.
 9. With a separately approved Beelink disk identity and explicit counter bump,
    verify live -> installed -> live -> installed, strict SSH continuity,
-   daemon enrollment, local boot fallback and observedReprovision advancement.
+   daemon enrollment, restored OS-default GRUB and observedReprovision advancement.
 
-Open implementation choices: exact bounded snapshot schema,
-hardware-supported boot strategy/fallback, and stable disk
-ID/layout discovery. Resolve these before implementing destructive execution.
+Open implementation choices: exact bounded snapshot schema, supported GRUB
+environment-block layout, reviewed UEFI iPXE build/distribution path, immutable
+live-build reporting, and stable disk/layout discovery. Resolve these before
+implementing destructive execution. Manual recovery is accepted; automatic
+bootloader/disk-failure recovery is outside v1.
 
 ## 10. Read-only Beelink observations, 2026-10-06
 
@@ -486,11 +572,22 @@ provisioning/data-loss approval remains separate. No reboot, NIC-setting change,
 boot-order write, disk mount or erase was performed.
 
 - Bound management address: 10.1.1.243; x86_64, UEFI.
+- DMI identifies AZW/Beelink EQ13, with American Megatrends firmware EQ13D403,
+  dated 2024-05-13.
+- efivarfs is mounted read-write. Standard UEFI BootOrder/BootNext management
+  through efibootmgr is a candidate, but actual firmware acceptance and persistence
+  have not been tested; no variable writes were performed.
+- No /sys/class/firmware-attributes interface is exposed by the current live
+  kernel. WMI devices exist, but that alone does not establish a supported BIOS
+  settings API. Do not assume Linux can enable the firmware network stack or
+  change arbitrary Setup settings. Those require a verified vendor interface or
+  one-time manual firmware configuration; raw vendor-variable edits are excluded.
 - Current root is the Arch live overlay; /var/lib/is_live_env exists.
 - BootCurrent 0004 is USB optical media, not a PXE boot.
 - BootOrder is 0003,0002,0004,0001: Debian disk, USB flash, USB optical, EFI shell.
   No PXE/network boot entry was shown by efibootmgr -v. This does not prove
-  firmware PXE support is absent; network-stack settings/entry creation need work.
+  firmware PXE support is absent. Firmware PXE is optional recovery/bootstrap,
+  not a prerequisite for GRUB-based reprovisioning.
 - Management/boot NIC MAC e8:ff:1e:d4:03:fa resolves to enp1s0; r8169 driver,
   firmware rtl8168h-2_0.0.2; 1 Gb/s link.
 - WoL supports magic packets but currently reads Wake-on: d (disabled).
@@ -506,3 +603,33 @@ boot-order write, disk mount or erase was performed.
 These are point-in-time observations, not data-loss approval or guaranteed future
 device names. Revalidate immediately before an eventual authorized execution.
 PiKVM is not part of the operator/design; SSH alone was used for this inspection.
+
+## Implementation progress (2026-10-06)
+
+The API now implements the conditional monotonic request counter, guarded attempt
+checkpoints and UID-pinned live boot routing. The existing ssh-managed operator
+pipeline has a provisioning job, sharing its lifecycle serial group. Operator
+code lives in ansible-roles/operators/provisioning.py; stage recipes and probes
+live in the provision, management and grub roles. Initialization builds the
+embedded-script UEFI iPXE artifact; live ISO builders record immutable build IDs.
+The rollout checklist is stigmergy/docs/server-provisioning-rollout.md.
+
+V1 conservatively stops all API Command dispatch while any Server is reserved,
+drains submitted Commands, and refuses reserved targets in the normal runner.
+This is not a universal lock on administrator SSH or directly triggered backend
+jobs. Installation is limited to amd64 UEFI (verified Secure Boot off), supported
+Arch/Debian releases and an explicit EFI/swap/ext4 SATA/NVMe layout. Unknown
+firmware state, missing protected daemon enrollment, unsupported inputs and
+unverified live build/session block erasure.
+
+API/operator regression tests pass. A real network-isolated UEFI VM fixture
+verified that GRUB consumes the one-shot netboot selection and then returns to
+the local installed-OS menu default. This is not a full OS-install or hardware
+reprovisioning acceptance test. The pinned iPXE artifact compiles successfully.
+Full disposable-VM installation/reinstallation and physical NIC/netboot/SSH
+handoff acceptance remain required before production activation.
+
+A new read-only Beelink probe confirms its SSD remains partitioned and its older
+live image has no immutable live-build marker. A rebuilt live image is required,
+and replacing that existing disk needs explicit authorization. Provisioning
+remains disabled; no reboot or erasure was performed as part of implementation.

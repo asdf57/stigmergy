@@ -1,14 +1,15 @@
 package api
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
+	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/resource"
 )
 
 func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(matches) == 0 {
-		s.writeIPXEScript(w, "No discovered Machine matches MAC "+requestedMAC, "")
+		s.serveDiscoveryBoot(w, r, "No discovered Machine matches MAC "+requestedMAC)
 		return
 	}
 	if len(matches) > 1 {
@@ -48,7 +49,7 @@ func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
 
 	machine := matches[0]
 	if machine.Status == nil || machine.Status.ServerRef == nil {
-		s.writeIPXEScript(w, "Machine at this MAC is not bound to a Server", "")
+		s.serveDiscoveryBoot(w, r, "Machine at this MAC is not bound to a Server")
 		return
 	}
 	reference := machine.Status.ServerRef
@@ -66,16 +67,67 @@ func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
 		s.writeIPXEScript(w, "Bound Server is invalid", "")
 		return
 	}
-	if server.Spec.Boot != nil {
-		s.serveISOBoot(w, r, server)
+	if server.Metadata.DeletionTimestamp != nil || server.Status == nil || server.Status.MachineRef == nil || server.Status.MachineRef.Uid != machine.Metadata.UID || server.Status.MachineRef.Name != machine.Metadata.Name {
+		s.writeIPXEScript(w, "Server has a stale Machine binding", "")
 		return
 	}
-	bootScript, err := serverBootScript(server)
+	if server.Spec.Provisioning == nil || !server.Spec.Provisioning.Enabled || server.Spec.Reconciliation != nil && server.Spec.Reconciliation.Paused {
+		s.writeIPXEScript(w, "No eligible live provisioning request", "")
+		return
+	}
+	if p := server.Status.Provisioning; p != nil && p.AttemptID != nil {
+		if p.Phase == nil || (*p.Phase != "PreparingBoot" && *p.Phase != "AwaitingLive" && *p.Phase != "Installing") || p.Snapshot == nil {
+			s.writeIPXEScript(w, "This attempt does not permit live boot", "")
+			return
+		}
+		if p.Snapshot.BootMAC != requestedMAC {
+			s.writeIPXEScript(w, "MAC does not match pinned provisioning interface", "")
+			return
+		}
+		s.servePinnedBoot(w, r, server)
+		return
+	}
+	if server.Spec.Boot == nil || server.Spec.OperatingSystem == nil || server.Spec.Provisioning.TargetDisk == nil || server.Status.Provisioning != nil && server.Status.Provisioning.Provisioned {
+		s.writeIPXEScript(w, "Initial provisioning configuration is incomplete or already observed", "")
+		return
+	}
+	s.serveISOBoot(w, r, server)
+}
+
+func (s *Server) serveDiscoveryBoot(w http.ResponseWriter, r *http.Request, message string) {
+	if s.discoveryISO == "" {
+		s.writeIPXEScript(w, message, "")
+		return
+	}
+	raw, err := s.store.Get(r.Context(), registry.ISOResource.Kind, s.discoveryISO)
 	if err != nil {
-		s.writeIPXEScript(w, fmt.Sprintf("Server %s: %s", server.Metadata.Name, err), "")
+		s.writeIPXEScript(w, "Discovery ISO is unavailable", "")
 		return
 	}
-	s.writeIPXEScript(w, "Booting "+server.Metadata.Name, bootScript)
+	image, err := registry.ISOResource.Decode(raw)
+	if err != nil || image.Status == nil || image.Status.AuthorityRef == nil {
+		s.writeIPXEScript(w, "Discovery ISO is not Ready", "")
+		return
+	}
+	host := registry.NewServer(resource.Metadata{}, apigen.ServerSpec{Boot: &apigen.ServerBootSpec{IsoRef: apigen.ServerDependencyReference{Name: s.discoveryISO}}, SshCertificateAuthorityRef: &apigen.ServerDependencyReference{Name: image.Spec.SshCertificateAuthorityRef.Name, Uid: image.Spec.SshCertificateAuthorityRef.Uid}})
+	host.Status = &apigen.ServerStatus{BootISORef: &apigen.ResourceReference{Name: s.discoveryISO, Uid: raw.Metadata.UID}, SshTrust: &apigen.ServerSSHTrustStatus{AuthorityRef: *image.Status.AuthorityRef}}
+	s.serveISOBoot(w, r, host)
+}
+
+func (s *Server) servePinnedBoot(w http.ResponseWriter, r *http.Request, server registry.Server) {
+	p := server.Status.Provisioning.Snapshot
+	if p.ServerUID != server.Metadata.UID || p.MachineRef != *server.Status.MachineRef || p.AuthorityRef.Uid == "" {
+		s.writeIPXEScript(w, "Pinned boot identity changed", "")
+		return
+	}
+	for kind, ref := range map[string]apigen.ResourceReference{"ISO": p.IsoRef, "SSHCertificateAuthority": p.AuthorityRef, "SSHKeyPair": p.KeyPairRef} {
+		raw, err := s.store.Get(r.Context(), kind, ref.Name)
+		if err != nil || raw.Metadata.UID != ref.Uid || raw.Metadata.DeletionTimestamp != nil {
+			s.writeIPXEScript(w, "Pinned boot dependency was removed or replaced", "")
+			return
+		}
+	}
+	s.renderISOBoot(w, string(p.Distribution), p.Artifacts)
 }
 
 func (s *Server) serveISOBoot(w http.ResponseWriter, r *http.Request, server registry.Server) {
@@ -109,11 +161,20 @@ func (s *Server) serveISOBoot(w http.ResponseWriter, r *http.Request, server reg
 		fail("Selected image does not match the current authority identity and trust")
 		return
 	}
+	s.renderISOBoot(w, string(image.Spec.Distribution), *image.Status.Artifacts)
+}
+
+func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, values []apigen.ISOArtifact) {
+	fail := func(message string) { s.writeIPXEScript(w, message, "") }
 	artifacts := map[string]string{}
-	for _, artifact := range *image.Status.Artifacts {
+	for _, artifact := range values {
 		parsed, err := url.Parse(artifact.Url)
 		if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" || strings.ContainsAny(artifact.Url, " \t\r\n$") || parsed.RawQuery != "" || parsed.Fragment != "" {
 			fail("Invalid ISO artifact URL")
+			return
+		}
+		if artifacts[string(artifact.Type)] != "" {
+			fail("Duplicate ISO artifact type")
 			return
 		}
 		artifacts[string(artifact.Type)] = artifact.Url
@@ -125,7 +186,7 @@ func (s *Server) serveISOBoot(w http.ResponseWriter, r *http.Request, server reg
 		}
 	}
 	arguments := ""
-	switch image.Spec.Distribution {
+	switch distribution {
 	case "debian":
 		arguments = "boot=live components ip=dhcp fetch=" + artifacts["rootfs"]
 	case "arch":
@@ -155,23 +216,6 @@ func machineBootMACMatches(machine registry.Machine, requested string) bool {
 		}
 	}
 	return false
-}
-
-func serverBootScript(server registry.Server) (string, error) {
-	if server.Spec.OperatingSystem == nil {
-		return "", errors.New("spec.operatingSystem is not configured")
-	}
-	os := server.Spec.OperatingSystem
-
-	distribution := strings.ToLower(strings.ReplaceAll(os.Distribution, "_", "-"))
-	switch distribution {
-	case "arch", "archlinux":
-		return "/arch_boot.ipxe", nil
-	case "debian", "debian-trixie":
-		return "/debian_boot.ipxe", nil
-	default:
-		return "", fmt.Errorf("distribution %q is not supported by the PXE images", os.Distribution)
-	}
 }
 
 func canonicalMAC(value string) (string, error) {
