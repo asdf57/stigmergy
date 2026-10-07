@@ -114,6 +114,11 @@ SSH identity, CA trust, fixed `ansible` account reconciler and enrolled daemon
 are preserved to the replacement root. The role rebuilds disk GRUB and its iPXE
 entry, clears `next_entry`, validates the new UEFI partition/default boot entry,
 and writes a root-owned `/var/lib/homelab/provisioning.json` marker.
+Firmware reconciliation matches the new EFI partition UUID and loader path,
+not only the Homelab display name. It creates a missing exact entry and selects
+it first without deleting unrelated entries; grub-install alone may retain a
+same-named entry for the previous partition. An interrupted install remains
+reserved and requires configuration-only repair, not a second erase.
 
 Only a changed installed boot session, matching marker/root/disk/OS, restored
 GRUB, strict managed SSH and healthy management services produce `Succeeded`

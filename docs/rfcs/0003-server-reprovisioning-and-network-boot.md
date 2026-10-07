@@ -273,8 +273,12 @@ The UEFI disk entry must reference the new GRUB installation and remain the
 normal firmware boot target. Repartitioning can invalidate the old partition
 identity even when its display name still exists; the install role must create
 or update the correct entry and verify its loader/partition, rather than relying
-on the current Debian entry surviving an Arch installation. Standard UEFI entry
-management is distinct from changing vendor BIOS settings. If the required
+on the current Debian entry surviving an Arch installation. Reconciliation
+checks the exact new partition UUID, active Homelab label and
+loader path, registers a missing entry with efibootmgr, then moves the verified
+entry first while preserving other boot entries. grub-install alone can leave
+a same-named entry pointing to the previous installation's partition UUID.
+Standard UEFI entry management is distinct from changing vendor BIOS settings. If the required
 firmware entry cannot be established, report a blocked final boot and request
 manual setup; do not silently declare installation successful.
 
@@ -712,3 +716,28 @@ Maintenance/netboot intent were then cleared through conditional status PATCH.
 Request 8 remains Blocked, observedReprovision remains 5, and a new explicit
 request is required. Physical end-to-end GRUB/iPXE reinstallation is not yet
 validated by this TLS VM test or boot-only repair.
+
+## Completed Beelink reprovision request 9 (2026-10-07)
+
+Request 9 booted through disk GRUB/iPXE into the pinned Arch live image and
+installed the requested OS. It stopped at the final firmware check because
+grub-install retained the old Homelab entry with the previous EFI PARTUUID.
+The new reconciler creates/selects an exact active loader/partition match and
+verifies persistent BootOrder. Five regression cases cover stale partitions,
+inactive entries, idempotence, preservation of other entries and invalid inputs.
+
+Configuration-only repair 2545bf0 completed the existing partial root without
+repeating erasure. Its staged request-9 marker was checked before resuming the
+original pinned operator revision for final reboot and installed verification.
+Concourse build 18798 (provision #42) completed that verification. Independent
+strict SSH confirmed installed boot 5d723862-887a-4df0-ac21-5d3be32fe91e, ext4
+root UUID 2188652b-b537-4075-ad67-bd336030ff78 on the approved SSD, matching
+request-9 marker, and BootCurrent/BootOrder selecting the new EFI partition
+befa5286-7266-4e06-b301-32a5ab2eb20f. Status is Succeeded with
+observedReprovision=9, maintenance=false and netbootArmed=false. The code pin
+was removed. This completes the physical installed -> live -> installed flow.
+
+All operator Python sources/tests were formatted with YAPF; the formatting
+commit has identical Python ASTs to its predecessor. Pylint was run across the
+operator tree: no errors with project import paths configured, but style/design
+warnings remain (8.33/10). All 39 unit tests and playbook syntax checks pass.
