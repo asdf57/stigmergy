@@ -260,6 +260,14 @@ Install disk GRUB in the existing UEFI provisioning path, with:
 - A known GRUB environment-block location and a configuration that honors and
   consumes next_entry while keeping the installed OS as the normal default.
 - A visible, bounded menu timeout for manual intervention.
+  Explicitly generate menu style with a five-second timeout; interacting with
+  the menu can interrupt its countdown and is not proof of a missing timeout.
+
+The shared iPXE build embeds packaged ISRG X1 and USERTrust ECC/RSA roots for
+the site's Let's Encrypt/ZeroSSL HTTPS chains. Trust and embed the same root
+set; verify the actual served chains in a disposable UEFI iPXE test. TLS
+validation remains enabled. Installed copies require a guarded boot-asset
+refresh when the shared binary changes; publication alone is insufficient.
 
 The UEFI disk entry must reference the new GRUB installation and remain the
 normal firmware boot target. Repartitioning can invalidate the old partition
@@ -686,3 +694,21 @@ Ansible task/results/recap output and immediate stage/checkpoint progress.
 Another replacement requires a new explicit request; this success does not
 authorize one. Full repeated-reprovision and separate Debian installation
 acceptance tests remain distinct from this completed first physical install.
+
+## Beelink boot-only recovery after request 8 (2026-10-07)
+
+Request 8 armed GRUB and rebooted, but timed out before the verified live ISO
+returned; no installation stage ran. iPXE trusted only ISRG X1 while the HTTPS
+proxy served a ZeroSSL chain rooted in USERTrust ECC. The shared binary now
+embeds/trusts packaged ISRG X1 and USERTrust ECC/RSA. A disposable UEFI iPXE
+fixture successfully fetched both the API and artifact-server HTTPS responses.
+
+After manual installed-OS recovery, strict SSH verified the unchanged request-5
+marker, root UUID and SSD serial/WWN/size. A guarded Ansible boot-only repair
+refreshed `/boot/ipxe/ipxe.efi`, regenerated/validated the five-second menu and
+cleared next_entry, without rebooting or installing. The five-second timeout
+was already present; the reported missing countdown was not reproduced.
+Maintenance/netboot intent were then cleared through conditional status PATCH.
+Request 8 remains Blocked, observedReprovision remains 5, and a new explicit
+request is required. Physical end-to-end GRUB/iPXE reinstallation is not yet
+validated by this TLS VM test or boot-only repair.

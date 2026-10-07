@@ -33,8 +33,8 @@ retries and must not be reset by a later initialization.
    and restart the API; never print credentials or regenerate the Git SSH key.
 3. Run the normal infrastructure initialization with the new Ansible roles.
    It builds iPXE from the pinned upstream v2.0.0 commit in a local Docker build,
-   embedding the public API bootstrap URL and a Let's Encrypt ISRG Root X1 trust
-   certificate. It publishes `homelab-ipxe.efi` and its SHA-256 file through the
+   embedding the public API bootstrap URL and packaged Let's Encrypt ISRG X1
+   and ZeroSSL USERTrust ECC/RSA root certificates. It publishes `homelab-ipxe.efi` and its SHA-256 file through the
    existing HTTPS boot server. No privileged token is embedded in iPXE itself.
    Set `DISCOVERY_ISO` to the existing discovery ISO name; the site default is
    `arch-rolling-amd64`. If HTTPS uses a different CA, change the iPXE trust build
@@ -120,6 +120,21 @@ GRUB, strict managed SSH and healthy management services produce `Succeeded`
 and advance `observedReprovision`. Partial or failed execution does not.
 
 ## Coordination and recovery
+
+An iPXE "Permission denied" error can indicate TLS certificate validation,
+even when curl returns HTTP 200. Check the exact iPXE error and served HTTPS
+chain; never bypass TLS. `plays/build_ipxe.yml` rebuilds only the shared boot
+artifact; `operators/tests/ipxe_https_vm.sh` exercises the API/artifact HTTPS
+chains from actual UEFI iPXE in a disposable VM without installing an OS.
+For a reachable installed system, `plays/repair_boot.yml` refreshes its verified
+iPXE binary, regenerates a visible five-second GRUB menu and clears next_entry.
+It requires the inspected stable disk identity, boot ID, root UUID and Server
+UID, performs no reboot or installation, and keeps a backup of the old binary.
+After independently verifying the original installation and cleared boot intent,
+release a failed pre-install attempt's maintenance via conditional status PATCH;
+retain Blocked and both request/observed counters. A new explicit request is
+still required for another replacement. Updating the published binary alone
+does not update an installed copy under `/boot/ipxe`.
 
 The v1 maintenance gate is intentionally conservative: any provisioning
 reservation pauses dispatch of all API-managed Commands, across all capture
