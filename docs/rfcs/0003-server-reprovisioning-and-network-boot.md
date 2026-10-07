@@ -1,6 +1,6 @@
 # RFC 0003: Provisioning runs and network boot
 
-- Status: Implemented in source; coordinated rollout and new-model hardware acceptance required
+- Status: Rolled out; new-model destructive hardware acceptance requires explicit approval
 - Updated: 2026-10-07
 - Related: RFC 0001 (ISO/SSH management), RFC 0002 (external operators)
 
@@ -253,6 +253,20 @@ fixtures. Unit/green build results do not substitute for a complete installed ->
 live -> installed hardware acceptance run.
 
 ## Hardware acceptance context
+
+The 2026-10-07 rollout deployed the API and web console, ran homelabc init,
+preserved API tokens and SSH keys, and verified both shared lifecycle jobs using
+the pushed operator revision. Both live ISOs rebuilt with the current homelabd
+revision and their public download URLs returned HTTP 200. Strict read-only SSH
+verified Beelink's installed Arch root on its approved SSD and its GRUB contract.
+Rollout tooling created no installation requests. The first owner-created run
+booted into its pinned live image but failed an installation assertion before
+erasure. The role now validates the run UID directly; real Ansible assertion
+tests cover existing partitions, wrong run/session/disk and absent authorization.
+That failed run remains Blocked with maintenance until explicit recovery. A
+fresh replacement still requires approval to erase/reinstall that SSD. The desktop
+Server remains unbound; capture groups report its omission rather than pretending
+it has management access.
 
 Beelink EQ13: management MAC e8:ff:1e:d4:03:fa; approved SATA SSD serial
 MP23B72602251, WWN 0x53a5a277260208cc, 512110190592 bytes, stable alias

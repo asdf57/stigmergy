@@ -148,3 +148,6 @@ the named resource first and use its resourceVersion with If-Match.
   netboot verify rendered iPXE includes `net.ifnames=0` and MAC-selected BOOTIF.
 - Keep private rollout helpers under ignored `.local/`; do not commit real
   credentials, deployment env files or private diagnostic output.
+- The current private initialization config is
+  `.local/deployment/run-model-cli.yaml`; it references the token-preserving
+  `.local/deployment/homelab-init-runs.env`. Use that explicit config for init.

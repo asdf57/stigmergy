@@ -75,6 +75,10 @@ the run and refreshes every five seconds; it does not invent checkpoint history.
 Standard Ansible output streams to Concourse. Secret tasks use no_log; private
 task logs are retained inside the task container. Trace the shared job/build,
 not a per-request pipeline. Scheduled idle success does not prove installation.
+Blocked runs retaining maintenance make reconciliation fail visibly; they never
+silently turn green or replay installation. Run messages retain the safe failing
+task description. Validate the real Ansible installation assertions as well as
+mocked Python state-machine tests before publishing an operator revision.
 
 Normal boot is local disk GRUB. Replacement arms the one-shot homelab-netboot
 entry, primes the current interface selected by pinned MAC and boots the pinned
