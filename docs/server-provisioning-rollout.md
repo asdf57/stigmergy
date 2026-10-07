@@ -87,6 +87,9 @@ The operator pins non-secret inputs, physical serial/WWN/size, NIC MAC, dependen
 UIDs, ISO build/artifacts and code revision in Server status. It reserves
 maintenance, drains administrative builds, and either uses a verified existing
 live session or primes the selected NIC and arms `grub-reboot homelab-netboot`.
+Priming resolves the pinned MAC against current node interfaces, rather than
+trusting a cached API name; live `eth0` may be installed `enp1s0`. Missing or
+ambiguous MAC matches block before changing NIC settings or arming GRUB.
 GRUB normally boots the installed OS locally; API/network availability is only
 needed for the explicitly selected netboot path.
 

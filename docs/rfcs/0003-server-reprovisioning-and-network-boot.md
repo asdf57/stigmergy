@@ -418,6 +418,9 @@ These are implementation/acceptance tasks, not changes performed by this RFC.
 Keep the existing WoL/EEE workaround, but make it explicit and targeted:
 
 - Resolve the boot NIC from its pinned MAC; verify it belongs to this Machine.
+  Resolve against current node interfaces on every priming stage, not the cached
+  API name: live eth0 can become installed enp1s0. Missing or duplicate MAC
+  matches block; recheck the resolved interface MAC before changing settings.
 - Before the installed-to-live reboot, enable magic-packet WoL with
   ethtool -s <interface> wol g and, for the affected NIC, disable EEE.
 - Read back supported/current settings. Treat required priming failures as a
