@@ -633,3 +633,27 @@ A new read-only Beelink probe confirms its SSD remains partitioned and its older
 live image has no immutable live-build marker. A rebuilt live image is required,
 and replacing that existing disk needs explicit authorization. Provisioning
 remains disabled; no reboot or erasure was performed as part of implementation.
+
+## Beelink rollout checkpoint (2026-10-07)
+
+The owner explicitly approved replacement of Beelink only, using the managed-node
+playbook and the stable SSD identity recorded above. Both refreshed ISO builds
+completed and the API/operator resources were deployed with existing API tokens
+and Git SSH identity preserved. The site request counter is now 3: two preparation
+attempts stopped before reboot/erasure, exposing missing live package indexes and
+PTY contamination of JSON probe output. Those issues are fixed and tested.
+
+The third attempt loaded the pinned Arch kernel/initramfs through Ansible kexec
+stages and requested the live transition, but Beelink did not reconnect. The
+operator timed out before Installing and retained Blocked/maintenance/netboot
+intent. No partitioning or erasure stage was entered. Recovery now requires a
+manual restart/console or booting the refreshed USB/live ISO; PiKVM is excluded.
+Do not clear maintenance or increment the counter without inspecting recovery.
+
+A diskless VM reproduced the early DHCP failure. The netboot recipe was missing
+Arch's upstream boot-interface selection: net.ifnames=0 plus BOOTIF selecting the
+verified NIC. Both the API's iPXE rendering and the Ansible kexec command now
+include those options. The corrected VM obtains DHCP and downloads the HTTPS
+root filesystem. A 2 GiB fixture exhausted RAM after the 1 GiB rootfs download;
+a larger fixture is used for complete live-boot validation. This does not claim
+physical Beelink recovery or successful installed-system provisioning.

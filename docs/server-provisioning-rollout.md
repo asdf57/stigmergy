@@ -8,14 +8,17 @@ per-attempt pipeline, command branch, or custom action endpoint is needed.
 
 ## Standup
 
-Keep every Server's provisioning disabled until the boot/install acceptance
-checks have passed and its disk is approved. The checked-in Beelink resource
-has `enabled: false`, `reprovision: 0`, and the inspected stable SSD identity.
-Uploading it does not authorize replacement of its existing partitions.
+Keep each Server's provisioning disabled until its disk is explicitly approved
+and preflight has passed. Review checked-in enabled flags and request counters
+before applying site resources: they are executable desired state. Beelink's
+replacement has been explicitly approved; its site counter records preparation
+retries and must not be reset by a later initialization.
 
 1. Build/publish the changed Stigmergy and Ansible runner code, and rebuild the
    Arch/Debian live images. Images now contain `/etc/homelabd/live-build-id`;
-   preflight refuses a live session whose immutable build cannot be verified.
+   installation refuses a live session whose immutable build cannot be verified.
+   An older, verified Arch live session can first refresh into the pinned Arch
+   build using the guarded live-bootstrap playbook; it is not accepted for erasure.
 2. Prepare the existing API policy without rotating tokens:
 
    ```sh
@@ -86,6 +89,21 @@ maintenance, drains administrative builds, and either uses a verified existing
 live session or primes the selected NIC and arms `grub-reboot homelab-netboot`.
 GRUB normally boots the installed OS locally; API/network availability is only
 needed for the explicitly selected netboot path.
+
+For an older USB-booted Arch live session without disk GRUB, the operator can
+bootstrap the pinned Arch kernel/initramfs with kexec instead. Ansible verifies
+the same session/disk, primes the NIC, downloads checksum-verified HTTPS
+artifacts into `/run`, loads the kernel, and requests a systemd kexec only after
+the durable AwaitingLive checkpoint. This does not partition or mount the SSD.
+The replacement live boot must pass the same build/session/SSH/disk checks before
+installation. Unsupported live refresh or unavailable kexec blocks safely;
+manual live boot remains a recovery option. Normal installed reprovisioning
+continues to use GRUB, not kexec. All reboot requests run through the stage playbook.
+Arch netboot arguments include `net.ifnames=0` and a MAC-selected `BOOTIF`, matching
+the [upstream Arch netboot script](https://ipxe.archlinux.org/releng/netboot/archlinux.ipxe).
+The live root filesystem is downloaded into RAM; a 2 GiB test guest is insufficient
+for the current image. Use at least 4 GiB for live-boot tests and budget more for
+package installation. Check actual hardware capacity before authorizing installation.
 
 After authenticated live verification, the attempt-scoped TOFU handoff persists
 the bootstrap host-key pin before host-private-key delivery. The stable managed

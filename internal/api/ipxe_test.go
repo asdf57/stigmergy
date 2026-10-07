@@ -23,6 +23,21 @@ type ipxeStore struct {
 	server  resource.Resource
 }
 
+func TestArchNetbootIncludesUpstreamBootInterfaceSelection(t *testing.T) {
+	w := httptest.NewRecorder()
+	api := &Server{}
+	api.renderISOBoot(w, "arch", []apigen.ISOArtifact{
+		{Type: apigen.Kernel, Url: "https://files.example/kernel"},
+		{Type: apigen.Initrd, Url: "https://files.example/initrd"},
+		{Type: apigen.Rootfs, Url: "https://files.example/arch/x86_64/airootfs.sfs"},
+	})
+	for _, required := range []string{"ip=dhcp", "net.ifnames=0", "BOOTIF=01-${netX/mac}"} {
+		if !strings.Contains(w.Body.String(), required) {
+			t.Fatalf("missing %s in %s", required, w.Body.String())
+		}
+	}
+}
+
 func TestPinnedBootDoesNotFollowNewISOOrAuthorityBuild(t *testing.T) {
 	resources := testutil.NewStore(
 		resource.Resource{Kind: "ISO", Metadata: resource.Metadata{Name: "iso", UID: "iso-uid"}},

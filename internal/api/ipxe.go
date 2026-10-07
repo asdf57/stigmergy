@@ -195,7 +195,7 @@ func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, value
 			fail("Invalid Arch netboot rootfs path")
 			return
 		}
-		arguments = "archisobasedir=arch archiso_http_srv=" + strings.TrimSuffix(artifacts["rootfs"], suffix) + " ip=dhcp"
+		arguments = "archisobasedir=arch archiso_http_srv=" + strings.TrimSuffix(artifacts["rootfs"], suffix) + " ip=dhcp net.ifnames=0 BOOTIF=01-${netX/mac}"
 	default:
 		fail("Unsupported ISO netboot recipe")
 		return
