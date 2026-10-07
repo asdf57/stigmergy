@@ -658,3 +658,28 @@ root filesystem. A 2 GiB fixture exhausted RAM after the 1 GiB rootfs download;
 a 4 GiB fixture subsequently reached the live login prompt and started OpenSSH.
 This verifies the corrected network-live boot path, not physical Beelink recovery
 or successful installed-system provisioning.
+
+## Completed Beelink installation (2026-10-07)
+
+After owner-reported manual USB recovery, the original SSD identity and changed
+live boot were verified and the existing managed SSH key restored without key
+rotation. Request 4 successfully reached the pinned new Arch live build. Its
+SSH handoff exposed a reload/reconnection trust gap; enrollment now accepts both
+recorded bootstrap and verified managed keys only during that transition.
+
+Request 5 installed the Arch base on the approved SSD, then stopped at an empty
+sysctl copy template. A guarded configuration-only repair verified the original
+live session/disk and existing root/EFI/bind mounts, completed configuration,
+management, GRUB and the staged marker without a second wipe. The same owned
+attempt resumed installed-boot verification with its original pinned code.
+
+The final Concourse provision build 17897 succeeded. An independent strict SSH
+probe confirmed a new installed boot, ext4 root on SSD MP23B72602251, matching
+request-5 marker and restored GRUB. API status is Succeeded with
+observedReprovision=5 and maintenance/netboot intent cleared. The USB and other
+physical nodes were not provisioned. The temporary Concourse code pin was
+removed and latest code checked; future runs stream standard no_log-aware
+Ansible task/results/recap output and immediate stage/checkpoint progress.
+Another replacement requires a new explicit request; this success does not
+authorize one. Full repeated-reprovision and separate Debian installation
+acceptance tests remain distinct from this completed first physical install.
