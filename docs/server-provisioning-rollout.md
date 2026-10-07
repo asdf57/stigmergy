@@ -123,6 +123,11 @@ reservation pauses dispatch of all API-managed Commands, across all capture
 groups. Already Dispatching/Running Commands must drain before reboot/erasure.
 The normal Server runner also refuses reserved targets. Pending Commands wait.
 SSH and provisioning operator builds share a Concourse serial group.
+Both operators stream Ansible's standard task/result/recap output to Concourse,
+with immediate stage/checkpoint messages. Credential-bearing tasks use Ansible
+`no_log`; verbosity and argument display stay off. Private task-container logs
+are also retained under `/tmp/provision-operator-diagnostics` or
+`/tmp/ssh-host-operator-diagnostics` with directory mode 0700 and file mode 0600.
 This is not a universal lock on root/admin access: do not directly trigger raw
 command jobs, run unmanaged SSH commands or start another provisioning worker
 outside the documented execution path during maintenance.
@@ -136,6 +141,16 @@ Interrupted `Installing` becomes `Blocked`, retaining maintenance, and never
 automatically reexecutes installation. Inspect/repair manually, then explicitly
 clear the verified maintenance/boot selection through generic status PATCH and
 increment the request only if another destructive attempt is intended.
+For a verified partial root with its original live session and chroot mounts
+still present, the explicit `repair` stage runs configuration only: it verifies
+the pinned boot/build/disk, `/mnt` root and EFI mount sources, and bind mounts,
+then completes management, GRUB and the staged marker without partitioning,
+formatting or bootstrapping packages again. Record the repair code revision in
+the checkpoint message. Only after checking the completed staged marker may an
+explicit generic status update move that same Blocked attempt to
+`AwaitingInstalled`, retaining maintenance and the original live boot ID.
+It cannot return to `Installing`; fresh installed-boot verification still gates
+success. Resume the final verification with the pinned original operator revision.
 `AwaitingInstalled`/`Verifying` resumes marker-based final boot/verification,
 not partitioning. Resume uses the pinned operator-code revision; inspect and
 select that Git resource version in Concourse if the source branch moved.

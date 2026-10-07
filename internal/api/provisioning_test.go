@@ -103,3 +103,27 @@ func TestProvisioningAttemptTransitionsAndNoFalseSuccess(t *testing.T) {
 		t.Fatal("replayed the same successful request")
 	}
 }
+
+func TestExplicitPartialInstallationRepairCannotReplayErasure(t *testing.T) {
+	host := provisionHost()
+	host.Status["provisioning"] = map[string]any{"attemptID": "attempt", "phase": "Blocked", "maintenance": true,
+		"snapshot": map[string]any{}, "requestedReprovision": 0, "observedReprovision": 0, "liveBootID": "live-boot"}
+	next := cloneMap(host.Status)
+	p := object(next["provisioning"])
+	p["phase"], p["bootTarget"], p["netbootArmed"] = "AwaitingInstalled", "installed", false
+	if err := validateProvisioningStatus(host, next); err != nil {
+		t.Fatal(err)
+	}
+	for _, phase := range []string{"Installing", "AwaitingLive", "Succeeded"} {
+		bad := cloneMap(next)
+		object(bad["provisioning"])["phase"] = phase
+		if validateProvisioningStatus(host, bad) == nil {
+			t.Fatalf("repair allowed unsafe transition %s", phase)
+		}
+	}
+	bad := cloneMap(next)
+	object(bad["provisioning"])["liveBootID"] = "another-boot"
+	if validateProvisioningStatus(host, bad) == nil {
+		t.Fatal("repair changed the owned live session")
+	}
+}

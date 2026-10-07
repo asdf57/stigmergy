@@ -143,7 +143,14 @@ func validateProvisioningStatus(current resource.Resource, status map[string]any
 		}
 		from, to := old["phase"], next["phase"]
 		allowed := map[string]string{"PreparingBoot": "AwaitingLive", "AwaitingLive": "Installing", "Installing": "AwaitingInstalled", "AwaitingInstalled": "Verifying", "Verifying": "Succeeded"}
-		if from != to && to != "Blocked" && allowed[fmt.Sprint(from)] != to {
+		// Explicit repair may complete a partial installation, but cannot return
+		// to Installing/replay erasure. The operator must attest the completed
+		// staged marker before making this generic status update; normal installed
+		// boot and marker verification still gate success.
+		repaired := from == "Blocked" && to == "AwaitingInstalled" && old["maintenance"] == true &&
+			next["maintenance"] == true && next["netbootArmed"] == false && next["bootTarget"] == "installed" &&
+			old["liveBootID"] != nil && old["liveBootID"] != "" && resource.EqualJSON(old["liveBootID"], next["liveBootID"])
+		if from != to && to != "Blocked" && allowed[fmt.Sprint(from)] != to && !repaired {
 			return fmt.Errorf("invalid provisioning stage transition")
 		}
 	}
