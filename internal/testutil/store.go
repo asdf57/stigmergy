@@ -50,6 +50,25 @@ func (s *Store) Create(ctx context.Context, value resource.Resource) (resource.R
 	s.Writes++
 	return value, nil
 }
+
+func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any) (resource.Resource, error) {
+	current, err := s.Get(ctx, owner.Kind, owner.Metadata.Name)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	if current.Metadata.ResourceVersion != owner.Metadata.ResourceVersion {
+		return resource.Resource{}, store.ErrConflict
+	}
+	created, err := s.Create(ctx, candidate)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	current.Status = status(created)
+	version, _ := strconv.ParseInt(current.Metadata.ResourceVersion, 10, 64)
+	current.Metadata.ResourceVersion = strconv.FormatInt(version+1, 10)
+	s.Resources[current.Kind+"/"+current.Metadata.Name] = current
+	return created, nil
+}
 func (s *Store) Update(ctx context.Context, value resource.Resource, version int64) (resource.Resource, error) {
 	old, err := s.Get(ctx, value.Kind, value.Metadata.Name)
 	if err != nil {

@@ -580,6 +580,59 @@ func (definition PipelineDefinition) Decode(value resource.Resource) (Pipeline, 
 	}, nil
 }
 
+// ProvisioningRun is the concrete controller-facing resource for ProvisioningRun.
+type ProvisioningRun struct {
+	APIVersion string                        `json:"apiVersion"`
+	Kind       string                        `json:"kind"`
+	Metadata   resource.Metadata             `json:"metadata"`
+	Spec       apigen.ProvisioningRunSpec    `json:"spec"`
+	Status     *apigen.ProvisioningRunStatus `json:"status,omitempty"`
+}
+
+// NewProvisioningRun constructs a ProvisioningRun with its generated type identity.
+func NewProvisioningRun(metadata resource.Metadata, spec apigen.ProvisioningRunSpec) ProvisioningRun {
+	return ProvisioningRun{
+		APIVersion: ProvisioningRunResource.APIVersion,
+		Kind:       ProvisioningRunResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed ProvisioningRun into the generic storage representation.
+func (value ProvisioningRun) Encode() (resource.Resource, error) {
+	return encodeResource(ProvisioningRunResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// ProvisioningRunDefinition adds concrete ProvisioningRun decoding to the shared API definition.
+type ProvisioningRunDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed ProvisioningRun status to the generic storage representation.
+func (definition ProvisioningRunDefinition) EncodeStatus(status *apigen.ProvisioningRunStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed ProvisioningRun.
+func (definition ProvisioningRunDefinition) Decode(value resource.Resource) (ProvisioningRun, error) {
+	spec, err := decodeResourceSpec[apigen.ProvisioningRunSpec](definition.Definition, value)
+	if err != nil {
+		return ProvisioningRun{}, err
+	}
+	status, err := decodeStoredStatus[apigen.ProvisioningRunStatus](definition.Kind, value.Status)
+	if err != nil {
+		return ProvisioningRun{}, err
+	}
+	return ProvisioningRun{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // Router is the concrete controller-facing resource for Router.
 type Router struct {
 	APIVersion string               `json:"apiVersion"`
@@ -1004,6 +1057,7 @@ var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[ap
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil), false)}
 var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil), false)}
 var PipelineResource = PipelineDefinition{Definition: NewDefinition[apigen.PipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Pipeline", "pipelines", "PipelineStatus", []string{"homelab.io/pipeline-cleanup"}, false)}
+var ProvisioningRunResource = ProvisioningRunDefinition{Definition: NewDefinition[apigen.ProvisioningRunSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "ProvisioningRun", "provisioning-runs", "ProvisioningRunStatus", []string(nil), true)}
 var RouterResource = RouterDefinition{Definition: NewDefinition[apigen.RouterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Router", "routers", "RouterStatus", []string(nil), false)}
 var SecretStoreResource = SecretStoreDefinition{Definition: NewDefinition[apigen.SecretStoreSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "SecretStore", "secret-stores", "", []string(nil), false)}
 var SecretResource = SecretDefinition{Definition: NewDefinition[apigen.SecretSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Secret", "secrets", "SecretStatus", []string{"homelab.io/secret-cleanup"}, false)}
@@ -1025,6 +1079,7 @@ var Definitions = []Definition{
 	MachineResource.Definition,
 	PipelineProviderResource.Definition,
 	PipelineResource.Definition,
+	ProvisioningRunResource.Definition,
 	RouterResource.Definition,
 	SecretStoreResource.Definition,
 	SecretResource.Definition,

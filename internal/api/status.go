@@ -47,7 +47,7 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 		return
 	}
 	if definition.Kind == registry.ServerResource.Kind {
-		if err := validateProvisioningStatus(current, merged); err != nil {
+		if err := s.validateProvisioningStatus(r.Context(), current, merged); err != nil {
 			writeError(w, http.StatusConflict, "Conflict", err.Error())
 			return
 		}
@@ -56,6 +56,16 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 				writeError(w, http.StatusConflict, "Conflict", err.Error())
 				return
 			}
+		}
+	}
+	if definition.Kind == "ProvisioningRun" {
+		if err := s.validateRunReservation(r.Context(), current, merged); err != nil {
+			writeError(w, http.StatusConflict, "Conflict", err.Error())
+			return
+		}
+		if err := validateProvisioningRunStatus(current, merged); err != nil {
+			writeError(w, http.StatusConflict, "Conflict", err.Error())
+			return
 		}
 	}
 	updated := current

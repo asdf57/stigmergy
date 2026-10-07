@@ -84,6 +84,46 @@ func (s *Store) Get(ctx context.Context, kind, name string) (resource.Resource, 
 	return decode(response.Kvs[0].Value, response.Kvs[0].ModRevision)
 }
 
+func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any) (resource.Resource, error) {
+	uid, err := s.newUID()
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	revision, err := strconv.ParseInt(owner.Metadata.ResourceVersion, 10, 64)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	candidate.Metadata.UID = uid
+	candidate.Metadata.Generation = 1
+	candidate.Metadata.CreationTimestamp = s.now().UTC()
+	candidate.Metadata.ResourceVersion = ""
+	owner.Status = status(candidate)
+	owner.Metadata.ResourceVersion = ""
+	value, err := encode(candidate)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	ownerValue, err := encode(owner)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	key := s.keys.resource(candidate.Kind, candidate.Metadata.Name)
+	ownerKey := s.keys.resource(owner.Kind, owner.Metadata.Name)
+	response, err := s.client.Txn(ctx).If(
+		clientv3.Compare(clientv3.Version(key), "=", 0),
+		clientv3.Compare(clientv3.Version(s.keys.uid(uid)), "=", 0),
+		clientv3.Compare(clientv3.ModRevision(ownerKey), "=", revision),
+	).Then(clientv3.OpPut(key, string(value)), clientv3.OpPut(s.keys.uid(uid), key), clientv3.OpPut(ownerKey, string(ownerValue))).Commit()
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	if !response.Succeeded {
+		return resource.Resource{}, storage.ErrConflict
+	}
+	candidate.Metadata.ResourceVersion = strconv.FormatInt(response.Header.Revision, 10)
+	return candidate, nil
+}
+
 func (s *Store) List(ctx context.Context, kind string) (resource.List, error) {
 	response, err := s.client.Get(
 		ctx,

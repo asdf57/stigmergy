@@ -5,9 +5,11 @@ package etcd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +17,63 @@ import (
 	storage "github.com/asdf57/stigmergy/internal/store"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
+
+func TestAtomicCreateWithStatusHasOneWinnerAndNoOrphans(t *testing.T) {
+	client, err := clientv3.New(clientv3.Config{Endpoints: strings.Split(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379"), ","), DialTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	prefix := "/homelab/test/atomic/" + time.Now().UTC().Format("20060102150405.000000000")
+	resourceStore := New(client, prefix)
+	t.Cleanup(func() { _, _ = client.Delete(context.Background(), prefix, clientv3.WithPrefix()) })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owner, err := resourceStore.Create(ctx, resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "owner"}, Spec: map[string]any{}, Status: map[string]any{"unrelated": "preserved"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workers sync.WaitGroup
+	results := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		workers.Add(1)
+		go func(index int) {
+			defer workers.Done()
+			_, err := resourceStore.CreateWithStatus(ctx, resource.Resource{Kind: "ProvisioningRun", Metadata: resource.Metadata{Name: fmt.Sprintf("run-%d", index)}, Spec: map[string]any{}}, owner, func(created resource.Resource) map[string]any {
+				return map[string]any{"unrelated": "preserved", "activeRunRef": map[string]any{"name": created.Metadata.Name, "uid": created.Metadata.UID}}
+			})
+			results <- err
+		}(i)
+	}
+	workers.Wait()
+	close(results)
+	winners := 0
+	for err := range results {
+		if err == nil {
+			winners++
+		} else if !errors.Is(err, storage.ErrConflict) {
+			t.Fatal(err)
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("winners=%d", winners)
+	}
+	runs, err := resourceStore.List(ctx, "ProvisioningRun")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.Items) != 1 {
+		t.Fatalf("created orphan runs: %d", len(runs.Items))
+	}
+	updated, err := resourceStore.Get(ctx, "Server", "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := updated.Status["activeRunRef"].(map[string]any)
+	if ref["uid"] != runs.Items[0].Metadata.UID || updated.Status["unrelated"] != "preserved" || updated.Metadata.Generation != owner.Metadata.Generation {
+		t.Fatal("reservation identity or owner state lost")
+	}
+}
 
 func TestResourceLifecycle(t *testing.T) {
 	endpoints := strings.Split(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379"), ",")

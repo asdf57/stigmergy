@@ -46,15 +46,15 @@ func TestPinnedBootDoesNotFollowNewISOOrAuthorityBuild(t *testing.T) {
 	)
 	host := registry.NewServer(resource.Metadata{Name: "host", UID: "host-uid"}, apigen.ServerSpec{})
 	ref := apigen.ResourceReference{Name: "machine", Uid: "machine-uid"}
-	snapshot := apigen.ServerProvisioningSnapshot{ServerUID: "host-uid", MachineRef: ref,
+	snapshot := apigen.ProvisioningRunSnapshot{ServerUID: "host-uid", MachineRef: ref,
 		IsoRef: apigen.ResourceReference{Name: "iso", Uid: "iso-uid"}, AuthorityRef: apigen.ResourceReference{Name: "ca", Uid: "ca-uid"},
 		KeyPairRef: apigen.ResourceReference{Name: "key", Uid: "key-uid"}, Distribution: "debian", IsoBuildID: "old-build",
 		Artifacts: []apigen.ISOArtifact{{Type: "kernel", Url: "https://files.example/old-build/kernel"}, {Type: "initrd", Url: "https://files.example/old-build/initrd"}, {Type: "rootfs", Url: "https://files.example/old-build/rootfs"}}}
-	host.Status = &apigen.ServerStatus{MachineRef: &ref, Provisioning: &apigen.ServerProvisioningStatus{Snapshot: &snapshot}}
+	host.Status = &apigen.ServerStatus{MachineRef: &ref}
 	api := &Server{store: resources}
 	boot := func() string {
 		w := httptest.NewRecorder()
-		api.servePinnedBoot(w, httptest.NewRequest("GET", "/ipxe/test", nil), host)
+		api.servePinnedBoot(w, httptest.NewRequest("GET", "/ipxe/test", nil), host, &snapshot)
 		return w.Body.String()
 	}
 	if body := boot(); !strings.Contains(body, "old-build/kernel") || strings.Contains(body, "exit 1") {
@@ -177,5 +177,35 @@ func TestIPXEUnknownMACReturnsBootableErrorScript(t *testing.T) {
 	}
 	if body := response.Body.String(); !strings.Contains(body, "No discovered Machine matches MAC") || !strings.Contains(body, "exit 1") {
 		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestBoundNewServerBootsConfiguredLiveImageWithoutDiskOrRun(t *testing.T) {
+	image := resource.Resource{Kind: "ISO", Metadata: resource.Metadata{Name: "image", UID: "image-uid", Generation: 1}, Spec: map[string]any{"distribution": "debian", "sshCertificateAuthorityRef": map[string]any{"name": "ca"}}, Status: map[string]any{"phase": "Ready", "observedGeneration": 1, "desiredTrustBundleDigest": "digest", "authorityRef": map[string]any{"name": "ca", "uid": "ca-uid"}, "artifacts": []any{
+		map[string]any{"type": "kernel", "url": "https://files.example/kernel"}, map[string]any{"type": "initrd", "url": "https://files.example/initrd"}, map[string]any{"type": "rootfs", "url": "https://files.example/rootfs"}}}}
+	authority := resource.Resource{Kind: "SSHCertificateAuthority", Metadata: resource.Metadata{Name: "ca", UID: "ca-uid", Generation: 1}, Status: map[string]any{"phase": "Ready", "observedGeneration": 1, "trustBundleDigest": "digest"}}
+	host := resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "host", UID: "host-uid"}, Spec: map[string]any{"provisioning": map[string]any{"enabled": true}, "operatingSystem": map[string]any{"distribution": "debian"}, "boot": map[string]any{"isoRef": map[string]any{"name": "image"}}, "sshCertificateAuthorityRef": map[string]any{"name": "ca"}}, Status: map[string]any{"machineRef": map[string]any{"name": "machine", "uid": "machine-uid"}, "bootISORef": map[string]any{"name": "image", "uid": "image-uid"}, "sshTrust": map[string]any{"authorityRef": map[string]any{"name": "ca", "uid": "ca-uid"}, "publicBundle": "public"}}}
+	machine := resource.Resource{Kind: "Machine", Metadata: resource.Metadata{Name: "machine", UID: "machine-uid"}, Status: map[string]any{"serverRef": map[string]any{"name": "host", "uid": "host-uid"}, "inventory": map[string]any{"interfaces": []any{map[string]any{"name": "eth0", "mac": "00:11:22:33:44:55"}}}}}
+	storage := testutil.NewStore(image, authority, host, machine)
+	for key, value := range storage.Resources {
+		value.APIVersion = resource.APIVersion
+		storage.Resources[key] = value
+	}
+	api := &Server{store: storage, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	boot := func() string {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/ipxe/00:11:22:33:44:55", nil)
+		r.SetPathValue("mac", "00:11:22:33:44:55")
+		api.getIPXEBoot(w, r)
+		return w.Body.String()
+	}
+	if body := boot(); !strings.Contains(body, "kernel https://files.example/kernel") || strings.Contains(body, "exit 1") {
+		t.Fatal(body)
+	}
+	host.Status["provisioning"] = map[string]any{"provisioned": true}
+	host.APIVersion = resource.APIVersion
+	storage.Resources["Server/host"] = host
+	if !strings.Contains(boot(), "exit 1") {
+		t.Fatal("installed Server unexpectedly booted live without a run")
 	}
 }

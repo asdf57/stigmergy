@@ -166,6 +166,11 @@ the generated handler is called.
 - The binding controller records UID-qualified `Server.status.machineRef` and
   `Machine.status.serverRef` values. A Server without a matching Machine remains
   Pending; a Server cannot steal a Machine already bound to another Server.
+- `ProvisioningRun` is an immutable one-shot request selecting a discovered disk
+  for installation. Create it through the Server's Provision dialog or generic
+  API; Server provisioning.enabled alone never erases disks. See
+  [provisioning standup](docs/server-provisioning-rollout.md) for the manifest,
+  run status and operator/recovery workflow.
 
 For example, save this as `desktop.yaml` after the report controller has
 discovered the physical Machine (or before—it will remain Pending until then):

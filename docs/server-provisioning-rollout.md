@@ -1,184 +1,105 @@
-# Server provisioning rollout
+# ProvisioningRun standup and execution
 
-Implementation: RFC 0003. One `provision` job shares the existing
-`reconcile-ssh-host-keys-ssh-managed` pipeline and `server-lifecycle` serial group
-with its SSH operator job. Both use `InventoryCaptureGroup/ssh-managed`; a
-Partial capture group does not block available Servers. No new resource kind,
-per-attempt pipeline, command branch, or custom action endpoint is needed.
+The shared reconcile-ssh-host-keys-ssh-managed pipeline has operator and provision
+jobs sharing server-lifecycle and InventoryCaptureGroup/ssh-managed. Scheduled
+or manual triggers poll requests; they never authorize disk replacement.
 
 ## Standup
 
-Keep each Server's provisioning disabled until its disk is explicitly approved
-and preflight has passed. Review checked-in enabled flags and request counters
-before applying site resources: they are executable desired state. Beelink's
-replacement has been explicitly approved; its site counter records preparation
-retries and must not be reset by a later initialization.
-
-1. Build/publish the changed Stigmergy and Ansible runner code, and rebuild the
-   Arch/Debian live images. Images now contain `/etc/homelabd/live-build-id`;
-   installation refuses a live session whose immutable build cannot be verified.
-   An older, verified Arch live session can first refresh into the pinned Arch
-   build using the guarded live-bootstrap playbook; it is not accepted for erasure.
-2. Prepare the existing API policy without rotating tokens:
+1. Coordinate API, operator and UI rollout only with lifecycle work idle. Preserve
+   existing installation observations, Git SSH keys, API tokens and host keys.
+   Do not run init or deploy incompatible schemas over an active installation.
+2. Generate API models/OpenAPI from the resource modules with make generate.
+   Publish the API and reviewed operator revision; update the web console.
+3. Prepare runner policy using the existing tokens:
 
    ```sh
-   go run ./cmd/create-api-auth --policy-source /path/to/existing/api-access.json --output-dir .local/api-auth-provisioning
+   go run ./cmd/create-api-auth --policy-source /path/to/private/api-access.json --output-dir .local/api-auth-runs
    ```
 
-   This creates a fresh private directory, preserving admin/agent/runner tokens.
-   The runner gains GET/list access to Machine, ISO, SSHCertificateAuthority and
-   Command, in addition to its existing public SSHKeyPair/Server/inventory reads
-   and generic Server status PATCH. It still cannot GET Secrets or alter specs.
-   Install the prepared policy through the normal bootstrap env-file workflow
-   and restart the API; never print credentials or regenerate the Git SSH key.
-3. Run the normal infrastructure initialization with the new Ansible roles.
-   It builds iPXE from the pinned upstream v2.0.0 commit in a local Docker build,
-   embedding the public API bootstrap URL and packaged Let's Encrypt ISRG X1
-   and ZeroSSL USERTrust ECC/RSA root certificates. It publishes `homelab-ipxe.efi` and its SHA-256 file through the
-   existing HTTPS boot server. No privileged token is embedded in iPXE itself.
-   Set `DISCOVERY_ISO` to the existing discovery ISO name; the site default is
-   `arch-rolling-amd64`. If HTTPS uses a different CA, change the iPXE trust build
-   explicitly and retest TLS; do not disable validation.
-4. Upload the updated shared Pipeline and capture-group configuration. Its timed
-   `provision` job polls every five minutes; a manual job trigger also just polls
-   desired state and never increments the reprovision counter.
-5. Validate on a disposable UEFI VM before authorizing a physical disk. The
-   network-isolated `ansible-roles/operators/tests/grub_boot_vm.sh` checks actual
-   GRUB one-shot consumption and local-default boot; it is not a full OS-install
-   acceptance test. Verify a full fresh install/reinstall and SSH handoff too.
+   Runner can GET Machine, Server, ISO, CA, public SSHKeyPair, capture groups,
+   Command and ProvisioningRun, and PATCH Server/run generic status. Admin creates
+   requests. Runner cannot fetch API Secrets or create runs. Install the policy
+   via the established private env-file/bootstrap workflow; never print it.
+4. Configure discovery ISO, Ready Server boot ISO/CA/target OS, management network
+   and LLDP selector. Set provisioning.enabled=true to permit explicit runs and
+   first-machine live discovery; that flag alone never installs or erases.
+5. Build/publish the shared iPXE artifact through plays/build_ipxe.yml and immutable
+   live ISO artifacts when their inputs change. iPXE trusts packaged ISRG X1 and
+   USERTrust ECC/RSA roots; never bypass TLS. Preserve protected daemon enrollment.
+6. Verify discovery, Machine inventory/binding and managed SSH readiness. Test the
+   full run lifecycle on disposable hardware/VM before a physical acceptance run.
 
-Use the same private runner credentials/setup as the operator and run
-`python3 operators/provisioning.py --preflight` to inspect candidate disks and
-dependencies without claiming, installing, changing boot selection or rebooting.
-Preflight also examines configured disabled Servers. Initial counter 0 reports
-existing disk contents as blocked; it never treats existing partitions as fresh.
+## Request installation
 
-## Desired state and execution
-
-Use the existing conditional Server spec PATCH/PUT with `If-Match`. PATCH bodies
-are spec merge patches, not envelopes containing another `spec` property.
+Use the Server's Provision dialog to select a discovered disk and type its exact
+name. Or POST a reviewed resource to /api/v1alpha1/provisioning-runs:
 
 ```yaml
-provisioning:
-  enabled: true
-  reprovision: 0
-  targetDisk: /dev/disk/by-id/<approved-physical-disk>
+apiVersion: homelab.io/v1alpha1
+kind: ProvisioningRun
+metadata:
+  name: node-install-001
+spec:
+  serverRef: {name: node, uid: <server-uid>}
+  serverGeneration: <reviewed-server-generation>
+  machineRef: {name: machine, uid: <machine-uid>}
+  storage:
+    disks:
+      - deviceID: wwn:<discovered-wwn>
+        role: system
 ```
 
-Counter 0 only installs a blank approved disk. Existing disks, including Beelink,
-require a deliberately incremented replacement counter. For a reviewed
-replacement, first configure the target while disabled; enabling it makes the
-current counter eligible for execution. After a successful installation, request
-another replacement by increasing the counter by exactly one. Ordinary OS,
-package, ISO, label or CA edits never authorize a new wipe. Do not roll out an
-enabled resource or counter increase as a demonstration: either is real desired
-state consumed by the operator.
+Creation explicitly authorizes erasure, even for the first installation. There is
+no disk field or replacement counter in Server spec. V1 supports one SATA/ATA/NVMe
+system disk with EFI/swap/ext4 layout, amd64 UEFI with Secure Boot already off,
+Arch rolling or Debian trixie. USB, removable/read-only/ambiguous disks and
+unsupported layouts/features block. Do not check destructive runs into init.
 
-The current recipes support amd64 UEFI, Arch rolling from Arch live, and Debian
-trixie from compatible Arch/Debian live. Secure Boot must already be off for this
-unsigned GRUB/iPXE artifact; the operator never changes firmware settings.
-The explicit capture-group storage layout is EFI, swap, ext4 root; v1 rejects
-other layouts, custom install sources/locales and unimplemented enabled features
-before erasure. It applies ordinary users/public key references, packages,
-groups, hostname, timezone, validated kernel arguments and sysctls. Root password
-login is locked; no extra user credentials are generated or uploaded to Vault.
+Creation atomically reserves the Server and records discovered disk identity.
+Conflicts require a fresh review, not an automatic retry. Specs cannot be changed.
+The operator independently verifies serial/WWN/size, stable by-id path, mounts,
+boot/session, dependencies and immutable execution inputs before installation.
 
-The operator pins non-secret inputs, physical serial/WWN/size, NIC MAC, dependency
-UIDs, ISO build/artifacts and code revision in Server status. It reserves
-maintenance, drains administrative builds, and either uses a verified existing
-live session or primes the selected NIC and arms `grub-reboot homelab-netboot`.
-Priming resolves the pinned MAC against current node interfaces, rather than
-trusting a cached API name; live `eth0` may be installed `enp1s0`. Missing or
-ambiguous MAC matches block before changing NIC settings or arming GRUB.
-GRUB normally boots the installed OS locally; API/network availability is only
-needed for the explicitly selected netboot path.
+Run python3 operators/provisioning.py --preflight with the existing runner setup
+to inspect pending runs without claiming, rebooting or installing. No run means
+no installation. Polling the job without a run is an idle no-op.
 
-For an older USB-booted Arch live session without disk GRUB, the operator can
-bootstrap the pinned Arch kernel/initramfs with kexec instead. Ansible verifies
-the same session/disk, primes the NIC, downloads checksum-verified HTTPS
-artifacts into `/run`, loads the kernel, and requests a systemd kexec only after
-the durable AwaitingLive checkpoint. This does not partition or mount the SSD.
-The replacement live boot must pass the same build/session/SSH/disk checks before
-installation. Unsupported live refresh or unavailable kexec blocks safely;
-manual live boot remains a recovery option. Normal installed reprovisioning
-continues to use GRUB, not kexec. All reboot requests run through the stage playbook.
-Arch netboot arguments include `net.ifnames=0` and a MAC-selected `BOOTIF`, matching
-the [upstream Arch netboot script](https://ipxe.archlinux.org/releng/netboot/archlinux.ipxe).
-The live root filesystem is downloaded into RAM; a 2 GiB test guest is insufficient
-for the current image. Use at least 4 GiB for live-boot tests and budget more for
-package installation. Check actual hardware capacity before authorizing installation.
+## Progress and recovery
 
-After authenticated live verification, the attempt-scoped TOFU handoff persists
-the bootstrap host-key pin before host-private-key delivery. The stable managed
-SSH identity, CA trust, fixed `ansible` account reconciler and enrolled daemon
-are preserved to the replacement root. The role rebuilds disk GRUB and its iPXE
-entry, clears `next_entry`, validates the new UEFI partition/default boot entry,
-and writes a root-owned `/var/lib/homelab/provisioning.json` marker.
-Firmware reconciliation matches the new EFI partition UUID and loader path,
-not only the Homelab display name. It creates a missing exact entry and selects
-it first without deleting unrelated entries; grub-install alone may retain a
-same-named entry for the previous partition. An interrupted install remains
-reserved and requires configuration-only repair, not a second erase.
+Read ProvisioningRun.status for phase, currentStage, message, snapshot, boot IDs,
+attemptID, backendRunID and timestamps. Read Server.status.provisioning for the
+activeRunRef, maintenance and lastSuccessfulRunRef. The Server detail page follows
+the run and refreshes every five seconds; it does not invent checkpoint history.
 
-Only a changed installed boot session, matching marker/root/disk/OS, restored
-GRUB, strict managed SSH and healthy management services produce `Succeeded`
-and advance `observedReprovision`. Partial or failed execution does not.
+Standard Ansible output streams to Concourse. Secret tasks use no_log; private
+task logs are retained inside the task container. Trace the shared job/build,
+not a per-request pipeline. Scheduled idle success does not prove installation.
 
-## Coordination and recovery
+Normal boot is local disk GRUB. Replacement arms the one-shot homelab-netboot
+entry, primes the current interface selected by pinned MAC and boots the pinned
+live ISO. iPXE Permission denied can be certificate validation; the UEFI TLS
+fixture tests the actual API/artifact chain. Arch live boot requires BOOTIF and
+net.ifnames=0 and at least 4 GiB for the tested RAM image.
 
-An iPXE "Permission denied" error can indicate TLS certificate validation,
-even when curl returns HTTP 200. Check the exact iPXE error and served HTTPS
-chain; never bypass TLS. `plays/build_ipxe.yml` rebuilds only the shared boot
-artifact; `operators/tests/ipxe_https_vm.sh` exercises the API/artifact HTTPS
-chains from actual UEFI iPXE in a disposable VM without installing an OS.
-For a reachable installed system, `plays/repair_boot.yml` refreshes its verified
-iPXE binary, regenerates a visible five-second GRUB menu and clears next_entry.
-It requires the inspected stable disk identity, boot ID, root UUID and Server
-UID, performs no reboot or installation, and keeps a backup of the old binary.
-After independently verifying the original installation and cleared boot intent,
-release a failed pre-install attempt's maintenance via conditional status PATCH;
-retain Blocked and both request/observed counters. A new explicit request is
-still required for another replacement. Updating the published binary alone
-does not update an installed copy under `/boot/ipxe`.
+Only a changed installed boot, matching run marker/root/disk/OS, restored GRUB,
+strict SSH identity and healthy services complete a run. The run is marked
+Succeeded before Server reservation release; a later pass can finish release
+without reinstalling. Run UID, not a counter, binds the installed marker.
 
-The v1 maintenance gate is intentionally conservative: any provisioning
-reservation pauses dispatch of all API-managed Commands, across all capture
-groups. Already Dispatching/Running Commands must drain before reboot/erasure.
-The normal Server runner also refuses reserved targets. Pending Commands wait.
-SSH and provisioning operator builds share a Concourse serial group.
-Both operators stream Ansible's standard task/result/recap output to Concourse,
-with immediate stage/checkpoint messages. Credential-bearing tasks use Ansible
-`no_log`; verbosity and argument display stay off. Private task-container logs
-are also retained under `/tmp/provision-operator-diagnostics` or
-`/tmp/ssh-host-operator-diagnostics` with directory mode 0700 and file mode 0600.
-This is not a universal lock on root/admin access: do not directly trigger raw
-command jobs, run unmanaged SSH commands or start another provisioning worker
-outside the documented execution path during maintenance.
+Interrupted Installing becomes Blocked with maintenance retained; never rewipe
+automatically. Verify the exact original live boot/build/disk and staged mounts
+before using the configuration-only repair stage. After verified staged completion,
+the same run can move to AwaitingInstalled with the immutable original snapshot
+and liveBootID retained. Resume final verification using its pinned code revision.
+See ansible-roles/AGENTS.md for fly pin/watch/hijack recipes.
 
-A preparation failure clears and verifies pending GRUB selection if the original
-installed session is still reachable. Uncertain cleanup retains maintenance.
-Pause/disable is checked before new stages; completed installation may make its
-safe final reboot, while paused post-configuration waits for resume.
+Preparation failure must clear/read back boot selection before maintenance release.
+Blocked runs with verified cleanup can release their reservation; a new installation
+requires a new run. Pending cancellation may report Blocked/maintenance=false only
+before privileged work, then release the Server. Reserved runs cannot be deleted;
+completed unreserved runs may be deleted with If-Match. No automatic TTL exists.
 
-Interrupted `Installing` becomes `Blocked`, retaining maintenance, and never
-automatically reexecutes installation. Inspect/repair manually, then explicitly
-clear the verified maintenance/boot selection through generic status PATCH and
-increment the request only if another destructive attempt is intended.
-For a verified partial root with its original live session and chroot mounts
-still present, the explicit `repair` stage runs configuration only: it verifies
-the pinned boot/build/disk, `/mnt` root and EFI mount sources, and bind mounts,
-then completes management, GRUB and the staged marker without partitioning,
-formatting or bootstrapping packages again. Record the repair code revision in
-the checkpoint message. Only after checking the completed staged marker may an
-explicit generic status update move that same Blocked attempt to
-`AwaitingInstalled`, retaining maintenance and the original live boot ID.
-It cannot return to `Installing`; fresh installed-boot verification still gates
-success. Resume the final verification with the pinned original operator revision.
-`AwaitingInstalled`/`Verifying` resumes marker-based final boot/verification,
-not partitioning. Resume uses the pinned operator-code revision; inspect and
-select that Git resource version in Concourse if the source branch moved.
-
-If GRUB is destroyed, the disk fails, or power is lost before GRUB is restored,
-boot a live ISO manually and inspect the disk/checkpoint. No firmware PXE-first,
-permanent USB, protected bootstrap partition, PiKVM, or automatic recovery is
-required in v1. Manual recovery itself is not permission for another wipe.
+Manual console/live-media recovery is accepted when bootloader/disk recovery is
+necessary. Never use PiKVM. A successful trigger/build or port 22 opening is not
+acceptance: independently inspect the run status and actual installed node.

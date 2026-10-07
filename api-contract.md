@@ -100,6 +100,23 @@ object contract. The store assigns server-owned metadata and derives
 
 ## Machine and Server ownership
 
+Provisioning is an external one-shot operation, not a disk choice in Server spec.
+An immutable ProvisioningRun references Server and Machine by name/UID, includes
+the reviewed serverGeneration, and selects exactly one system disk using the
+Machine inventory's WWN (or serial fallback). Creation authorizes replacement,
+checks reciprocal bindings and atomically creates the run with a Server status
+reservation. Duplicate/stale requests conflict. ProvisioningRun has generic
+create/list/get/patch/delete and /status routes; its spec cannot change.
+
+The external operator writes run checkpoints and the immutable execution snapshot
+through generic status PATCH with UID and If-Match. Server status contains only
+provisioned, maintenance, activeRunRef, lastRunRef and lastSuccessfulRunRef. The
+last-success reference advances only after the reserved run completes installed
+verification. Terminal status precedes reservation release, so a lost release
+cannot cause installation replay. Reserved Servers/runs cannot be deleted.
+Run history is retained until explicitly deleted; no TTL is implemented. Enabling
+Server provisioning or editing its OS/ISO/CA never creates an installation request.
+
 - `MachineReport` is a transient hardware observation. Its controller consumes
   it after projecting the latest inventory into a Machine.
 - `Machine.spec.location` identifies the physical attachment point;
@@ -143,10 +160,9 @@ object contract. The store assigns server-owned metadata and derives
   updates are ordinary non-forced commits to the target branch.
 - `CommandsPipeline.spec` binds one inventory capture group to its commands
   repository, provider, and command-file path.
-- `Command.spec` contains one multiline script and names its inventory capture
-  group. Its controller resolves the matching `CommandsPipeline`, preserves
-  unrelated branch files, and commits the script through the referenced
-  `GitRepository`. A capture group has at most one `Command` owner.
+- `Command.spec` is an immutable one-shot script referencing CommandsPipeline.
+  Multiple Commands share that executor's persistent pipeline/job as separate
+  builds; creating another Command requests another execution.
 - `SecretStore.spec` describes how controllers reach an external secret store;
   authentication names either a process environment variable or an absolute
   Agent-managed token file and never contains the credential value itself.

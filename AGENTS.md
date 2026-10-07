@@ -14,7 +14,7 @@
 ## API writes and authentication
 
 - Resource PATCH bodies are spec merge patches, not `{spec: ...}` envelopes.
-  Use `If-Match: "<resourceVersion>"` for counter/spec changes.
+  Use `If-Match: "<resourceVersion>"` for spec changes.
 - Generic status PATCH uses a UID-bound envelope:
   `{metadata: {uid: "..."}, status: {...}}`, the same If-Match header, and
   `Content-Type: application/merge-patch+json`.
@@ -61,11 +61,11 @@ for collection in ('servers', 'machines', 'isos', 'pipelines', 'commands',
 server = api.get('servers', 'beelink')
 p = server['status'].get('provisioning', {})
 print(json.dumps({'name': 'beelink', 'provisioning': {key: p.get(key) for key in
-    ('phase', 'requestedReprovision', 'observedReprovision', 'maintenance', 'message')}}, indent=2))
+    ('activeRunRef', 'lastRunRef', 'lastSuccessfulRunRef', 'maintenance', 'provisioned')}}, indent=2))
 PY
 ```
 
-Collections also include `commands-pipelines`, `pipeline-providers`, `secrets`
+Collections also include `provisioning-runs`, `commands-pipelines`, `pipeline-providers`, `secrets`
 and `secret-stores`. List returns an `{items: [...]}` envelope over HTTP;
 `API.list` unwraps it. GET returns the resource directly. For Secrets, inspect
 only metadata/conditions; never print `spec.data`. Use client-side name/label
@@ -86,7 +86,7 @@ updated = api.patch_status(server, observed_status_patch)
 
 `change` and `observed_status_patch` are the reviewed intended changes, not
 complete replacement resources. Reread after a conflict; do not blindly replay
-a counter increment or overwrite another operator's observations.
+a destructive request or overwrite another operator's observations.
 
 To CREATE an authorized resource, POST its full
 `{apiVersion, kind, metadata: {name}, spec}` object to the collection with
@@ -100,7 +100,8 @@ the named resource first and use its resourceVersion with If-Match.
 ## Trace and troubleshoot
 
 - Server: inspect `status.machineRef`, management address/interface, `hostSSH`,
-  `bootISORef`, desired/installed SSH trust digests and `provisioning` checkpoint.
+  `bootISORef`, trust digests and `provisioning.activeRunRef/lastRunRef`. Follow
+  that UID-qualified ProvisioningRun for phase, snapshot, message and build.
 - ISO: inspect phase, conditions, selected/completed build, artifacts and
   `pipelineRef`; follow that Pipeline to `spec.externalName`/provider.
 - Command: inspect phase, conditions, `pipelineRef` and `buildID`; use that exact
@@ -110,23 +111,25 @@ the named resource first and use its resourceVersion with If-Match.
 - SSH CA/key/certificate: inspect Ready/conditions/observedGeneration and public
   trust/certificate state. Private keys are in Secrets/OpenBao, not debug output.
 - Compare `status.observedGeneration` with metadata generation only for resource
-  types that define it. Provisioning also has its own requested/observed counter.
+  types that define it. Follow Server activeRunRef/lastRunRef to ProvisioningRun
+  for checkpoints; lastSuccessfulRunRef remains the last verified installation.
 - Check API `/readyz` first when the UI reports offline. For HTTP 502 inspect the
   reverse proxy's upstream and service/container state before changing resources.
   For 401 check the intended route's auth policy/token, not TLS bypasses.
 
 ## Provisioning status safety
 
-- Reprovision increments by exactly one; ISO/CA/ordinary spec changes never
-  authorize disk replacement. Freeze destructive inputs during maintenance.
+- Creating a ProvisioningRun with Server/Machine UIDs, reviewed serverGeneration
+  and one discovered disk ID authorizes replacement. Enabling Server provisioning
+  or ISO/CA/spec changes never does. Creation atomically reserves the Server.
 - Preserve immutable attempt/snapshot ownership and dependency UIDs. Do not
-  reset counters, rewrite snapshots or mark success merely to recover a build.
+  rewrite snapshots or mark success merely to recover a build.
 - An interrupted installation is Blocked; no automatic rewipe is allowed.
   Explicit configuration repair can move the same Blocked attempt to
   AwaitingInstalled only with the owned live session, retained maintenance,
   installed boot target and no pending netboot. The external operator must
   verify the completed staged marker first. Fresh installed verification is
-  still required before success/observed counter advancement.
+  still required before run success and reservation release.
 - Status credentials are intentionally broad in v1. Do not confuse schema/state
   validation with proof of physical state; the operator supplies that evidence.
 

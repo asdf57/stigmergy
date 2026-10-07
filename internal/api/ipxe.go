@@ -75,7 +75,22 @@ func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
 		s.writeIPXEScript(w, "No eligible live provisioning request", "")
 		return
 	}
-	if p := server.Status.Provisioning; p != nil && p.AttemptID != nil {
+	if reservation := server.Status.Provisioning; reservation != nil && reservation.ActiveRunRef != nil {
+		raw, err := s.store.Get(r.Context(), "ProvisioningRun", reservation.ActiveRunRef.Name)
+		if err != nil || raw.Metadata.UID != reservation.ActiveRunRef.Uid || raw.Metadata.DeletionTimestamp != nil {
+			s.writeIPXEScript(w, "Reserved ProvisioningRun is unavailable", "")
+			return
+		}
+		run, err := registry.ProvisioningRunResource.Decode(raw)
+		if err != nil || run.Spec.ServerRef.Uid != server.Metadata.UID || run.Spec.MachineRef.Uid != machine.Metadata.UID || run.Status == nil {
+			s.writeIPXEScript(w, "ProvisioningRun binding changed", "")
+			return
+		}
+		p := run.Status
+		if p.Phase != nil && *p.Phase == "Pending" {
+			s.serveISOBoot(w, r, server)
+			return
+		}
 		if p.Phase == nil || (*p.Phase != "PreparingBoot" && *p.Phase != "AwaitingLive" && *p.Phase != "Installing") || p.Snapshot == nil {
 			s.writeIPXEScript(w, "This attempt does not permit live boot", "")
 			return
@@ -84,10 +99,10 @@ func (s *Server) getIPXEBoot(w http.ResponseWriter, r *http.Request) {
 			s.writeIPXEScript(w, "MAC does not match pinned provisioning interface", "")
 			return
 		}
-		s.servePinnedBoot(w, r, server)
+		s.servePinnedBoot(w, r, server, p.Snapshot)
 		return
 	}
-	if server.Spec.Boot == nil || server.Spec.OperatingSystem == nil || server.Spec.Provisioning.TargetDisk == nil || server.Status.Provisioning != nil && server.Status.Provisioning.Provisioned {
+	if server.Spec.Boot == nil || server.Spec.OperatingSystem == nil || server.Status.Provisioning != nil && server.Status.Provisioning.Provisioned {
 		s.writeIPXEScript(w, "Initial provisioning configuration is incomplete or already observed", "")
 		return
 	}
@@ -114,8 +129,7 @@ func (s *Server) serveDiscoveryBoot(w http.ResponseWriter, r *http.Request, mess
 	s.serveISOBoot(w, r, host)
 }
 
-func (s *Server) servePinnedBoot(w http.ResponseWriter, r *http.Request, server registry.Server) {
-	p := server.Status.Provisioning.Snapshot
+func (s *Server) servePinnedBoot(w http.ResponseWriter, r *http.Request, server registry.Server, p *apigen.ProvisioningRunSnapshot) {
 	if p.ServerUID != server.Metadata.UID || p.MachineRef != *server.Status.MachineRef || p.AuthorityRef.Uid == "" {
 		s.writeIPXEScript(w, "Pinned boot identity changed", "")
 		return

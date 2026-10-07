@@ -1,166 +1,216 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"math"
-	"strconv"
-
 	"github.com/asdf57/stigmergy/internal/resource"
+	"github.com/asdf57/stigmergy/internal/store"
+	"strconv"
+	"strings"
 )
 
-func object(value any) map[string]any {
-	result, _ := value.(map[string]any)
-	return result
-}
-
-func counter(value any) (int64, error) {
-	if value == nil {
-		return 0, nil
-	}
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return 0, err
-	}
-	result, err := strconv.ParseInt(string(encoded), 10, 64)
-	if err != nil || result < 0 {
-		return 0, fmt.Errorf("counter must be a nonnegative int64")
-	}
-	return result, nil
-}
+func object(value any) map[string]any { result, _ := value.(map[string]any); return result }
 
 func activeProvisioning(status map[string]any) bool {
-	phase, _ := object(status["provisioning"])["phase"].(string)
-	switch phase {
-	case "PreparingBoot", "AwaitingLive", "Installing", "AwaitingInstalled", "Verifying":
-		return true
-	}
-	return false
+	p := object(status["provisioning"])
+	return p["maintenance"] == true || p["activeRunRef"] != nil
 }
 
-// Ordinary edits never authorize another wipe. Freeze destructive inputs while
-// an attempt owns them, but allow pause/disable and unrelated metadata edits.
-func validateProvisioningSpec(existing resource.Resource, spec map[string]any, conditional bool) error {
-	if existing.Kind != "Server" {
+func validateProvisioningSpec(existing resource.Resource, spec map[string]any, _ bool) error {
+	if existing.Kind != "Server" || !activeProvisioning(existing.Status) {
 		return nil
 	}
-	previous, err := counter(object(existing.Spec["provisioning"])["reprovision"])
-	if err != nil {
-		return err
-	}
-	next, err := counter(object(spec["provisioning"])["reprovision"])
-	if err != nil {
-		return err
-	}
-	if next != previous {
-		if !conditional {
-			return fmt.Errorf("reprovision changes require If-Match")
-		}
-		if previous == math.MaxInt64 || next != previous+1 {
-			return fmt.Errorf("reprovision must increase by exactly one")
-		}
-		if activeProvisioning(existing.Status) || object(existing.Status["provisioning"])["maintenance"] == true {
-			return fmt.Errorf("finish the active attempt and boot-selection cleanup before another request")
-		}
-	}
-	if activeProvisioning(existing.Status) || object(existing.Status["provisioning"])["maintenance"] == true {
-		for _, field := range []string{"machineSelector", "boot", "operatingSystem", "sshCertificateAuthorityRef", "users", "groups", "packages", "sysctls", "featureFlags", "networking", "hostName", "domainName"} {
-			if !resource.EqualJSON(existing.Spec[field], spec[field]) {
-				return fmt.Errorf("%s is pinned by the active provisioning attempt", field)
-			}
-		}
-		if !resource.EqualJSON(object(existing.Spec["provisioning"])["targetDisk"], object(spec["provisioning"])["targetDisk"]) {
-			return fmt.Errorf("targetDisk is pinned by the active provisioning attempt")
+	for _, field := range []string{"machineSelector", "boot", "operatingSystem", "sshCertificateAuthorityRef", "users", "groups", "packages", "sysctls", "featureFlags", "networking", "hostName", "domainName"} {
+		if !resource.EqualJSON(existing.Spec[field], spec[field]) {
+			return fmt.Errorf("%s is pinned by the active ProvisioningRun", field)
 		}
 	}
 	return nil
 }
 
-func validateProvisioningStatus(current resource.Resource, status map[string]any) error {
+func diskDeviceID(disk map[string]any) string {
+	if value, _ := disk["wwn"].(string); value != "" {
+		return "wwn:" + strings.ToLower(value)
+	}
+	if value, _ := disk["serial"].(string); value != "" {
+		return "serial:" + value
+	}
+	return ""
+}
+
+func selectedDisk(machine resource.Resource, spec map[string]any) (map[string]any, error) {
+	disks, _ := object(spec["storage"])["disks"].([]any)
+	if len(disks) != 1 || object(disks[0])["role"] != "system" {
+		return nil, fmt.Errorf("select exactly one system disk")
+	}
+	id, _ := object(disks[0])["deviceID"].(string)
+	inventory, _ := object(machine.Status["inventory"])["storage"].([]any)
+	matches := []map[string]any{}
+	for _, raw := range inventory {
+		disk := object(raw)
+		if id != "" && diskDeviceID(disk) == id {
+			matches = append(matches, disk)
+		}
+	}
+	if len(matches) != 1 {
+		return nil, fmt.Errorf("disk identity is missing or ambiguous in the bound Machine inventory")
+	}
+	disk := matches[0]
+	if disk["type"] != "disk" || (disk["tran"] != "sata" && disk["tran"] != "ata" && disk["tran"] != "nvme") {
+		return nil, fmt.Errorf("USB and nonphysical disks are not supported")
+	}
+	encoded, _ := json.Marshal(disk["size"])
+	size, err := strconv.ParseInt(string(encoded), 10, 64)
+	if err != nil || size <= 0 {
+		return nil, fmt.Errorf("disk capacity must be a positive int64")
+	}
+	result := map[string]any{}
+	for _, field := range []string{"serial", "wwn", "size", "model", "tran"} {
+		result[field] = disk[field]
+	}
+	return result, nil
+}
+
+func (s *Server) validateRunReservation(ctx context.Context, run resource.Resource, next map[string]any) error {
+	if resource.EqualJSON(run.Status, next) {
+		return nil
+	}
+	ref := object(run.Spec["serverRef"])
+	owner, err := s.store.Get(ctx, "Server", fmt.Sprint(ref["name"]))
+	if err != nil {
+		return err
+	}
+	active := object(object(owner.Status["provisioning"])["activeRunRef"])
+	if owner.Metadata.UID != ref["uid"] || owner.Metadata.DeletionTimestamp != nil || active["uid"] != run.Metadata.UID || active["name"] != run.Metadata.Name || !resource.EqualJSON(owner.Status["machineRef"], run.Spec["machineRef"]) {
+		return fmt.Errorf("run no longer owns the bound Server")
+	}
+	if run.Status["phase"] == "Pending" && next["phase"] == "PreparingBoot" {
+		snapshot := object(next["snapshot"])
+		if object(owner.Spec["provisioning"])["enabled"] != true || object(owner.Spec["reconciliation"])["paused"] == true || !resource.EqualJSON(snapshot["keyPairRef"], object(owner.Status["hostSSH"])["keyPairRef"]) || !resource.EqualJSON(snapshot["isoRef"], owner.Status["bootISORef"]) {
+			return fmt.Errorf("claim does not match enabled Server dependencies")
+		}
+	}
+	return nil
+}
+
+func (s *Server) createProvisioningRun(ctx context.Context, candidate resource.Resource) (resource.Resource, error) {
+	ref := object(candidate.Spec["serverRef"])
+	server, err := s.store.Get(ctx, "Server", fmt.Sprint(ref["name"]))
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	if server.Metadata.UID != ref["uid"] || server.Metadata.DeletionTimestamp != nil || activeProvisioning(server.Status) {
+		return resource.Resource{}, fmt.Errorf("%w: Server identity changed or another run owns it", store.ErrConflict)
+	}
+	if !resource.EqualJSON(candidate.Spec["serverGeneration"], server.Metadata.Generation) {
+		return resource.Resource{}, fmt.Errorf("%w: Server desired configuration changed; review it again", store.ErrConflict)
+	}
+	if object(server.Spec["provisioning"])["enabled"] != true || object(server.Spec["reconciliation"])["paused"] == true {
+		return resource.Resource{}, fmt.Errorf("%w: provisioning disabled or reconciliation paused", store.ErrConflict)
+	}
+	hostSSH := object(server.Status["hostSSH"])
+	if hostSSH["phase"] != "Ready" || hostSSH["keyReady"] != true || hostSSH["keyPairRef"] == nil || !resource.EqualJSON(hostSSH["keyPairRef"], hostSSH["installedKeyPairRef"]) {
+		return resource.Resource{}, fmt.Errorf("%w: establish managed SSH identity before reserving provisioning", store.ErrConflict)
+	}
+	if !resource.EqualJSON(server.Status["machineRef"], candidate.Spec["machineRef"]) {
+		return resource.Resource{}, fmt.Errorf("%w: Machine binding changed", store.ErrConflict)
+	}
+	machineRef := object(candidate.Spec["machineRef"])
+	machine, err := s.store.Get(ctx, "Machine", fmt.Sprint(machineRef["name"]))
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	if machine.Metadata.UID != machineRef["uid"] || machine.Metadata.DeletionTimestamp != nil || !resource.EqualJSON(machine.Status["serverRef"], candidate.Spec["serverRef"]) {
+		return resource.Resource{}, fmt.Errorf("%w: stale Machine identity or reciprocal binding", store.ErrConflict)
+	}
+	disk, err := selectedDisk(machine, candidate.Spec)
+	if err != nil {
+		return resource.Resource{}, fmt.Errorf("%w: %s", store.ErrConflict, err)
+	}
+	candidate.Status = map[string]any{"phase": "Pending", "maintenance": true, "selectedDisk": disk, "message": "Waiting for the provisioning operator"}
+	atomic, ok := s.store.(store.AtomicCreator)
+	if !ok {
+		return resource.Resource{}, fmt.Errorf("store does not support atomic resource reservations")
+	}
+	return atomic.CreateWithStatus(ctx, candidate, server, func(created resource.Resource) map[string]any {
+		return applyJSONMergePatch(server.Status, map[string]any{"provisioning": map[string]any{
+			"provisioned": object(server.Status["provisioning"])["provisioned"] == true,
+			"maintenance": true, "activeRunRef": map[string]any{"name": created.Metadata.Name, "uid": created.Metadata.UID},
+			"lastRunRef": map[string]any{"name": created.Metadata.Name, "uid": created.Metadata.UID},
+		}})
+	})
+}
+
+func validateProvisioningRunStatus(current resource.Resource, next map[string]any) error {
+	old := current.Status
+	from, to := fmt.Sprint(old["phase"]), fmt.Sprint(next["phase"])
+	if resource.EqualJSON(old, next) {
+		return nil
+	}
+	if !resource.EqualJSON(old["selectedDisk"], next["selectedDisk"]) {
+		return fmt.Errorf("selected disk observation is immutable")
+	}
+	allowed := map[string]string{"Pending": "PreparingBoot", "PreparingBoot": "AwaitingLive", "AwaitingLive": "Installing", "Installing": "AwaitingInstalled", "AwaitingInstalled": "Verifying", "Verifying": "Succeeded"}
+	repaired := from == "Blocked" && to == "AwaitingInstalled" && old["maintenance"] == true && next["maintenance"] == true && next["netbootArmed"] == false && next["bootTarget"] == "installed" && old["liveBootID"] != nil && old["liveBootID"] != "" && resource.EqualJSON(old["liveBootID"], next["liveBootID"])
+	if from != to && allowed[from] != to && !(to == "Blocked" && from != "Succeeded" && from != "Blocked") && !repaired {
+		return fmt.Errorf("invalid ProvisioningRun checkpoint transition")
+	}
+	if from == "Pending" && to == "PreparingBoot" {
+		snapshot := object(next["snapshot"])
+		if next["attemptID"] != current.Metadata.UID || snapshot["serverUID"] != object(current.Spec["serverRef"])["uid"] || !resource.EqualJSON(snapshot["machineRef"], current.Spec["machineRef"]) || !resource.EqualJSON(snapshot["diskIdentity"], old["selectedDisk"]) {
+			return fmt.Errorf("claim must match run, Server, Machine and selected disk identities")
+		}
+	} else if old["attemptID"] != nil {
+		for _, field := range []string{"attemptID", "snapshot", "observedServerGeneration", "backendRunID", "startedAt"} {
+			if !resource.EqualJSON(old[field], next[field]) {
+				return fmt.Errorf("claimed %s is immutable", field)
+			}
+		}
+	}
+	if to != "Pending" && to != "Blocked" && (next["attemptID"] != current.Metadata.UID || next["snapshot"] == nil) {
+		return fmt.Errorf("checkpoint requires the claimed run snapshot")
+	}
+	if to != "Succeeded" && to != "Blocked" && next["maintenance"] != true {
+		return fmt.Errorf("active run must retain maintenance")
+	}
+	if to == "Succeeded" && (next["maintenance"] == true || next["netbootArmed"] == true || next["completedAt"] == nil) {
+		return fmt.Errorf("success requires installed verification and boot cleanup")
+	}
+	return nil
+}
+
+func (s *Server) validateProvisioningStatus(ctx context.Context, current resource.Resource, status map[string]any) error {
 	old, next := object(current.Status["provisioning"]), object(status["provisioning"])
 	if resource.EqualJSON(old, next) {
 		return nil
 	}
-	requested, err := counter(object(current.Spec["provisioning"])["reprovision"])
-	if err != nil {
-		return err
-	}
-	observed, err := counter(next["observedReprovision"])
-	if err != nil {
-		return err
-	}
-	oldObserved, err := counter(old["observedReprovision"])
-	if err != nil {
-		return err
-	}
-	attemptCounter, err := counter(next["requestedReprovision"])
-	if err != nil {
-		return err
-	}
-	if observed < oldObserved || observed > requested || attemptCounter > requested {
-		return fmt.Errorf("invalid provisioning counter observation")
-	}
 	if old["provisioned"] == true && next["provisioned"] != true {
-		return fmt.Errorf("retain the last verified installation observation")
+		return fmt.Errorf("retain the verified installation observation")
 	}
-	newAttempt := next["attemptID"] != old["attemptID"]
-	if activeProvisioning(status) && (next["attemptID"] == nil || next["attemptID"] == "" || next["snapshot"] == nil || next["maintenance"] != true) {
-		return fmt.Errorf("active provisioning requires an owned attempt, snapshot and maintenance reservation")
+	if !resource.EqualJSON(old["lastRunRef"], next["lastRunRef"]) {
+		return fmt.Errorf("lastRunRef is assigned only by ProvisioningRun creation")
 	}
-	if newAttempt {
-		if activeProvisioning(current.Status) || old["maintenance"] == true {
-			return fmt.Errorf("another attempt still owns this Server")
-		}
-		if next["phase"] != "PreparingBoot" || next["attemptID"] == nil || next["attemptID"] == "" || attemptCounter != requested {
-			return fmt.Errorf("new attempts must claim the current request in PreparingBoot")
-		}
-		if object(current.Spec["provisioning"])["enabled"] != true || object(current.Spec["reconciliation"])["paused"] == true {
-			return fmt.Errorf("provisioning is disabled or paused")
-		}
-		oldCounter, _ := counter(old["requestedReprovision"])
-		if old["attemptID"] != nil && attemptCounter <= oldCounter {
-			return fmt.Errorf("a terminal attempt requires a new reprovision increment")
-		}
-		if old["provisioned"] == true && attemptCounter <= oldObserved {
-			return fmt.Errorf("installation already observed; increment reprovision")
-		}
-		if object(next["snapshot"])["serverUID"] != current.Metadata.UID {
-			return fmt.Errorf("attempt snapshot must match the Server UID")
-		}
-		snapshot := object(next["snapshot"])
-		if !resource.EqualJSON(snapshot["machineRef"], current.Status["machineRef"]) ||
-			!resource.EqualJSON(snapshot["keyPairRef"], object(current.Status["hostSSH"])["keyPairRef"]) ||
-			!resource.EqualJSON(snapshot["isoRef"], current.Status["bootISORef"]) ||
-			!resource.EqualJSON(snapshot["targetDisk"], object(current.Spec["provisioning"])["targetDisk"]) {
-			return fmt.Errorf("attempt snapshot does not match bound dependencies or target disk")
-		}
+	if resource.EqualJSON(old["activeRunRef"], next["activeRunRef"]) && resource.EqualJSON(old["maintenance"], next["maintenance"]) && resource.EqualJSON(old["lastSuccessfulRunRef"], next["lastSuccessfulRunRef"]) && resource.EqualJSON(old["provisioned"], next["provisioned"]) {
+		return nil
 	}
-	if !newAttempt && old["attemptID"] != nil {
-		for _, field := range []string{"snapshot", "requestedReprovision", "backendRunID", "observedServerGeneration"} {
-			if !resource.EqualJSON(old[field], next[field]) {
-				return fmt.Errorf("attempt %s is immutable", field)
-			}
-		}
-		from, to := old["phase"], next["phase"]
-		allowed := map[string]string{"PreparingBoot": "AwaitingLive", "AwaitingLive": "Installing", "Installing": "AwaitingInstalled", "AwaitingInstalled": "Verifying", "Verifying": "Succeeded"}
-		// Explicit repair may complete a partial installation, but cannot return
-		// to Installing/replay erasure. The operator must attest the completed
-		// staged marker before making this generic status update; normal installed
-		// boot and marker verification still gate success.
-		repaired := from == "Blocked" && to == "AwaitingInstalled" && old["maintenance"] == true &&
-			next["maintenance"] == true && next["netbootArmed"] == false && next["bootTarget"] == "installed" &&
-			old["liveBootID"] != nil && old["liveBootID"] != "" && resource.EqualJSON(old["liveBootID"], next["liveBootID"])
-		if from != to && to != "Blocked" && allowed[fmt.Sprint(from)] != to && !repaired {
-			return fmt.Errorf("invalid provisioning stage transition")
-		}
+	ref := object(old["activeRunRef"])
+	if ref == nil || next["activeRunRef"] != nil || next["maintenance"] == true {
+		return fmt.Errorf("reservations are assigned only by ProvisioningRun creation")
 	}
-	if observed != oldObserved || (next["provisioned"] == true && old["provisioned"] != true) || next["phase"] == "Succeeded" {
-		if next["attemptID"] == nil || (old["phase"] != "Verifying" && old["phase"] != "Succeeded") || newAttempt {
-			return fmt.Errorf("success requires completing the same Verifying attempt")
+	run, err := s.store.Get(ctx, "ProvisioningRun", fmt.Sprint(ref["name"]))
+	if err != nil {
+		return err
+	}
+	if run.Metadata.UID != ref["uid"] || object(run.Spec["serverRef"])["uid"] != current.Metadata.UID || run.Status["maintenance"] == true || run.Status["netbootArmed"] == true || (run.Status["phase"] != "Succeeded" && run.Status["phase"] != "Blocked") {
+		return fmt.Errorf("reserved run has not completed boot cleanup")
+	}
+	if run.Status["phase"] == "Succeeded" {
+		if next["provisioned"] != true || !resource.EqualJSON(next["lastSuccessfulRunRef"], ref) {
+			return fmt.Errorf("record the successful reserved run")
 		}
-		if next["phase"] != "Succeeded" || next["provisioned"] != true || observed != attemptCounter || next["maintenance"] == true || next["netbootArmed"] == true {
-			return fmt.Errorf("only a completed installed verification may advance observedReprovision")
-		}
+	} else if !resource.EqualJSON(next["lastSuccessfulRunRef"], old["lastSuccessfulRunRef"]) || !resource.EqualJSON(next["provisioned"], old["provisioned"]) {
+		return fmt.Errorf("failed run cannot change the last verified installation")
 	}
 	return nil
 }

@@ -22,3 +22,9 @@ type Store interface {
 	DeleteCollection(context.Context, string) (int64, error)
 	Ready(context.Context) error
 }
+
+// AtomicCreator creates a resource and reserves its related object in one CAS.
+// The callback receives the allocated UID; status is preserved by the caller.
+type AtomicCreator interface {
+	CreateWithStatus(context.Context, resource.Resource, resource.Resource, func(resource.Resource) map[string]any) (resource.Resource, error)
+}

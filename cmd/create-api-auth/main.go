@@ -25,7 +25,7 @@ func generate(directory string) error {
 	permissions := map[string][]api.AccessPermission{
 		"admin":  {{Kind: "*", Methods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"}}},
 		"agent":  {{Kind: "MachineReport", Methods: []string{"POST"}}, {Kind: "Server", Methods: []string{"GET"}}},
-		"runner": {{Kind: "InventoryCaptureGroup", Methods: []string{"GET"}}, {Kind: "Server", Methods: []string{"GET"}}, {Kind: "SSHKeyPair", Methods: []string{"GET"}}, {Kind: "Machine", Methods: []string{"GET"}}, {Kind: "ISO", Methods: []string{"GET"}}, {Kind: "SSHCertificateAuthority", Methods: []string{"GET"}}, {Kind: "Command", Methods: []string{"GET"}}, {Kind: "Server", Subresource: "status", Methods: []string{"PATCH"}}},
+		"runner": {{Kind: "InventoryCaptureGroup", Methods: []string{"GET"}}, {Kind: "Server", Methods: []string{"GET"}}, {Kind: "SSHKeyPair", Methods: []string{"GET"}}, {Kind: "Machine", Methods: []string{"GET"}}, {Kind: "ISO", Methods: []string{"GET"}}, {Kind: "SSHCertificateAuthority", Methods: []string{"GET"}}, {Kind: "Command", Methods: []string{"GET"}}, {Kind: "ProvisioningRun", Methods: []string{"GET"}}, {Kind: "ProvisioningRun", Subresource: "status", Methods: []string{"PATCH"}}, {Kind: "Server", Subresource: "status", Methods: []string{"PATCH"}}},
 	}
 	for _, name := range []string{"admin", "agent", "runner"} {
 		bytes := make([]byte, 32)

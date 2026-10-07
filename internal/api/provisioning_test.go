@@ -1,10 +1,19 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
-	"testing"
-
+	"errors"
 	"github.com/asdf57/stigmergy/internal/resource"
+	"github.com/asdf57/stigmergy/internal/store"
+	"github.com/asdf57/stigmergy/internal/testutil"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
 )
 
 func cloneMap(value map[string]any) map[string]any {
@@ -14,116 +23,193 @@ func cloneMap(value map[string]any) map[string]any {
 	return copy
 }
 
-func provisionHost() resource.Resource {
-	return resource.Resource{Kind: "Server", Metadata: resource.Metadata{UID: "server-uid"}, Spec: map[string]any{
-		"provisioning":    map[string]any{"enabled": true, "reprovision": 0, "targetDisk": "/dev/disk/by-id/disk"},
-		"operatingSystem": map[string]any{"distribution": "arch"},
-	}, Status: map[string]any{"machineRef": map[string]any{"name": "machine", "uid": "machine-uid"},
-		"bootISORef": map[string]any{"name": "iso", "uid": "iso-uid"},
-		"hostSSH":    map[string]any{"keyPairRef": map[string]any{"name": "key", "uid": "key-uid"}}}}
+func runFixture() (resource.Resource, resource.Resource, resource.Resource) {
+	serverRef := map[string]any{"name": "host", "uid": "server-uid"}
+	machineRef := map[string]any{"name": "machine", "uid": "machine-uid"}
+	disk := map[string]any{"type": "disk", "serial": "serial", "wwn": "0x123", "size": float64(10000000), "model": "SSD", "tran": "sata"}
+	host := resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "host", UID: "server-uid", ResourceVersion: "1", Generation: 1}, Spec: map[string]any{"provisioning": map[string]any{"enabled": true}, "operatingSystem": map[string]any{"distribution": "arch"}}, Status: map[string]any{"machineRef": machineRef}}
+	keyRef := map[string]any{"name": "host-key", "uid": "key-uid"}
+	host.Status["hostSSH"] = map[string]any{"phase": "Ready", "keyReady": true, "keyPairRef": keyRef, "installedKeyPairRef": keyRef}
+	machine := resource.Resource{Kind: "Machine", Metadata: resource.Metadata{Name: "machine", UID: "machine-uid", ResourceVersion: "1"}, Status: map[string]any{"serverRef": serverRef, "inventory": map[string]any{"storage": []any{disk}}}}
+	run := resource.Resource{Kind: "ProvisioningRun", Metadata: resource.Metadata{Name: "run"}, Spec: map[string]any{"serverRef": serverRef, "serverGeneration": 1, "machineRef": machineRef, "storage": map[string]any{"disks": []any{map[string]any{"deviceID": "wwn:0x123", "role": "system"}}}}}
+	return host, machine, run
 }
 
-func TestReprovisionCounterAndPinnedInputs(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		count       any
-		conditional bool
-		phase       string
-		want        bool
-	}{
-		{"unchanged", 0, false, "", true}, {"increment", 1, true, "", true}, {"unconditional", 1, false, "", false},
-		{"negative", -1, true, "", false}, {"jump", 2, true, "", false}, {"fraction", 0.5, true, "", false},
-		{"overflow", json.Number("9223372036854775808"), true, "", false}, {"active", 1, true, "Installing", false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			host := provisionHost()
-			if tc.phase != "" {
-				host.Status["provisioning"] = map[string]any{"phase": tc.phase}
-			}
-			next := cloneMap(host.Spec)
-			object(next["provisioning"])["reprovision"] = tc.count
-			if err := validateProvisioningSpec(host, next, tc.conditional); (err == nil) != tc.want {
-				t.Fatalf("error=%v", err)
-			}
-		})
+func TestProvisioningRunCreationReservesAndRejectsDuplicates(t *testing.T) {
+	host, machine, run := runFixture()
+	storage := testutil.NewStore(host, machine)
+	api := &Server{store: storage}
+	created, err := api.createProvisioningRun(context.Background(), run)
+	if err != nil {
+		t.Fatal(err)
 	}
-	host := provisionHost()
-	host.Status["provisioning"] = map[string]any{"phase": "AwaitingLive"}
-	next := cloneMap(host.Spec)
+	reserved, _ := storage.Get(context.Background(), "Server", "host")
+	if object(object(reserved.Status["provisioning"])["activeRunRef"])["uid"] != created.Metadata.UID || created.Status["phase"] != "Pending" {
+		t.Fatal("missing atomic reservation")
+	}
+	run.Metadata.Name = "second"
+	if _, err := api.createProvisioningRun(context.Background(), run); !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("duplicate: %v", err)
+	}
+	if _, err := storage.Get(context.Background(), "ProvisioningRun", "second"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatal("orphan duplicate created")
+	}
+	next := cloneMap(reserved.Spec)
 	object(next["operatingSystem"])["distribution"] = "debian"
-	if validateProvisioningSpec(host, next, true) == nil {
-		t.Fatal("changed active OS")
+	if validateProvisioningSpec(reserved, next, true) == nil {
+		t.Fatal("changed reserved OS")
 	}
-	next = cloneMap(host.Spec)
+	next = cloneMap(reserved.Spec)
 	next["reconciliation"] = map[string]any{"paused": true}
-	object(next["provisioning"])["enabled"] = false
-	if err := validateProvisioningSpec(host, next, true); err != nil {
+	if err := validateProvisioningSpec(reserved, next, true); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestProvisioningAttemptTransitionsAndNoFalseSuccess(t *testing.T) {
-	host := provisionHost()
-	claim := cloneMap(host.Status)
-	snapshot := map[string]any{"serverUID": "server-uid", "machineRef": host.Status["machineRef"], "keyPairRef": object(host.Status["hostSSH"])["keyPairRef"], "isoRef": host.Status["bootISORef"], "targetDisk": "/dev/disk/by-id/disk"}
-	claim["provisioning"] = map[string]any{"attemptID": "attempt", "phase": "PreparingBoot", "provisioned": false, "maintenance": true, "snapshot": snapshot, "requestedReprovision": 0, "observedReprovision": 0}
-	if err := validateProvisioningStatus(host, claim); err != nil {
+func TestProvisioningRunRejectsStaleBindingsAndUnsafeSelections(t *testing.T) {
+	for _, mutation := range []func(*resource.Resource, *resource.Resource, *resource.Resource){
+		func(h, m, r *resource.Resource) { object(r.Spec["serverRef"])["uid"] = "replacement" },
+		func(h, m, r *resource.Resource) { m.Metadata.UID = "replacement" },
+		func(h, m, r *resource.Resource) { m.Status["serverRef"] = nil },
+		func(h, m, r *resource.Resource) { h.Metadata.Generation = 2 },
+		func(h, m, r *resource.Resource) { object(h.Status["hostSSH"])["phase"] = "Pending" },
+		func(h, m, r *resource.Resource) {
+			object(object(m.Status["inventory"])["storage"].([]any)[0])["tran"] = "usb"
+		},
+		func(h, m, r *resource.Resource) {
+			list := object(m.Status["inventory"])["storage"].([]any)
+			object(m.Status["inventory"])["storage"] = append(list, list[0])
+		},
+		func(h, m, r *resource.Resource) { object(r.Spec["storage"])["disks"] = []any{} },
+		func(h, m, r *resource.Resource) { h.Spec["reconciliation"] = map[string]any{"paused": true} },
+	} {
+		host, machine, run := runFixture()
+		mutation(&host, &machine, &run)
+		api := &Server{store: testutil.NewStore(host, machine)}
+		if _, err := api.createProvisioningRun(context.Background(), run); err == nil {
+			t.Fatal("unsafe request accepted")
+		}
+	}
+}
+
+func TestRunCheckpointSafetyAndRelease(t *testing.T) {
+	host, machine, request := runFixture()
+	storage := testutil.NewStore(host, machine)
+	api := &Server{store: storage}
+	run, err := api.createProvisioningRun(context.Background(), request)
+	if err != nil {
 		t.Fatal(err)
 	}
-	host.Status = claim
-	bad := cloneMap(claim)
-	object(bad["provisioning"])["phase"] = "Succeeded"
-	object(bad["provisioning"])["provisioned"] = true
-	if validateProvisioningStatus(host, bad) == nil {
-		t.Fatal("skipped installed verification")
+	next := cloneMap(run.Status)
+	next["phase"] = "PreparingBoot"
+	next["attemptID"] = run.Metadata.UID
+	next["snapshot"] = map[string]any{"serverUID": "server-uid", "machineRef": request.Spec["machineRef"], "diskIdentity": run.Status["selectedDisk"]}
+	if err := validateProvisioningRunStatus(run, next); err != nil {
+		t.Fatal(err)
 	}
-	bad = cloneMap(claim)
-	object(object(bad["provisioning"])["snapshot"])["serverUID"] = "replacement"
-	if validateProvisioningStatus(host, bad) == nil {
-		t.Fatal("changed immutable snapshot")
+	run.Status = next
+	bad := cloneMap(next)
+	bad["phase"] = "Succeeded"
+	if validateProvisioningRunStatus(run, bad) == nil {
+		t.Fatal("skipped verification")
+	}
+	bad = cloneMap(next)
+	object(bad["snapshot"])["serverUID"] = "replacement"
+	if validateProvisioningRunStatus(run, bad) == nil {
+		t.Fatal("changed snapshot")
 	}
 	for _, phase := range []string{"AwaitingLive", "Installing", "AwaitingInstalled", "Verifying", "Succeeded"} {
-		next := cloneMap(host.Status)
-		p := object(next["provisioning"])
-		p["phase"] = phase
+		next = cloneMap(run.Status)
+		next["phase"] = phase
 		if phase == "Succeeded" {
-			p["maintenance"] = false
-			p["netbootArmed"] = false
-			p["provisioned"] = true
+			next["maintenance"] = false
+			next["netbootArmed"] = false
+			next["completedAt"] = "2026-10-07T00:00:00Z"
 		}
-		if err := validateProvisioningStatus(host, next); err != nil {
+		if err := validateProvisioningRunStatus(run, next); err != nil {
 			t.Fatalf("%s: %v", phase, err)
 		}
-		host.Status = next
+		run.Status = next
 	}
-	bad = cloneMap(host.Status)
-	object(bad["provisioning"])["attemptID"] = "again"
-	object(bad["provisioning"])["phase"] = "PreparingBoot"
-	if validateProvisioningStatus(host, bad) == nil {
-		t.Fatal("replayed the same successful request")
+	reserved, _ := storage.Get(context.Background(), "Server", "host")
+	released := applyJSONMergePatch(reserved.Status, map[string]any{"provisioning": map[string]any{"activeRunRef": nil, "maintenance": false, "provisioned": true, "lastSuccessfulRunRef": object(reserved.Status["provisioning"])["activeRunRef"]}})
+	if api.validateProvisioningStatus(context.Background(), reserved, released) == nil {
+		t.Fatal("released unfinished run")
+	}
+	storage.Resources["ProvisioningRun/run"] = run
+	if err := api.validateProvisioningStatus(context.Background(), reserved, released); err != nil {
+		t.Fatal(err)
+	}
+	bad = cloneMap(run.Status)
+	bad["phase"] = "PreparingBoot"
+	if validateProvisioningRunStatus(run, bad) == nil {
+		t.Fatal("replayed success")
 	}
 }
 
-func TestExplicitPartialInstallationRepairCannotReplayErasure(t *testing.T) {
-	host := provisionHost()
-	host.Status["provisioning"] = map[string]any{"attemptID": "attempt", "phase": "Blocked", "maintenance": true,
-		"snapshot": map[string]any{}, "requestedReprovision": 0, "observedReprovision": 0, "liveBootID": "live-boot"}
-	next := cloneMap(host.Status)
-	p := object(next["provisioning"])
-	p["phase"], p["bootTarget"], p["netbootArmed"] = "AwaitingInstalled", "installed", false
-	if err := validateProvisioningStatus(host, next); err != nil {
+func TestBlockedRunRepairCannotReenterInstallation(t *testing.T) {
+	run := resource.Resource{Metadata: resource.Metadata{UID: "run-uid"}, Status: map[string]any{"phase": "Blocked", "attemptID": "run-uid", "snapshot": map[string]any{}, "maintenance": true, "liveBootID": "live"}}
+	next := cloneMap(run.Status)
+	next["phase"] = "AwaitingInstalled"
+	next["netbootArmed"] = false
+	next["bootTarget"] = "installed"
+	if err := validateProvisioningRunStatus(run, next); err != nil {
 		t.Fatal(err)
 	}
 	for _, phase := range []string{"Installing", "AwaitingLive", "Succeeded"} {
 		bad := cloneMap(next)
-		object(bad["provisioning"])["phase"] = phase
-		if validateProvisioningStatus(host, bad) == nil {
-			t.Fatalf("repair allowed unsafe transition %s", phase)
+		bad["phase"] = phase
+		if validateProvisioningRunStatus(run, bad) == nil {
+			t.Fatal(phase)
 		}
 	}
-	bad := cloneMap(next)
-	object(bad["provisioning"])["liveBootID"] = "another-boot"
-	if validateProvisioningStatus(host, bad) == nil {
-		t.Fatal("repair changed the owned live session")
+}
+
+func TestProvisioningRunGeneratedHTTPRoutesAndSafety(t *testing.T) {
+	host, machine, run := runFixture()
+	storage := testutil.NewStore(host, machine)
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	call := func(method, path, body, version string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		if method == "PATCH" {
+			r.Header.Set("Content-Type", "application/merge-patch+json")
+		}
+		if version != "" {
+			r.Header.Set("If-Match", `"`+version+`"`)
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	manifest := func(name string) string {
+		body, _ := json.Marshal(map[string]any{"apiVersion": resource.APIVersion, "kind": "ProvisioningRun", "metadata": map[string]any{"name": name}, "spec": run.Spec})
+		return string(body)
+	}
+	w := call("POST", "/api/v1alpha1/provisioning-runs", manifest("run"), "")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", w.Code, w.Body.String())
+	}
+	w = call("POST", "/api/v1alpha1/provisioning-runs", manifest("duplicate"), "")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("duplicate: %d %s", w.Code, w.Body.String())
+	}
+	w = call("GET", "/api/v1alpha1/provisioning-runs/run", "", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("get: %d %s", w.Code, w.Body.String())
+	}
+	w = call("PATCH", "/api/v1alpha1/provisioning-runs/run", `{"storage":{"disks":[{"deviceID":"serial:other","role":"system"}]}}`, "1")
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("immutable: %d %s", w.Code, w.Body.String())
+	}
+	w = call("DELETE", "/api/v1alpha1/provisioning-runs/run", "", "1")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("reserved delete: %d %s", w.Code, w.Body.String())
+	}
+	created, _ := storage.Get(context.Background(), "ProvisioningRun", "run")
+	body, _ := json.Marshal(map[string]any{"metadata": map[string]any{"uid": created.Metadata.UID}, "status": map[string]any{"phase": "Succeeded", "maintenance": false}})
+	w = call("PATCH", "/api/v1alpha1/provisioning-runs/run/status", string(body), "1")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("false success: %d %s", w.Code, w.Body.String())
 	}
 }

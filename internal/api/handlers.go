@@ -28,6 +28,17 @@ func (s *Server) getReadiness(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteAllResources(w http.ResponseWriter, r *http.Request) {
+	servers, err := s.store.List(r.Context(), "Server")
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	for _, server := range servers.Items {
+		if server.Kind == "Server" && activeProvisioning(server.Status) {
+			writeError(w, http.StatusConflict, "Conflict", "finish lifecycle reservations before deleting resources")
+			return
+		}
+	}
 	for _, definition := range registry.Definitions {
 		deleted, err := s.store.DeleteCollection(r.Context(), definition.Kind)
 		if err != nil {
@@ -71,7 +82,12 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, definiti
 	}
 	candidate.Metadata.Finalizers = append([]string(nil), definition.DefaultFinalizers...)
 
-	created, err := s.store.Create(r.Context(), candidate)
+	var created resource.Resource
+	if definition.Kind == "ProvisioningRun" {
+		created, err = s.createProvisioningRun(r.Context(), candidate)
+	} else {
+		created, err = s.store.Create(r.Context(), candidate)
+	}
 	if err != nil {
 		if errors.Is(err, store.ErrConflict) {
 			writeError(w, http.StatusConflict, "Conflict", err.Error())
@@ -349,6 +365,23 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 		return
 	}
 	waitsForFinalizers := len(existing.Metadata.Finalizers) != 0
+	if definition.Kind == "Server" && activeProvisioning(existing.Status) {
+		writeError(w, http.StatusConflict, "Conflict", "finish the active ProvisioningRun before deleting its Server")
+		return
+	}
+	if definition.Kind == "ProvisioningRun" {
+		ref := object(existing.Spec["serverRef"])
+		owner, err := s.store.Get(r.Context(), "Server", fmt.Sprint(ref["name"]))
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			s.writeStoreError(w, err)
+			return
+		}
+		active := object(object(owner.Status["provisioning"])["activeRunRef"])
+		if existing.Status["maintenance"] == true || active["uid"] == existing.Metadata.UID {
+			writeError(w, http.StatusConflict, "Conflict", "release the run reservation and verify boot cleanup before deletion")
+			return
+		}
+	}
 	if err := s.store.Delete(r.Context(), definition.Kind, name, expected); err != nil {
 		switch {
 		case errors.Is(err, store.ErrNotFound):
@@ -368,6 +401,19 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 }
 
 func (s *Server) deleteResources(w http.ResponseWriter, r *http.Request, definition registry.Definition) {
+	if definition.Kind == "Server" {
+		values, err := s.store.List(r.Context(), "Server")
+		if err != nil {
+			s.writeStoreError(w, err)
+			return
+		}
+		for _, server := range values.Items {
+			if activeProvisioning(server.Status) {
+				writeError(w, http.StatusConflict, "Conflict", "finish lifecycle reservations before deleting Servers")
+				return
+			}
+		}
+	}
 	deleted, err := s.store.DeleteCollection(r.Context(), definition.Kind)
 	if err != nil {
 		s.writeStoreError(w, err)
