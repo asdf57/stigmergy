@@ -655,5 +655,6 @@ Arch's upstream boot-interface selection: net.ifnames=0 plus BOOTIF selecting th
 verified NIC. Both the API's iPXE rendering and the Ansible kexec command now
 include those options. The corrected VM obtains DHCP and downloads the HTTPS
 root filesystem. A 2 GiB fixture exhausted RAM after the 1 GiB rootfs download;
-a larger fixture is used for complete live-boot validation. This does not claim
-physical Beelink recovery or successful installed-system provisioning.
+a 4 GiB fixture subsequently reached the live login prompt and started OpenSSH.
+This verifies the corrected network-live boot path, not physical Beelink recovery
+or successful installed-system provisioning.
