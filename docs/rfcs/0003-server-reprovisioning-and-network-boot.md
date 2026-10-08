@@ -85,7 +85,16 @@ destructive intent blindly. Specs are immutable from creation.
    The current inventory does not report per-disk partitions/mounts; do not
    pretend it does. The execution probe checks those on the node.
 5. The owner selects one system disk and types the exact Server name to confirm
-   permanent replacement. The UI POSTs a new ProvisioningRun.
+   permanent replacement. In the same dialog, distribution/version/live ISO
+   choices are derived from current Ready ISO resources with completed builds,
+   filtered to supported amd64 UEFI targets (Arch rolling and Debian trixie).
+   Multiple matching images require an explicit choice. On confirmation the UI
+   conditionally saves the selected OS and UID-qualified boot ISO in Server spec,
+   preserving other settings, then POSTs a new ProvisioningRun using the returned
+   generation. Selecting options alone writes nothing. Saving spec and creating
+   a run are separate operations: a failed request may leave desired OS/ISO saved
+   without a confirmed run. Require refresh/review; never silently retry or undo
+   another writer's state. Installer preflight remains the authority on readiness.
 6. The shared provisioning job picks it up on its next scheduled/manual pass.
 
 New-machine discovery does not forcibly reboot arbitrary existing installations.

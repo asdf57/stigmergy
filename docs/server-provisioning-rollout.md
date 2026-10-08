@@ -32,8 +32,24 @@ or manual triggers poll requests; they never authorize disk replacement.
 
 ## Request installation
 
-Use the Server's Provision dialog to select a discovered disk and type its exact
-name. Or POST a reviewed resource to /api/v1alpha1/provisioning-runs:
+Use the Server's Provision dialog to select a distribution, version, Ready live
+ISO and discovered disk, then type the Server's exact name. Choices come from
+current Ready ISO resources with completed builds, filtered to supported amd64
+UEFI targets (Arch rolling and Debian trixie). Multiple matching ISOs are explicit
+choices; an empty catalog prevents submission. Merely opening or changing the
+dialog writes nothing.
+
+Confirmation first conditionally PATCHes the selected OS and UID-qualified boot
+ISO into Server spec, preserving other OS settings and packages, then POSTs a
+ProvisioningRun with the returned Server generation. Review distribution-specific
+packages/settings before switching OS. These writes are not one transaction:
+if run creation fails, the desired OS/ISO may remain saved without a confirmed
+installation request. Close, refresh and review status before another attempt;
+there is no automatic retry or rollback. Operator preflight still verifies current
+ISO/CA readiness and all installation dependencies.
+
+Alternatively, configure the desired Server spec and POST a reviewed resource
+to /api/v1alpha1/provisioning-runs:
 
 ```yaml
 apiVersion: homelab.io/v1alpha1
