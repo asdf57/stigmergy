@@ -104,6 +104,14 @@ requires a new run. Pending cancellation may report Blocked/maintenance=false on
 before privileged work, then release the Server. Reserved runs cannot be deleted;
 completed unreserved runs may be deleted with If-Match. No automatic TTL exists.
 
+For a verified failure before erasure, the explicit cleanup playbook
+plays/verify_failed_provision_cleanup.yml checks the original live session, selected
+unmounted SSD, prior installed marker/root and absence of firmware/kexec overrides.
+It clears only the old GRUB next_entry and unmounts before maintenance release.
+The run remains Blocked history; releasing activeRunRef unlocks the Provision
+dialog. Do not clear flags merely because netbootArmed is false. The playbook
+does not reboot, erase or create a new request.
+
 Manual console/live-media recovery is accepted when bootloader/disk recovery is
 necessary. Never use PiKVM. A successful trigger/build or port 22 opening is not
 acceptance: independently inspect the run status and actual installed node.

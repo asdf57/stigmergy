@@ -201,6 +201,13 @@ may finish its safe final boot before paused post-configuration resumes.
 Preparation failure clears and verifies owned boot selection where possible.
 Uncertain cleanup retains maintenance. Blocked with maintenance requires inspection.
 
+For a proven failure before erasure, explicit Ansible cleanup verifies the old
+installed marker/root on the selected disk and clears any lingering GRUB
+next_entry. A false netbootArmed status is not proof of physical cleanup. After
+unmounting and verification, retain the failed run, clear its maintenance and
+release the Server reservation. The UI distinguishes this historical failure
+from an active blocked request; a fresh installation still requires confirmation.
+
 An interrupted Installing run never reexecutes erasure automatically. Explicit
 configuration-only repair verifies the original live session/build/disk, staged
 root/EFI/bind mounts and marker, then completes configuration without partitioning,
@@ -263,7 +270,9 @@ Rollout tooling created no installation requests. The first owner-created run
 booted into its pinned live image but failed an installation assertion before
 erasure. The role now validates the run UID directly; real Ansible assertion
 tests cover existing partitions, wrong run/session/disk and absent authorization.
-That failed run remains Blocked with maintenance until explicit recovery. A
+That failed run was explicitly cleaned up without erasure or reboot: the prior
+root/marker were verified, a lingering GRUB next_entry was cleared and the
+reservation released. The failed run remains history, not an active lock. A
 fresh replacement still requires approval to erase/reinstall that SSD. The desktop
 Server remains unbound; capture groups report its omission rather than pretending
 it has management access.
