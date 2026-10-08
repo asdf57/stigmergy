@@ -1,6 +1,6 @@
 # RFC 0005: Command-backed system operations and agent reporting pulse
 
-- Status: Implemented in source; deployment and real reboot acceptance pending
+- Status: Deployed; real reboot acceptance pending explicit target approval
 - Created: 2026-10-08
 - Related: RFC 0002 (external operators), RFC 0003 (ProvisioningRun)
 - Scope: reusable reviewed reboot operation and independent homelabd freshness UI
@@ -128,3 +128,9 @@ that path and dependencies are already present. Preserve tokens and SSH keys.
 Real reboot acceptance requires explicit target approval. Verify changed boot
 ID, fresh strict SSH, Command completion and subsequent agent report separately.
 Do not trigger a real reboot merely to test the new button.
+
+Rollout on 2026-10-08 verified API/UI readiness and the served reboot/pulse
+controls without rebooting a Server. Beelink's installed Debian agent is active
+but cannot submit reports because `lldpcli` is missing. Its pulse has no receipt
+yet; restoring the installed discovery dependencies is a separate repair, not
+evidence of a successful heartbeat or reboot acceptance.
