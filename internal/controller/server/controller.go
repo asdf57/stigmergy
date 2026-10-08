@@ -199,6 +199,7 @@ func (r *ServerReconciler) updateServerBinding(ctx context.Context, server regis
 		Message: &message, ObservedGeneration: &observedGeneration,
 	})
 	applyManagementNetworkStatus(status, server, machine)
+	applyAgentReportStatus(status, machine)
 	if server.Spec.HostName != nil {
 		fqdn := *server.Spec.HostName
 		if server.Spec.DomainName != nil && *server.Spec.DomainName != "" {
@@ -226,6 +227,16 @@ func (r *ServerReconciler) updateServerBinding(ctx context.Context, server regis
 		return fmt.Errorf("update Server %q binding status: %w", server.Metadata.Name, err)
 	}
 	return nil
+}
+
+func applyAgentReportStatus(status *apigen.ServerStatus, machine *registry.Machine) {
+	if machine == nil || machine.Status == nil || machine.Status.LastSeenTime == nil {
+		status.Agent = nil
+		return
+	}
+	// Reachable records a received report, not current SSH or host availability.
+	// Consumers derive freshness from LastSeenTime, without timer-driven writes.
+	status.Agent = &apigen.ServerAgentStatus{Reachable: true, LastSeenTime: machine.Status.LastSeenTime}
 }
 
 func applyManagementNetworkStatus(status *apigen.ServerStatus, server registry.Server, machine *registry.Machine) {

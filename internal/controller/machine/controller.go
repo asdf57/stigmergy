@@ -66,9 +66,15 @@ func (r *MachineReportReconciler) Reconcile(ctx context.Context, event controlle
 	inventory := report.Spec
 	if observedAt, ok := machineObservedAt(machine.Status); ok && observedAt.After(report.Spec.ObservedAt) {
 		slog.Info("discarding stale MachineReport", "name", report.Metadata.Name, "observedAt", report.Spec.ObservedAt, "machineObservedAt", observedAt)
-		return r.consumeReport(ctx, report, reportRevision)
+		// A stale inventory is still a received report. Retain newer inventory,
+		// but record API receipt independently of the untrusted agent clock.
+		inventory = *machine.Status.Inventory
 	}
 	status := mergeInventoryStatus(machine.Status, inventory)
+	received := report.Metadata.CreationTimestamp
+	if !received.IsZero() && (status.LastSeenTime == nil || received.After(*status.LastSeenTime)) {
+		status.LastSeenTime = &received
+	}
 	if !resource.EqualJSON(machine.Status, status) {
 		revision, err := strconv.ParseInt(machine.Metadata.ResourceVersion, 10, 64)
 		if err != nil {

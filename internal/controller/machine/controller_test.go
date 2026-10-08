@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 	"github.com/asdf57/stigmergy/internal/api/registry"
@@ -103,6 +104,8 @@ func (f *fakeStore) UpdateStatus(_ context.Context, kind, name string, status ma
 
 func TestMachineReportUpdatesPredeclaredMachineByLocation(t *testing.T) {
 	report := testReportResource()
+	received := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	report.Metadata.CreationTimestamp = received
 	machine := resource.Resource{
 		APIVersion: registry.MachineResource.APIVersion,
 		Kind:       registry.MachineResource.Kind,
@@ -135,6 +138,9 @@ func TestMachineReportUpdatesPredeclaredMachineByLocation(t *testing.T) {
 		t.Fatalf("status updates = %#v, want server-01", storage.statusUpdates)
 	}
 	updated := storage.resources[registry.MachineResource.Kind+"/server-01"]
+	if updated.Status["lastSeenTime"] != received.Format(time.RFC3339) {
+		t.Fatalf("receipt time = %#v, want API timestamp %s", updated.Status["lastSeenTime"], received)
+	}
 	if updated.Metadata.Generation != 1 || updated.Metadata.Labels["homelab.io/role"] != "compute" {
 		t.Fatalf("status update changed declared Machine metadata: %#v", updated.Metadata)
 	}

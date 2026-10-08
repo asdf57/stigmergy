@@ -2066,6 +2066,10 @@ components:
                     type: array
                 inventory:
                     $ref: '#/components/schemas/MachineReportSpec'
+                lastSeenTime:
+                    description: API receipt time of the latest accepted homelabd MachineReport, not the agent clock.
+                    format: date-time
+                    type: string
                 observedGeneration:
                     format: int64
                     minimum: 0

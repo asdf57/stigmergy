@@ -33,6 +33,10 @@ MachineStatus:
   type: object
   additionalProperties: false
   properties:
+    lastSeenTime:
+      type: string
+      format: date-time
+      description: API receipt time of the latest accepted homelabd MachineReport, not the agent clock.
     inventory:
       $ref: '#/components/schemas/MachineReportSpec'
     phase: {type: string}

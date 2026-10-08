@@ -116,6 +116,11 @@ the named resource first and use its resourceVersion with If-Match.
 - Check API `/readyz` first when the UI reports offline. For HTTP 502 inspect the
   reverse proxy's upstream and service/container state before changing resources.
   For 401 check the intended route's auth policy/token, not TLS bypasses.
+- Machine `status.lastSeenTime` and bound Server `status.agent.lastSeenTime` use
+  the report's API-assigned creation timestamp. The pulse is reporting freshness,
+  not host/SSH availability. Reboots use ordinary Commands and the reviewed
+  Ansible system-operation helper; see RFC 0005. Never infer reboot approval from
+  adding UI code or observing a stale pulse.
 
 ## Provisioning status safety
 
