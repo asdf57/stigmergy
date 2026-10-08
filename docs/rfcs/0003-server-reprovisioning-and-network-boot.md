@@ -186,6 +186,12 @@ Arch netboot uses ip=dhcp net.ifnames=0 BOOTIF=01-<verified-MAC>. Without BOOTIF
 ip-config can fail with SIOCGIFFLAGS. The current image needs at least 4 GiB for
 tested RAM-live boot; 2 GiB exhausted RAM in the fixture.
 
+Debian fetch boot uses BOOTIF without ip=dhcp: live-boot interprets that override
+as static configuration and writes an invalid nameserver dhcp. Fetch obtains
+DHCP automatically. An affected existing live session can restore validated
+lease DNS through the guarded Ansible repair_debian_live_dns.yml playbook;
+cleanup/release and a new approved run remain required after a pre-erasure failure.
+
 Resolve the pinned NIC MAC against current interfaces before every priming stage;
 live eth0 and installed enp1s0 differ. Require a unique match, recheck MAC, enable
 magic-packet WoL and disable EEE only for the configured affected NIC, then read

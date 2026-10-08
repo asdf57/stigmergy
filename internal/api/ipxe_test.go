@@ -38,6 +38,25 @@ func TestArchNetbootIncludesUpstreamBootInterfaceSelection(t *testing.T) {
 	}
 }
 
+func TestDebianNetbootUsesDHCPWithoutStaticIPOverride(t *testing.T) {
+	w := httptest.NewRecorder()
+	api := &Server{}
+	api.renderISOBoot(w, "debian", []apigen.ISOArtifact{
+		{Type: apigen.Kernel, Url: "https://files.example/kernel"},
+		{Type: apigen.Initrd, Url: "https://files.example/initrd"},
+		{Type: apigen.Rootfs, Url: "https://files.example/filesystem.squashfs"},
+	})
+	body := w.Body.String()
+	for _, required := range []string{"boot=live components", "BOOTIF=01-${netX/mac}", "fetch=https://files.example/filesystem.squashfs"} {
+		if !strings.Contains(body, required) {
+			t.Fatalf("missing %s in %s", required, body)
+		}
+	}
+	if strings.Contains(body, "ip=") {
+		t.Fatal("Debian live-boot must not receive the static ip override", body)
+	}
+}
+
 func TestPinnedBootDoesNotFollowNewISOOrAuthorityBuild(t *testing.T) {
 	resources := testutil.NewStore(
 		resource.Resource{Kind: "ISO", Metadata: resource.Metadata{Name: "iso", UID: "iso-uid"}},

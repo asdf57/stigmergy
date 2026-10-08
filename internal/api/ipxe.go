@@ -202,7 +202,9 @@ func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, value
 	arguments := ""
 	switch distribution {
 	case "debian":
-		arguments = "boot=live components ip=dhcp fetch=" + artifacts["rootfs"]
+		// live-boot treats ip=dhcp as STATICIP and writes "nameserver dhcp".
+		// Fetch already requests DHCP; retain the boot NIC without a static override.
+		arguments = "boot=live components BOOTIF=01-${netX/mac} fetch=" + artifacts["rootfs"]
 	case "arch":
 		const suffix = "arch/x86_64/airootfs.sfs"
 		if !strings.HasSuffix(artifacts["rootfs"], suffix) {

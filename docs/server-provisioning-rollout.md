@@ -102,6 +102,14 @@ live ISO. iPXE Permission denied can be certificate validation; the UEFI TLS
 fixture tests the actual API/artifact chain. Arch live boot requires BOOTIF and
 net.ifnames=0 and at least 4 GiB for the tested RAM image.
 
+Debian live fetch boots with BOOTIF and no `ip=dhcp` override: live-boot's
+static-IP parser otherwise overwrites valid DHCP DNS with `nameserver dhcp`.
+For an existing affected live boot, use the explicitly guarded Ansible
+`plays/repair_debian_live_dns.yml` with that run's boot/build/disk inputs. It
+restores validated DHCP DNS and live cleanup tools without touching target
+storage. A failed-before-erasure run still needs verified cleanup/release and
+a new explicitly approved run; never replay the blocked installation.
+
 Only a changed installed boot, matching run marker/root/disk/OS, restored GRUB,
 strict SSH identity and healthy services complete a run. The run is marked
 Succeeded before Server reservation release; a later pass can finish release
