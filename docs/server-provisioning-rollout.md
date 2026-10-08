@@ -115,6 +115,16 @@ strict SSH identity and healthy services complete a run. The run is marked
 Succeeded before Server reservation release; a later pass can finish release
 without reinstalling. Run UID, not a counter, binds the installed marker.
 
+Both live ISOs and installed targets include lldpd. The shared agent unit includes
+/usr/sbin in PATH. Debian additionally configures homelabd membership in _lldpd
+and a package-persistent root:_lldpd 0750 lldpcli override, removing the stock
+setuid/adm execution requirement without granting adm membership. The Debian ISO
+applies this after package installation; installed provisioning uses the same
+shared setup script. Final post-configuration must successfully query LLDP as
+homelabd and find a neighbor before a run can succeed. An active daemon alone is
+not proof of functioning discovery. Existing installations require a reviewed
+Ansible repair; rebuilding an ISO does not modify a running node.
+
 Interrupted Installing becomes Blocked with maintenance retained; never rewipe
 automatically. Verify the exact original live boot/build/disk and staged mounts
 before using the configuration-only repair stage. After verified staged completion,

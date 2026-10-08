@@ -150,7 +150,12 @@ the OS from Server inputs (not the live distro), and preserves the managed key,
 CA bundle, fixed ansible account timer/service and homelabd token.
 
 AwaitingInstalled/Verifying checks a fresh installed boot, exact root/disk/marker,
-expected OS, restored GRUB and healthy management services. Only then mark the
+expected OS, restored GRUB and healthy management services. Final Ansible checks
+also query LLDP as homelabd and require a neighbor. Both images and installed
+systems include lldpd; the shared service PATH includes /usr/sbin. Debian uses
+the _lldpd socket group and a persistent root:_lldpd 0750 client override instead
+of setuid/adm access. Apply the shared setup after ISO package installation and
+during installed-agent setup. Only then mark the
 run Succeeded and release the Server reservation, recording lastSuccessfulRunRef.
 Run completion is durable before release. A crash between these writes resumes
 release, not installation. Failed runs never replace the last verified success.

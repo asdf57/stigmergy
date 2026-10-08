@@ -131,6 +131,7 @@ Do not trigger a real reboot merely to test the new button.
 
 Rollout on 2026-10-08 verified API/UI readiness and the served reboot/pulse
 controls without rebooting a Server. Beelink's installed Debian agent is active
-but cannot submit reports because `lldpcli` is missing. Its pulse has no receipt
+but cannot submit reports because `lldpcli` is outside the service PATH and its
+Debian package permissions deny execution. Its pulse has no receipt
 yet; restoring the installed discovery dependencies is a separate repair, not
 evidence of a successful heartbeat or reboot acceptance.
