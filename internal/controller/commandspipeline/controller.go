@@ -182,7 +182,7 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 	if err != nil {
 		return repository, registry.InventoryCaptureGroup{}, registry.PipelineProvider{}, registry.SSHKeyPair{}, "Failed", "CaptureGroupInvalid", err.Error(), nil
 	}
-	if group.Status == nil || group.Status.Phase == nil || *group.Status.Phase != "Ready" || group.Status.ObservedGeneration == nil || *group.Status.ObservedGeneration != group.Metadata.Generation {
+	if !usableCapture(group) {
 		return repository, group, registry.PipelineProvider{}, registry.SSHKeyPair{}, "Pending", "CaptureGroupNotReady", fmt.Sprintf("InventoryCaptureGroup %q is not Ready", group.Metadata.Name), nil
 	}
 
@@ -219,6 +219,15 @@ func (r *Reconciler) resolve(ctx context.Context, value registry.CommandsPipelin
 		return repository, group, provider, keyPair, "Pending", "SSHKeyPairNotReady", fmt.Sprintf("SSHKeyPair %q is not Ready", keyPair.Metadata.Name), nil
 	}
 	return repository, group, provider, keyPair, "", "", "", nil
+}
+
+// Partial captures contain only resolved resources; omitted hosts are not targets.
+func usableCapture(group registry.InventoryCaptureGroup) bool {
+	status := group.Status
+	if group.Metadata.DeletionTimestamp != nil || status == nil || status.Phase == nil || status.ObservedGeneration == nil || *status.ObservedGeneration != group.Metadata.Generation || status.Inventory == nil {
+		return false
+	}
+	return *status.Phase == "Ready" || (*status.Phase == "Partial" && status.CapturedResources != nil && *status.CapturedResources > 0 && len(*status.Inventory) > 0)
 }
 
 // Prepare resolves and snapshots reusable settings for a single execution.
