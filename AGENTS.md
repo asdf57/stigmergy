@@ -108,6 +108,10 @@ the named resource first and use its resourceVersion with If-Match.
   Concourse build for logs, not the newest unrelated build.
 - Capture group: inspect `observedGeneration`, `inventory`, and
   `omittedResources`. A Partial group may still contain usable Servers.
+  Command executors accept a current Partial capture only with a nonempty
+  resolved inventory and capturedResources > 0. Omitted resources are not
+  targets; scoped system-operation helpers additionally require current capture
+  membership and exact Server/Machine UIDs before any managed-node mutation.
 - SSH CA/key/certificate: inspect Ready/conditions/observedGeneration and public
   trust/certificate state. Private keys are in Secrets/OpenBao, not debug output.
 - Compare `status.observedGeneration` with metadata generation only for resource
