@@ -145,6 +145,10 @@ both keys during sshd reload, then strictly verifies the managed identity. It
 does not globally disable host checking or reenroll ordinary key mismatches.
 
 Installing is persisted before erasure. The Ansible role independently rechecks
+the complete management setup bundle before disk operations. Image CI verifies
+the retained bundle inside both ISO and PXE artifacts before publication; the
+shared installer copies complete reviewed asset directories across handoffs.
+Missing installer dependencies must fail before erasure. The role then rechecks
 the exact disk, boot ID/build, unmounted target and protected enrollment, installs
 the OS from Server inputs (not the live distro), and preserves the managed key,
 CA bundle, fixed ansible account timer/service and homelabd token.

@@ -32,6 +32,15 @@ or manual triggers poll requests; they never authorize disk replacement.
 
 ## Request installation
 
+The live image retains the complete reviewed agent/management/systemd/sshd setup
+directories for installed-system provisioning. Image CI compares those files
+inside both completed ISO and PXE root filesystems before publishing. Installer
+dependency checks must pass before any disk operations; missing Debian LLDP
+setup is a pre-erasure failure. The setup handoff container test and real Ansible
+asset assertions cover this contract; testing only the source installer is not
+enough. Task failure reporting must preserve the failed task, not a subsequent
+always-cleanup task.
+
 Use the Server's Provision dialog to select a distribution, version, Ready live
 ISO and discovered disk, then type the Server's exact name. Choices come from
 current Ready ISO resources with completed builds, filtered to supported amd64
