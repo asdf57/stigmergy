@@ -3,8 +3,8 @@
 Design target: see RFC 0003, Desired provisioning lifecycle. Every new run must
 boot a fresh pinned live image before wiping/installing, including retries
 and requests made while already live. Installed hosts use GRUB/iPXE; live hosts use generic kexec. Shared ISO bootArguments
-supply both paths. Hardware acceptance remains required; this guide is not proof
-of fresh-boot acceptance. No node
+supply both paths. RFC 0003 records the 2026-10-09 Beelink Debian/Arch acceptance;
+the full failure-stage/platform matrix remains required. No node
 execution is authorized by updating these design documents.
 
 The shared reconcile-ssh-host-keys-ssh-managed pipeline has operator and provision
@@ -98,6 +98,12 @@ to inspect pending runs without claiming, rebooting or installing. No run means
 no installation. Polling the job without a run is an idle no-op.
 
 ## Progress and recovery
+
+Post verification installs `acl` before querying LLDP as homelabd, so Ansible
+can safely share its module files using Linux POSIX ACLs. A failure in Verifying
+never requires another wipe: attest the installed marker/disk/boot, apply only
+the reviewed post-stage correction, then resume the original pinned operator.
+Do not rewrite the immutable snapshot to bypass the revision guard.
 
 Read ProvisioningRun.status for phase, currentStage, message, snapshot, boot IDs,
 attemptID, backendRunID and timestamps. Read Server.status.provisioning for the

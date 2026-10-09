@@ -1,7 +1,7 @@
 # RFC 0003: Provisioning runs and network boot
 
-- Status: Desired design agreed; shared fresh-live-boot lifecycle requires hardware acceptance
-- Updated: 2026-10-08
+- Status: Deployed; Debian live-to-installed and installed Debian-to-Arch accepted on Beelink; full failure-stage matrix remains
+- Updated: 2026-10-09
 - Related: RFC 0001 (ISO/SSH management), RFC 0002 (external operators)
 
 ## Decision
@@ -71,7 +71,8 @@ final boot. Demonstrate the fresh boot and selected-disk boundary in each case.
 Tests must also prove that no new request means no automatic replay of erasure.
 
 Implementation status: shared ISO bootArguments and the generic live kexec path
-are implemented locally; deployment and hardware acceptance are separate checks.
+are deployed. The scoped Beelink acceptance below verifies both handoff paths;
+the complete failure-stage matrix remains a separate requirement.
 No matching-image live-session shortcut or pre-reboot staging-cleanup installer
 path is part of this design.
 
@@ -352,30 +353,38 @@ live -> installed hardware acceptance run.
 
 ## Hardware acceptance context
 
-The 2026-10-07 rollout deployed the API and web console, ran homelabc init,
-preserved API tokens and SSH keys, and verified both shared lifecycle jobs using
-the pushed operator revision. Both live ISOs rebuilt with the current homelabd
-revision and their public download URLs returned HTTP 200. Strict read-only SSH
-verified Beelink's installed Arch root on its approved SSD and its GRUB contract.
-Rollout tooling created no installation requests. The first owner-created run
-booted into its pinned live image but failed an installation assertion before
-erasure. The role now validates the run UID directly; real Ansible assertion
-tests cover existing partitions, wrong run/session/disk and absent authorization.
-That failed run was explicitly cleaned up without erasure or reboot: the prior
-root/marker were verified, a lingering GRUB next_entry was cleared and the
-reservation released. The failed run remains history, not an active lock. A
-fresh replacement still requires approval to erase/reinstall that SSD. The desktop
-Server remains unbound; capture groups report its omission rather than pretending
-it has management access.
+On 2026-10-09 the API revision afba798 and operator revisions b6152e9/12e1929
+were pushed and deployed without replacing API tokens or Git/managed SSH keys.
+Both ISO builds completed retained-asset checks and published successfully:
+Debian build 6de7f0ea-32ac-43ba-9a12-ddd8225367a1 (Concourse build 50910),
+Arch build c331cf07-216e-40a7-aced-30b2603a1277 (Concourse build 51000).
+
+Two explicitly authorized Beelink runs verified the ordinary lifecycle:
+
+- Debian run c265952837b93640412707f8e2f135bc started in an old Debian live
+  session with previous staging mounts and swap. Generic kexec booted the pinned
+  image; boot IDs changed from f7fa9e16-ba2a-4e5a-9524-e497b0952a29 to
+  a623a8e5-edbd-4190-af14-f38deb2ac58b before erasure. Installed Debian boot
+  f73c3e17-b9d3-4706-a88d-adf84f363cec verified the root, marker and services.
+  Final LLDP verification exposed missing ACL support. A configuration-only post
+  stage installed acl, then the original pinned operator completed verification
+  (build 51216), without rewriting its snapshot or repeating disk installation.
+- Arch run fbd42644b9cf4d9775bece62ee9cd397 started in that installed Debian.
+  GRUB's one-shot iPXE path booted the pinned Arch image with live boot ID
+  7fdb7e29-caad-4236-839c-10aff72528e9, then installed Arch boot ID
+  aca99fc8-a779-4831-bf17-5a50393f951d. Build 51238 succeeded without repair.
+
+Both runs reached Succeeded and released maintenance. Independent read-only SSH
+verified the installed OS, approved ext4 root, protected run marker, GRUB and
+managed services. Post-stage LLDP ran as homelabd. ACL installation before the
+unprivileged Ansible task is now part of the permanent post stage and has a
+regression test. These results do not claim every failure stage, firmware or
+platform, nor the already-current-live-image case, has been physically tested.
 
 Beelink EQ13: management MAC e8:ff:1e:d4:03:fa; approved SATA SSD serial
 MP23B72602251, WWN 0x53a5a277260208cc, 512110190592 bytes, stable alias
 /dev/disk/by-id/ata-512GB_SSD_MP23B72602251. A separate 14.9 GiB USB is excluded.
 These are point-in-time observations, never authorization for another run.
 
-The prior physical flow verified GRUB/iPXE live transition, installed ext4 root,
-strict SSH continuity, managed services and corrected UEFI partition selection.
-The latest read-only API checkpoint before this source change reported a completed
-installation with maintenance cleared. No provisioning request, reboot or erase
-was issued while implementing this resource/UI refactor. New-model deployment
-and physical acceptance remain distinct from existing-model success.
+Acceptance is evidence for these two requests, not standing permission to erase
+the SSD again. Future physical runs still require explicit approval.
