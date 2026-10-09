@@ -47,6 +47,10 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 		return
 	}
 	if definition.Kind == registry.ServerResource.Kind {
+		if err := validateServerOperation(current, merged); err != nil {
+			writeError(w, http.StatusConflict, "Conflict", err.Error())
+			return
+		}
 		if err := s.validateProvisioningStatus(r.Context(), current, merged); err != nil {
 			writeError(w, http.StatusConflict, "Conflict", err.Error())
 			return

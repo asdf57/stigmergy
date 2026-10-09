@@ -3916,6 +3916,21 @@ components:
                 - architecture
                 - bootMode
             type: object
+        ServerOperationStatus:
+            additionalProperties: false
+            properties:
+                id:
+                    minLength: 1
+                    type: string
+                phase:
+                    enum:
+                        - Held
+                        - Released
+                    type: string
+            required:
+                - id
+                - phase
+            type: object
         ServerProvisioningSpec:
             additionalProperties: false
             properties:
@@ -4091,6 +4106,8 @@ components:
                     format: int64
                     minimum: 0
                     type: integer
+                operation:
+                    $ref: '#/components/schemas/ServerOperationStatus'
                 phase:
                     type: string
                 provisioning:

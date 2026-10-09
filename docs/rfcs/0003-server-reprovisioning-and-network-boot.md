@@ -272,12 +272,24 @@ write arbitrary vendor BIOS variables or assume a programmatic BIOS setup API.
 
 ## Coordination and recovery
 
-The SSH and provision jobs share server-lifecycle in the same persistent
-reconcile-ssh-host-keys-ssh-managed pipeline. Server maintenance gates the SSH
-operator and normal runners. Any reservation pauses API Command dispatch;
-already-dispatched Commands must drain before reboot/erase. This is not a lock
-on administrator SSH or directly started external jobs. Use only the supported
-worker path; do not run multiple provisioning workers.
+SSH reconciliation runs in reconcile-ssh-host-keys-ssh-managed/operator;
+provisioning runs in provision-ssh-managed/provision. Both select ssh-managed,
+with serial jobs independently. Concourse serialization does not cross pipelines.
+
+Short mutations claim Server.status.operation with a fresh ID and phase Held
+through UID-checked, If-Match status PATCH. Only the same ID may release it
+(phase Released). ProvisioningRun creation atomically reserves the Server and
+rejects a held operation; a short claim rejects provisioning ownership/maintenance.
+SSH reconciliation and ordinary system operations claim before changing a node
+and release in finally. Provisioning retains its existing full-run reservation.
+Provisioning maintenance pauses API Command dispatch; already-dispatched Commands must
+drain before reboot/erase. This coordinates supported workers, not administrator
+SSH or arbitrary external jobs; broad trusted status access remains v1 policy.
+
+Claims have no automatic expiry: a timed-out worker may leave remote work running.
+Before releasing a stranded operation, stop/inspect the worker and remote Ansible
+work, then conditionally PATCH the matching ID to Released. Never clear another
+owner's ID or bypass maintenance. No lease resource or extra endpoint is needed.
 
 Pause/disable prevents new stages, not proof of cancellation. A completed install
 may finish its safe final boot before paused post-configuration resumes.

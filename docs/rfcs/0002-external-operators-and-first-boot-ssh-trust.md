@@ -91,8 +91,11 @@ authoritative observation.
 
 Start with one operator instance responsible for host keys on a Server. Serial
 execution protects one job, not multiple pipelines selecting the same host.
-Avoid overlapping host-key operator target groups initially. Do not introduce
-a distributed lock service or generic lease resource until it is necessary.
+Before any machine mutation, claim Server.status.operation using UID/If-Match
+and a fresh ID, and release the same ID in finally. This excludes provisioning
+reservations and other supported short operations across pipelines. A crashed
+worker's claim requires inspection before release, not automatic expiry. See
+RFC 0003's coordination contract; no lock service or lease resource is needed.
 
 ## 3. Resources and responsibility boundaries
 

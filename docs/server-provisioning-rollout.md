@@ -7,8 +7,9 @@ supply both paths. RFC 0003 records the 2026-10-09 Beelink Debian/Arch acceptanc
 the full failure-stage/platform matrix remains required. No node
 execution is authorized by updating these design documents.
 
-The shared reconcile-ssh-host-keys-ssh-managed pipeline has operator and provision
-jobs sharing server-lifecycle and InventoryCaptureGroup/ssh-managed. Scheduled
+The reconcile-ssh-host-keys-ssh-managed/operator and provision-ssh-managed/provision
+jobs run in separate pipelines over InventoryCaptureGroup/ssh-managed. Server
+status reservations coordinate mutations across pipelines (RFC 0003). Scheduled
 or manual triggers poll requests; they never authorize disk replacement.
 
 ## Standup
@@ -18,6 +19,12 @@ or manual triggers poll requests; they never authorize disk replacement.
    Do not run init or deploy incompatible schemas over an active installation.
 2. Generate API models/OpenAPI from the resource modules with make generate.
    Publish the API and reviewed operator revision; update the web console.
+   Pause the operator pipelines and wait for running work to finish before this
+   coordinated rollout. Deploy the operation-aware API first, publish the worker
+   revision, apply both Pipeline definitions from homelab-init, then resume them.
+   Verify the SSH job releases status.operation and the provision job safely
+   polls without creating a ProvisioningRun. Do not run full init just to split
+   pipelines or reset existing credentials/state.
 3. Prepare runner policy using the existing tokens:
 
    ```sh
