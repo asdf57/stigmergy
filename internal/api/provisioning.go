@@ -173,6 +173,13 @@ func validateProvisioningRunStatus(current resource.Resource, next map[string]an
 	if from != to && allowed[from] != to && !(to == "Blocked" && from != "Succeeded" && from != "Blocked") && !repaired {
 		return fmt.Errorf("invalid ProvisioningRun checkpoint transition")
 	}
+	if to == "Installing" {
+		source, sourceOK := next["sourceBootID"].(string)
+		live, liveOK := next["liveBootID"].(string)
+		if !sourceOK || !liveOK || source == "" || live == "" || source == live {
+			return fmt.Errorf("installation requires a fresh live boot distinct from the source session")
+		}
+	}
 	if from == "Pending" && to == "PreparingBoot" {
 		snapshot := object(next["snapshot"])
 		if next["attemptID"] != current.Metadata.UID || snapshot["serverUID"] != object(current.Spec["serverRef"])["uid"] || !resource.EqualJSON(snapshot["machineRef"], current.Spec["machineRef"]) || !resource.EqualJSON(snapshot["diskIdentity"], old["selectedDisk"]) {

@@ -1,5 +1,12 @@
 # ProvisioningRun standup and execution
 
+Design target: see RFC 0003, Desired provisioning lifecycle. Every new run must
+boot a fresh pinned live image before wiping/installing, including retries
+and requests made while already live. Installed hosts use GRUB/iPXE; live hosts use generic kexec. Shared ISO bootArguments
+supply both paths. Hardware acceptance remains required; this guide is not proof
+of fresh-boot acceptance. No node
+execution is authorized by updating these design documents.
+
 The shared reconcile-ssh-host-keys-ssh-managed pipeline has operator and provision
 jobs sharing server-lifecycle and InventoryCaptureGroup/ssh-managed. Scheduled
 or manual triggers poll requests; they never authorize disk replacement.
@@ -148,9 +155,10 @@ before privileged work, then release the Server. To start over instead of repair
 delete the Blocked run with its current If-Match resourceVersion. The Server page
 offers Delete blocked request with confirmation. Deletion atomically releases
 its reservation and removes matching run references, but does not touch the node.
-Then use Provision to confirm a disk and create an ordinary new run. Its Ansible
-preflight safely unmounts verified leftover /mnt installation mounts on that disk
-before live refresh/erasure; unexpected or busy mounts block. Active runs cannot
+Then use Provision to confirm a disk and create an ordinary new run. The desired
+Ansible lifecycle boots a fresh pinned live image via GRUB/iPXE or live kexec,
+rather than reusing or cleaning up the failed session as an installation path.
+Unexpected mounts or active swap after fresh boot block erasure. Active runs cannot
 be deleted. Delete runs individually; collection deletion is rejected. No TTL exists.
 
 For a verified failure before erasure, the explicit cleanup playbook

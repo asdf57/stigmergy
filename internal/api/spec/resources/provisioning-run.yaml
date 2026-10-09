@@ -86,6 +86,9 @@ ProvisioningRunSnapshot:
     trustBundleDigest: {type: string}
     isoBuildID: {type: string, minLength: 1}
     distribution: {type: string, enum: [arch, debian]}
+    bootArguments:
+      type: array
+      items: {type: string, minLength: 1}
     artifacts:
       type: array
       items: {$ref: '#/components/schemas/ISOArtifact'}

@@ -155,6 +155,7 @@ func TestRunCheckpointSafetyAndRelease(t *testing.T) {
 	next := cloneMap(run.Status)
 	next["phase"] = "PreparingBoot"
 	next["attemptID"] = run.Metadata.UID
+	next["sourceBootID"] = "source"
 	next["snapshot"] = map[string]any{"serverUID": "server-uid", "machineRef": request.Spec["machineRef"], "diskIdentity": run.Status["selectedDisk"]}
 	if err := validateProvisioningRunStatus(run, next); err != nil {
 		t.Fatal(err)
@@ -173,6 +174,13 @@ func TestRunCheckpointSafetyAndRelease(t *testing.T) {
 	for _, phase := range []string{"AwaitingLive", "Installing", "AwaitingInstalled", "Verifying", "Succeeded"} {
 		next = cloneMap(run.Status)
 		next["phase"] = phase
+		if phase == "Installing" {
+			next["liveBootID"] = "source"
+			if validateProvisioningRunStatus(run, next) == nil {
+				t.Fatal("unchanged live session entered Installing")
+			}
+			next["liveBootID"] = "fresh-live"
+		}
 		if phase == "Succeeded" {
 			next["maintenance"] = false
 			next["netbootArmed"] = false

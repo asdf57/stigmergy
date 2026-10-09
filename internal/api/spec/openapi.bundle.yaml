@@ -917,6 +917,12 @@ components:
                     type: array
                 authorityRef:
                     $ref: '#/components/schemas/ResourceReference'
+                bootArguments:
+                    description: Shared live boot arguments; replace @BOOT_MAC@ with the verified hyphen-separated boot MAC.
+                    items:
+                        minLength: 1
+                        type: string
+                    type: array
                 completedBuild:
                     $ref: '#/components/schemas/ISOCompletedBuild'
                 conditions:
@@ -2554,6 +2560,11 @@ components:
                     type: array
                 authorityRef:
                     $ref: '#/components/schemas/ResourceReference'
+                bootArguments:
+                    items:
+                        minLength: 1
+                        type: string
+                    type: array
                 bootMAC:
                     pattern: ^[a-f0-9]{2}(:[a-f0-9]{2}){5}$
                     type: string

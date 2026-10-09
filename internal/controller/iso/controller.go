@@ -180,6 +180,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return fail("Pending", "BuildPending", "Pipeline is configured; no matching completed artifact manifest exists")
 	}
 	status.Artifacts = &manifest.Artifacts
+	for _, artifact := range manifest.Artifacts {
+		if artifact.Type == "rootfs" {
+			arguments, err := isobuild.BootArguments(string(image.Spec.Distribution), artifact.Url)
+			if err != nil {
+				return fail("Failed", "InvalidBootRecipe", err.Error())
+			}
+			status.BootArguments = &arguments
+		}
+	}
 	status.CompletedBuild = &apigen.ISOCompletedBuild{Id: manifest.BuildID, StartedAt: manifest.BuildStartedAt, InputRevision: manifest.InputRevision, SourceRevisions: manifest.SourceRevisions, TrustBundleDigest: manifest.TrustBundleDigest}
 	return r.setStatus(ctx, image, status, "Ready", "ArtifactsAvailable", "A completed immutable build matches the desired public inputs")
 }

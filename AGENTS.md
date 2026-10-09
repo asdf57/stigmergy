@@ -124,6 +124,13 @@ the named resource first and use its resourceVersion with If-Match.
 
 ## Provisioning status safety
 
+- RFC 0003's desired lifecycle is authoritative: every new run boots a fresh
+  pinned live image, even if already live on that build. Installed hosts use
+  GRUB/iPXE; live hosts use generic kexec. Both consume shared ISO bootArguments,
+  pinned in the run snapshot. Require a changed source/live boot ID before
+  Installing. Never reuse a live session or substitute staging cleanup. Keep ISO boot details separate from lifecycle orchestration;
+  fixes need failure-stage acceptance for both supported distros.
+
 - Creating a ProvisioningRun with Server/Machine UIDs, reviewed serverGeneration
   and one discovered disk ID authorizes replacement. Enabling Server provisioning
   or ISO/CA/spec changes never does. Creation atomically reserves the Server.
@@ -132,7 +139,7 @@ the named resource first and use its resourceVersion with If-Match.
 - An interrupted installation is Blocked; no automatic rewipe is allowed.
   Explicit DELETE with If-Match may remove a Blocked run and atomically release
   its Server reservation. This changes API ownership only; a new ordinary run
-  requires fresh disk confirmation and guarded Ansible staging cleanup. Active
+  requires fresh disk confirmation and the fresh-live-boot lifecycle. Active
   runs and provisioning collection deletion are rejected.
   Explicit configuration repair can move the same Blocked attempt to
   AwaitingInstalled only with the owned live session, retained maintenance,

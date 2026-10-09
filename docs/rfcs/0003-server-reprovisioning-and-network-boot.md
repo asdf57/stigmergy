@@ -1,7 +1,7 @@
 # RFC 0003: Provisioning runs and network boot
 
-- Status: Rolled out; new-model destructive hardware acceptance requires explicit approval
-- Updated: 2026-10-07
+- Status: Desired design agreed; shared fresh-live-boot lifecycle requires hardware acceptance
+- Updated: 2026-10-08
 - Related: RFC 0001 (ISO/SSH management), RFC 0002 (external operators)
 
 ## Decision
@@ -16,6 +16,64 @@ The API stores and validates resources and renders boot instructions. External
 operators execute reviewed Ansible stages and report through generic object
 status. homelabd discovers/enrolls hardware; it never provisions disks. There
 is no per-run pipeline, special action endpoint, or generic workflow engine.
+
+## Desired provisioning lifecycle (design boundary)
+
+Every new ProvisioningRun uses this same path, regardless of the current OS,
+current live ISO, previous success, or point of failure:
+
+```text
+Confirm Server and disk -> pin inputs -> prepare fresh live boot
+  -> GRUB/iPXE (installed) or kexec (live) -> verify fresh live boot
+  -> wipe only approved disk -> install -> boot locally -> verify
+```
+
+1. A new request is an explicit start-from-scratch authorization. Delete a
+   Blocked request to release ownership, then create an ordinary new request;
+   no replacement field or special retry provisioning path is needed.
+2. Before reboot, verify ownership, Server/Machine/disk identity, boot capability
+   and artifact availability. A mounted installed root, staging mounts, or swap
+   from the previous attempt must not be mistaken for a reason to skip boot or
+   demand that the current environment already be installation-ready.
+3. Always prepare and execute a fresh live boot through Ansible. Installed hosts
+   use GRUB/iPXE; live hosts use generic kexec with orderly systemd shutdown.
+   Initial firmware network boot uses iPXE. Already running the desired live
+   image is not an exemption: require a changed boot ID and the pinned build.
+   Never reuse the source session. Unsupported/failed handoffs stop safely.
+4. ISO bootArguments and artifacts encapsulate image-specific kernel/initrd/rootfs
+   details. Both iPXE and kexec consume that shared recipe, pinned in the run.
+   All supported ISOs implement the same boot and agent readiness
+   contract; the provisioning state machine does not grow distro-specific
+   recovery flows. Distro-specific installation roles are still appropriate.
+5. Only in that verified fresh live environment check the target is independent
+   of the running root, unmounted, and not active swap; then erase and install.
+   Previous mounts and swap normally disappear with reboot. Unexpected state
+   after fresh boot is a safety failure, not permission to force cleanup.
+6. Complete only after a fresh installed boot verifies the requested OS,
+   approved disk, run marker, management identity and healthy agent/discovery.
+   Normal non-provisioning boots stay local; only an explicit run requests netboot.
+
+Recovery restores this ordinary lifecycle; it does not become a second installer.
+Do not create temporary GRUB partitions just to leave live mode: kexec does not
+require persistent boot storage. Installed GRUB remains local-by-default with
+an iPXE entry. Neither GRUB nor kexec guarantees recovery from power loss or an
+unreachable host. Kexec does not perform firmware hardware reinitialization;
+test NIC/platform support explicitly. A failed handoff never permits erasure. If the node is unreachable or its boot path is
+unusable, stop and request scoped manual console/live-media recovery. Never
+claim arbitrary power-loss recovery or use PiKVM.
+
+Fix the lifecycle invariant, not just the latest error. A one-off recovery action
+may restore access, but is not a permanent fix or acceptance evidence. Acceptance
+must cover both Arch and Debian, starting from installed and live sessions,
+including the already-current live build, OS changes, and fresh requests after
+failures before erasure, during partitioning, during configuration, and during
+final boot. Demonstrate the fresh boot and selected-disk boundary in each case.
+Tests must also prove that no new request means no automatic replay of erasure.
+
+Implementation status: shared ISO bootArguments and the generic live kexec path
+are implemented locally; deployment and hardware acceptance are separate checks.
+No matching-image live-session shortcut or pre-reboot staging-cleanup installer
+path is part of this design.
 
 ## Resource contracts
 
@@ -132,11 +190,9 @@ Missing/ambiguous/USB/removable/read-only targets block. Initial and repeat inst
 both require an explicit run; there is no automatic blank-disk installation.
 
 After claiming PreparingBoot, every privileged stage rechecks run ownership and
-snapshot inputs. For an installed host it primes the boot NIC, checkpoints live
-intent, arms/readbacks the one-shot GRUB entry and reboots through Ansible.
-For a compatible live session it verifies the pinned build directly. An older
-verified Arch live session may use the existing guarded kexec refresh, never
-erase under an unverified build.
+snapshot inputs. It primes the boot NIC, checkpoints live intent, arms/readbacks
+the GRUB/iPXE selection for installed hosts or loads the pinned kernel/initrd
+for live kexec, then transitions through Ansible. Both paths require a fresh boot. Follow the desired lifecycle above; never erase under an unverified build.
 
 AwaitingLive requires the changed boot ID and pinned ISO build. The v1 live-key
 handoff uses scoped TOFU for this attempt only, with its acknowledged impersonation
@@ -172,7 +228,9 @@ invented event history. Stale/replaced-UID poll results are rejected.
 
 Normal: firmware -> disk GRUB -> installed OS.
 Requested replacement: disk GRUB -> local iPXE -> API -> pinned live ISO.
-First installation: manually booted live/PXE or already-running live -> operator.
+First discovery: manually booted live/PXE -> enrollment and managed SSH.
+First installation: explicit run -> fresh pinned live boot -> operator.
+Live-to-live: shared image recipe -> orderly kexec -> fresh pinned live -> operator.
 Final boot: newly installed disk GRUB -> installed OS.
 
 GRUB defaults locally to the installed OS, uses a visible five-second menu,
@@ -247,12 +305,10 @@ its UID-matching Server references and maintenance reservation. Active phases
 cannot be deleted; collection deletion is rejected. Deletion loses run history
 but does not change the node, boot selection or disk. No replacement field is
 needed: after deletion create an ordinary new run with fresh confirmations.
-The new run's Ansible preflight cleans up only the approved disk's exact /mnt
-root/EFI and recognized chroot bind mounts, deepest first with ordinary umount.
-It verifies an independent live boot and disk identity before and after cleanup;
-busy, unrelated or unexpected mounts block instead of force/lazy unmounting.
-Cleanup precedes live-image refresh and is repeated before disk erasure.
-Normal unmounted targets need no cleanup. Existing boot/image checks remain.
+The new run uses GRUB/iPXE or live kexec to enter a fresh pinned live environment
+before installation readiness checks. It does not depend on repairing the old
+session's staging mounts or swap to reuse that session. Unexpected mounts/swap
+in the fresh environment block erasure; never force or lazy unmount to pass checks.
 Retained runs provide separate results; no TTL or automatic deletion is implemented.
 Pending cancellation can explicitly report Blocked with maintenance
 false only before any privileged work, then release the Server reservation.

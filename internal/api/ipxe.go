@@ -9,6 +9,7 @@ import (
 
 	apigen "github.com/asdf57/stigmergy/internal/api/gen"
 	"github.com/asdf57/stigmergy/internal/api/registry"
+	"github.com/asdf57/stigmergy/internal/isobuild"
 	"github.com/asdf57/stigmergy/internal/resource"
 )
 
@@ -141,7 +142,11 @@ func (s *Server) servePinnedBoot(w http.ResponseWriter, r *http.Request, server 
 			return
 		}
 	}
-	s.renderISOBoot(w, string(p.Distribution), p.Artifacts)
+	if p.BootArguments != nil {
+		s.renderISOBoot(w, string(p.Distribution), p.Artifacts, *p.BootArguments)
+	} else {
+		s.renderISOBoot(w, string(p.Distribution), p.Artifacts)
+	}
 }
 
 func (s *Server) serveISOBoot(w http.ResponseWriter, r *http.Request, server registry.Server) {
@@ -178,7 +183,7 @@ func (s *Server) serveISOBoot(w http.ResponseWriter, r *http.Request, server reg
 	s.renderISOBoot(w, string(image.Spec.Distribution), *image.Status.Artifacts)
 }
 
-func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, values []apigen.ISOArtifact) {
+func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, values []apigen.ISOArtifact, pinned ...[]string) {
 	fail := func(message string) { s.writeIPXEScript(w, message, "") }
 	artifacts := map[string]string{}
 	for _, artifact := range values {
@@ -199,23 +204,21 @@ func (s *Server) renderISOBoot(w http.ResponseWriter, distribution string, value
 			return
 		}
 	}
-	arguments := ""
-	switch distribution {
-	case "debian":
-		// live-boot treats ip=dhcp as STATICIP and writes "nameserver dhcp".
-		// Fetch already requests DHCP; retain the boot NIC without a static override.
-		arguments = "boot=live components BOOTIF=01-${netX/mac} fetch=" + artifacts["rootfs"]
-	case "arch":
-		const suffix = "arch/x86_64/airootfs.sfs"
-		if !strings.HasSuffix(artifacts["rootfs"], suffix) {
-			fail("Invalid Arch netboot rootfs path")
-			return
-		}
-		arguments = "archisobasedir=arch archiso_http_srv=" + strings.TrimSuffix(artifacts["rootfs"], suffix) + " ip=dhcp net.ifnames=0 BOOTIF=01-${netX/mac}"
-	default:
-		fail("Unsupported ISO netboot recipe")
+	args, err := isobuild.BootArguments(distribution, artifacts["rootfs"])
+	if err != nil {
+		fail(err.Error())
 		return
 	}
+	if len(pinned) > 0 {
+		args = pinned[0]
+	}
+	for _, argument := range args {
+		if strings.ContainsAny(argument, " \t\r\n$") {
+			fail("Invalid ISO boot argument")
+			return
+		}
+	}
+	arguments := strings.ReplaceAll(strings.Join(args, " "), "@BOOT_MAC@", "${netX/mac}")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	fmt.Fprintf(w, "#!ipxe\nkernel %s %s initrd=initrd.img\ninitrd --name initrd.img %s\nboot\n", artifacts["kernel"], arguments, artifacts["initrd"])

@@ -54,6 +54,10 @@ ISOStatus:
     publishedPath: {type: string}
     desiredTrustBundleDigest: {type: string}
     completedBuild: {$ref: '#/ISOCompletedBuild'}
+    bootArguments:
+      type: array
+      description: Shared live boot arguments; replace @BOOT_MAC@ with the verified hyphen-separated boot MAC.
+      items: {type: string, minLength: 1}
     artifacts:
       type: array
       items: {$ref: '#/ISOArtifact'}
