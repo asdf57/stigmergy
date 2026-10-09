@@ -66,6 +66,58 @@ func TestProvisioningRunCreationReservesAndRejectsDuplicates(t *testing.T) {
 	}
 }
 
+func TestDeleteBlockedRunReleasesOnlyItsReservation(t *testing.T) {
+	for _, phase := range []string{"Pending", "PreparingBoot", "Installing", "Verifying", "Blocked"} {
+		t.Run(phase, func(t *testing.T) {
+			host, machine, request := runFixture()
+			storage := testutil.NewStore(host, machine)
+			api := &Server{store: storage}
+			run, err := api.createProvisioningRun(context.Background(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			run.Status["phase"] = phase
+			storage.Resources["ProvisioningRun/run"] = run
+			handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+			r := httptest.NewRequest("DELETE", "/api/v1alpha1/provisioning-runs/run", nil)
+			r.Header.Set("If-Match", `"`+run.Metadata.ResourceVersion+`"`)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if phase != "Blocked" {
+				if w.Code != http.StatusConflict {
+					t.Fatalf("active delete: %d", w.Code)
+				}
+				return
+			}
+			if w.Code != http.StatusNoContent {
+				t.Fatalf("blocked delete: %d %s", w.Code, w.Body.String())
+			}
+			owner, _ := storage.Get(context.Background(), "Server", "host")
+			p := object(owner.Status["provisioning"])
+			if p["maintenance"] == true || p["activeRunRef"] != nil || p["lastRunRef"] != nil {
+				t.Fatal("reservation not released")
+			}
+			if _, err := storage.Get(context.Background(), "ProvisioningRun", "run"); !errors.Is(err, store.ErrNotFound) {
+				t.Fatal("run retained")
+			}
+			request.Metadata.Name = "new-run"
+			if _, err := api.createProvisioningRun(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestDeletedHistoricalRunPreservesNewReservationAndSuccess(t *testing.T) {
+	host, _, run := runFixture()
+	run.Metadata.UID = "old"
+	newRef := map[string]any{"name": "new", "uid": "new-uid"}
+	host.Status["provisioning"] = map[string]any{"activeRunRef": newRef, "lastRunRef": newRef, "lastSuccessfulRunRef": newRef, "maintenance": true, "provisioned": true}
+	if !resource.EqualJSON(host.Status, cloneStatusForRunDeletion(host.Status, run)) {
+		t.Fatal("deleted another run's state")
+	}
+}
+
 func TestProvisioningRunRejectsStaleBindingsAndUnsafeSelections(t *testing.T) {
 	for _, mutation := range []func(*resource.Resource, *resource.Resource, *resource.Resource){
 		func(h, m, r *resource.Resource) { object(r.Spec["serverRef"])["uid"] = "replacement" },

@@ -144,8 +144,14 @@ See ansible-roles/AGENTS.md for fly pin/watch/hijack recipes.
 Preparation failure must clear/read back boot selection before maintenance release.
 Blocked runs with verified cleanup can release their reservation; a new installation
 requires a new run. Pending cancellation may report Blocked/maintenance=false only
-before privileged work, then release the Server. Reserved runs cannot be deleted;
-completed unreserved runs may be deleted with If-Match. No automatic TTL exists.
+before privileged work, then release the Server. To start over instead of repairing,
+delete the Blocked run with its current If-Match resourceVersion. The Server page
+offers Delete blocked request with confirmation. Deletion atomically releases
+its reservation and removes matching run references, but does not touch the node.
+Then use Provision to confirm a disk and create an ordinary new run. Its Ansible
+preflight safely unmounts verified leftover /mnt installation mounts on that disk
+before live refresh/erasure; unexpected or busy mounts block. Active runs cannot
+be deleted. Delete runs individually; collection deletion is rejected. No TTL exists.
 
 For a verified failure before erasure, the explicit cleanup playbook
 plays/verify_failed_provision_cleanup.yml checks the original live session, selected

@@ -377,6 +377,24 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 			return
 		}
 		active := object(object(owner.Status["provisioning"])["activeRunRef"])
+		if existing.Status["phase"] != "Blocked" && existing.Status["phase"] != "Succeeded" {
+			writeError(w, http.StatusConflict, "Conflict", "only Blocked or Succeeded provisioning runs may be deleted")
+			return
+		}
+		if owner.Metadata.UID == ref["uid"] {
+			status := cloneStatusForRunDeletion(owner.Status, existing)
+			atomic, ok := s.store.(store.AtomicDeleter)
+			if !ok || waitsForFinalizers {
+				writeError(w, http.StatusConflict, "Conflict", "atomic run deletion requires a store transaction and no finalizers")
+				return
+			}
+			if err := atomic.DeleteWithStatus(r.Context(), existing, owner, status); err != nil {
+				s.writeStoreError(w, err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if existing.Status["maintenance"] == true || active["uid"] == existing.Metadata.UID {
 			writeError(w, http.StatusConflict, "Conflict", "release the run reservation and verify boot cleanup before deletion")
 			return
@@ -401,6 +419,10 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 }
 
 func (s *Server) deleteResources(w http.ResponseWriter, r *http.Request, definition registry.Definition) {
+	if definition.Kind == "ProvisioningRun" {
+		writeError(w, http.StatusConflict, "Conflict", "delete provisioning runs individually with If-Match")
+		return
+	}
 	if definition.Kind == "Server" {
 		values, err := s.store.List(r.Context(), "Server")
 		if err != nil {

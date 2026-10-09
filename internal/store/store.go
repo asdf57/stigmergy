@@ -28,3 +28,8 @@ type Store interface {
 type AtomicCreator interface {
 	CreateWithStatus(context.Context, resource.Resource, resource.Resource, func(resource.Resource) map[string]any) (resource.Resource, error)
 }
+
+// AtomicDeleter removes a resource and updates its owner's status in one CAS.
+type AtomicDeleter interface {
+	DeleteWithStatus(context.Context, resource.Resource, resource.Resource, map[string]any) error
+}

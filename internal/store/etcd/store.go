@@ -295,6 +295,41 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 	return nil
 }
 
+func (s *Store) DeleteWithStatus(ctx context.Context, target, owner resource.Resource, status map[string]any) error {
+	if len(target.Metadata.Finalizers) != 0 {
+		return storage.ErrConflict
+	}
+	targetRevision, err := strconv.ParseInt(target.Metadata.ResourceVersion, 10, 64)
+	if err != nil {
+		return err
+	}
+	ownerRevision, err := strconv.ParseInt(owner.Metadata.ResourceVersion, 10, 64)
+	if err != nil {
+		return err
+	}
+	owner.Status = status
+	owner.Metadata.ResourceVersion = ""
+	value, err := encode(owner)
+	if err != nil {
+		return err
+	}
+	response, err := s.client.Txn(ctx).If(
+		clientv3.Compare(clientv3.ModRevision(s.keys.resource(target.Kind, target.Metadata.Name)), "=", targetRevision),
+		clientv3.Compare(clientv3.ModRevision(s.keys.resource(owner.Kind, owner.Metadata.Name)), "=", ownerRevision),
+	).Then(
+		clientv3.OpDelete(s.keys.resource(target.Kind, target.Metadata.Name)),
+		clientv3.OpDelete(s.keys.uid(target.Metadata.UID)),
+		clientv3.OpPut(s.keys.resource(owner.Kind, owner.Metadata.Name), string(value)),
+	).Commit()
+	if err != nil {
+		return err
+	}
+	if !response.Succeeded {
+		return storage.ErrConflict
+	}
+	return nil
+}
+
 func (s *Store) DeleteCollection(ctx context.Context, kind string) (int64, error) {
 	resources, err := s.List(ctx, kind)
 	if err != nil {

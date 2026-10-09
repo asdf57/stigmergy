@@ -130,6 +130,10 @@ the named resource first and use its resourceVersion with If-Match.
 - Preserve immutable attempt/snapshot ownership and dependency UIDs. Do not
   rewrite snapshots or mark success merely to recover a build.
 - An interrupted installation is Blocked; no automatic rewipe is allowed.
+  Explicit DELETE with If-Match may remove a Blocked run and atomically release
+  its Server reservation. This changes API ownership only; a new ordinary run
+  requires fresh disk confirmation and guarded Ansible staging cleanup. Active
+  runs and provisioning collection deletion are rejected.
   Explicit configuration repair can move the same Blocked attempt to
   AwaitingInstalled only with the owned live session, retained maintenance,
   installed boot target and no pending netboot. The external operator must

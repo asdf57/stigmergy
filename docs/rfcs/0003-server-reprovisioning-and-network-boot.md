@@ -241,9 +241,20 @@ to Installing. Fresh installed verification remains mandatory.
 
 AwaitingInstalled/Verifying can resume with the original pinned code revision.
 Lost completion only reconciles terminal status/reservation. A new destructive
-attempt requires a new run after verified cleanup. Retained runs provide separate
-results; no TTL or automatic deletion is implemented. Reserved runs cannot be
-deleted. Pending cancellation can explicitly report Blocked with maintenance
+attempt requires a new explicitly confirmed run. A Blocked run can be deleted
+with If-Match even while reserved: an etcd transaction deletes it and clears only
+its UID-matching Server references and maintenance reservation. Active phases
+cannot be deleted; collection deletion is rejected. Deletion loses run history
+but does not change the node, boot selection or disk. No replacement field is
+needed: after deletion create an ordinary new run with fresh confirmations.
+The new run's Ansible preflight cleans up only the approved disk's exact /mnt
+root/EFI and recognized chroot bind mounts, deepest first with ordinary umount.
+It verifies an independent live boot and disk identity before and after cleanup;
+busy, unrelated or unexpected mounts block instead of force/lazy unmounting.
+Cleanup precedes live-image refresh and is repeated before disk erasure.
+Normal unmounted targets need no cleanup. Existing boot/image checks remain.
+Retained runs provide separate results; no TTL or automatic deletion is implemented.
+Pending cancellation can explicitly report Blocked with maintenance
 false only before any privileged work, then release the Server reservation.
 
 A destroyed GRUB/disk or power failure during replacement may require manual

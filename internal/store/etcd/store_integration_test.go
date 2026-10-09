@@ -209,6 +209,58 @@ func TestResourceLifecycle(t *testing.T) {
 	}
 }
 
+func TestAtomicDeleteWithStatusChecksBothRevisions(t *testing.T) {
+	client, err := clientv3.New(clientv3.Config{Endpoints: strings.Split(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379"), ","), DialTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	prefix := "/homelab/test/delete/" + time.Now().UTC().Format("20060102150405.000000000")
+	s := New(client, prefix)
+	t.Cleanup(func() { _, _ = client.Delete(context.Background(), prefix, clientv3.WithPrefix()) })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owner, err := s.Create(ctx, resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "owner"}, Status: map[string]any{"maintenance": true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := s.Create(ctx, resource.Resource{Kind: "ProvisioningRun", Metadata: resource.Metadata{Name: "run"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed, err := s.UpdateStatus(ctx, owner.Kind, owner.Metadata.Name, map[string]any{"maintenance": true, "unrelated": "keep"}, mustRevision(t, owner.Metadata.ResourceVersion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteWithStatus(ctx, run, owner, map[string]any{"maintenance": false}); !errors.Is(err, storage.ErrConflict) {
+		t.Fatalf("stale owner: %v", err)
+	}
+	if _, err := s.Get(ctx, run.Kind, run.Metadata.Name); err != nil {
+		t.Fatal("partial deletion", err)
+	}
+	newRun, err := s.UpdateStatus(ctx, run.Kind, run.Metadata.Name, map[string]any{"phase": "AwaitingInstalled"}, mustRevision(t, run.Metadata.ResourceVersion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteWithStatus(ctx, run, changed, map[string]any{"maintenance": false}); !errors.Is(err, storage.ErrConflict) {
+		t.Fatalf("stale run: %v", err)
+	}
+	if err := s.DeleteWithStatus(ctx, newRun, changed, map[string]any{"maintenance": false, "unrelated": "keep"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Get(ctx, run.Kind, run.Metadata.Name); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatal("run not deleted", err)
+	}
+	updated, err := s.Get(ctx, owner.Kind, owner.Metadata.Name)
+	if err != nil || updated.Status["maintenance"] != false || updated.Status["unrelated"] != "keep" {
+		t.Fatal("owner not updated", err)
+	}
+	index, err := client.Get(ctx, s.keys.uid(run.Metadata.UID))
+	if err != nil || len(index.Kvs) != 0 {
+		t.Fatal("UID index retained", err)
+	}
+}
+
 func envOr(key, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 		return value

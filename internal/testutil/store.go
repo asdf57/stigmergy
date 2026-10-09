@@ -104,6 +104,27 @@ func (s *Store) UpdateStatus(ctx context.Context, kind, name string, status map[
 	s.Resources[kind+"/"+name] = value
 	return value, nil
 }
+func (s *Store) DeleteWithStatus(ctx context.Context, target, owner resource.Resource, status map[string]any) error {
+	current, err := s.Get(ctx, target.Kind, target.Metadata.Name)
+	if err != nil {
+		return err
+	}
+	parent, err := s.Get(ctx, owner.Kind, owner.Metadata.Name)
+	if err != nil {
+		return err
+	}
+	if current.Metadata.ResourceVersion != target.Metadata.ResourceVersion || parent.Metadata.ResourceVersion != owner.Metadata.ResourceVersion || len(current.Metadata.Finalizers) != 0 {
+		return store.ErrConflict
+	}
+	version, _ := strconv.ParseInt(parent.Metadata.ResourceVersion, 10, 64)
+	parent.Metadata.ResourceVersion = strconv.FormatInt(version+1, 10)
+	parent.Status = status
+	s.Resources[owner.Kind+"/"+owner.Metadata.Name] = parent
+	delete(s.Resources, target.Kind+"/"+target.Metadata.Name)
+	s.Writes++
+	return nil
+}
+
 func (s *Store) Delete(ctx context.Context, kind, name string, version int64) error {
 	value, err := s.Get(ctx, kind, name)
 	if err != nil {

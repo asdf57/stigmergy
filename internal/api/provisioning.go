@@ -17,6 +17,23 @@ func activeProvisioning(status map[string]any) bool {
 	return p["maintenance"] == true || p["activeRunRef"] != nil
 }
 
+// Deletion releases only this run's references, never a newer reservation.
+// It changes API ownership, not the node's boot selection or disk state.
+func cloneStatusForRunDeletion(status map[string]any, run resource.Resource) map[string]any {
+	patch := map[string]any{}
+	p := object(status["provisioning"])
+	for _, field := range []string{"activeRunRef", "lastRunRef", "lastSuccessfulRunRef"} {
+		ref := object(p[field])
+		if ref["name"] == run.Metadata.Name && ref["uid"] == run.Metadata.UID {
+			patch[field] = nil
+			if field == "activeRunRef" {
+				patch["maintenance"] = false
+			}
+		}
+	}
+	return applyJSONMergePatch(status, map[string]any{"provisioning": patch})
+}
+
 func validateProvisioningSpec(existing resource.Resource, spec map[string]any, _ bool) error {
 	if existing.Kind != "Server" || !activeProvisioning(existing.Status) {
 		return nil
