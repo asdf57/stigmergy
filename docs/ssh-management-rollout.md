@@ -186,9 +186,17 @@ certificate Ready. Monitor phase/expiry: an unavailable signer/store can prevent
 renewal. Deleting the resource stops renewal and cleans its owned output but
 does not revoke certificates already copied elsewhere before their expiry.
 
-For manual homelabc runs, obtain the current public certificate from this
-resource's status or its owned Secret and supply the matching runner private
-key separately. The CLI does not autonomously renew local credential files.
+For manual `homelabc run`, supply only an authorized API-token file. Normal
+container startup retrieves the existing `SSHKeyPair/ansible-runner`, its owned
+Secret and the current `SSHCertificate/ansible-runner`. It validates Ready/current
+generations, UID references, Secret ownership, validity and key/certificate subject
+agreement before writing container-local credentials (directory 0700, files 0600).
+It never creates or rotates these keys and never reads the CA private key.
+The admin token works; a narrower interactive identity needs GET SSHKeyPair,
+SSHCertificate, the referenced Secret, InventoryCaptureGroup and captured Servers.
+Concourse operators still receive OpenBao-supplied credentials, without API Secret
+access. Start a new shell when its certificate expires; running shells do not
+refresh automatically. Rebuild/publish the runner image after changing startup.
 
 ## 4. Enroll and provision hosts
 
@@ -213,15 +221,13 @@ for iPXE. A live-host source installation can receive
 `SSH_CA_BUNDLE_SOURCE=/absolute/public-bundle` when running `setup/install.sh`.
 Do not copy the admin or runner token into the daemon.
 
-For an interactive runner, pass homelabc `run` the absolute paths:
+For an interactive runner, pass homelabc `run` the authorized token's absolute path:
 
 ```text
---api-token-file /path/runner-token
---ssh-private-key-file /path/runner-key
---ssh-certificate-file /path/runner-key-cert.pub
+--api-token-file /path/interactive-api-token
 ```
 
-Files are mounted read-only and must be readable by container UID 1000. Runner
+The token file is mounted read-only and must be readable by container UID 1000. Runner
 initialization resolves the capture group and verified Server public identities
 through the API and refuses unmanaged hosts. It never downloads host private keys.
 An optional explicit --ssh-known-hosts-file supports non-Server administrative
