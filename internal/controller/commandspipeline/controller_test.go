@@ -13,7 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
+func TestRenderUsesCommandsRepositoryAndCommandRuntime(t *testing.T) {
 	reconciler := &Reconciler{config: Config{
 		CommandRunnerImage:     "registry.example/arch-provisioner:v1",
 		PublicAPIURL:           "https://stigmergy.example",
@@ -42,7 +42,7 @@ func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
 	for _, expected := range []string{
 		"git@github.com:example/commands.git", "automation/git-ssh-key.privateKey",
 		"branch: execution-branch", "ref: abc123",
-		"registry.example/arch-provisioner", "tag: v1", "CONTAINER_MODE: normal",
+		"registry.example/arch-provisioner", "tag: v1", "CONTAINER_MODE: command",
 		"INVENTORY_CAPTURE_GROUP: servers", "COMMAND_FILE: run/run.sh",
 		"exec /bin/bash", "user: keiichi",
 	} {
@@ -53,13 +53,22 @@ func TestRenderUsesCommandsRepositoryAndNormalRuntime(t *testing.T) {
 }
 
 func TestScheduleAndParametersStayGenericAndUnprivileged(t *testing.T) {
-	r := &Reconciler{config: Config{CommandRunnerImage: "runner:latest", PublicAPIURL: "https://api.example", AnsibleRolesRepository: "https://example/roles", AnsibleRolesRevision: "main", RunnerParameters: map[string]string{"STIGMERGY_API_TOKEN": "((runner-token))"}}}
+	r := &Reconciler{config: Config{CommandRunnerImage: "runner:latest", PublicAPIURL: "https://api.example", AnsibleRolesRepository: "https://example/roles", AnsibleRolesRevision: "main", RunnerParameters: map[string]string{
+		"STIGMERGY_API_TOKEN": "((runner-token))",
+		"ANSIBLE_PRIVATE_KEY": "((runner-key.privateKey))",
+		"ANSIBLE_CERTIFICATE": "((runner-certificate))",
+	}}}
 	schedule := "5m"
 	v := registry.NewCommandsPipeline(resource.Metadata{Name: "test"}, apigen.CommandsPipelineSpec{InventoryCaptureGroupRef: apigen.CommandsPipelineInventoryCaptureGroupReference{Name: "test"}, Schedule: &schedule})
 	repo := registry.NewGitRepository(resource.Metadata{Name: "repo"}, apigen.GitRepositorySpec{Url: "https://example/commands"})
 	data, err := r.render(v, repo, registry.SSHKeyPair{}, "execution-branch", "test.sh", "abc123")
 	if err != nil || strings.Contains(data, "interval: 5m") || strings.Contains(data, "trigger: true") || !strings.Contains(data, "((runner-token))") || strings.Contains(data, "privileged: true") {
 		t.Fatalf("render: %s %v", data, err)
+	}
+	for _, expected := range []string{"CONTAINER_MODE: command", "((runner-key.privateKey))", "((runner-certificate))"} {
+		if !strings.Contains(data, expected) {
+			t.Fatalf("missing supplied Command credential/runtime setting %q", expected)
+		}
 	}
 	r.config.RunnerParameters["COMMAND_FILE"] = "override"
 	if _, err := r.render(v, repo, registry.SSHKeyPair{}, "execution-branch", "test.sh", "abc123"); err == nil {

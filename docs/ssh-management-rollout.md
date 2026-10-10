@@ -102,6 +102,12 @@ from verified Server public identities, not a separate manually uploaded Secret.
 SSHCertificateController owns the certificate Secret; do not upload a competing
 manual Secret at `ansible-runner-certificate`. Connections use a Server-UID-bound
 HostKeyAlias so trusting another fleet member cannot authenticate this Server.
+Generated Command tasks use CONTAINER_MODE=command: supplied OpenBao client
+credentials plus API-derived inventory and verified host trust. Interactive
+homelabc shells use CONTAINER_MODE=normal and retrieve client credentials with
+their authorized API token. Operators use CONTAINER_MODE=operator and prepare
+their own scoped target inventory/trust. Command tokens do not need Secret reads;
+missing supplied credentials must stop startup, not fall back to API retrieval.
 Existing private API policies must grant the runner GET SSHKeyPair in addition to
 its existing inventory/Server reads and Server/status PATCH. Preserve existing
 token values when editing the policy and its private bootstrap env-file.

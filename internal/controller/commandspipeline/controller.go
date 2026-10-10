@@ -266,7 +266,7 @@ func (r *Reconciler) render(value registry.CommandsPipeline, repository registry
 		},
 		"inputs": []any{map[string]any{"name": "commands"}},
 		"params": map[string]any{
-			"CONTAINER_MODE": "normal", "INVENTORY_CAPTURE_GROUP": value.Spec.InventoryCaptureGroupRef.Name,
+			"CONTAINER_MODE": "command", "INVENTORY_CAPTURE_GROUP": value.Spec.InventoryCaptureGroupRef.Name,
 			"STIGMERGY_API_URL": r.config.PublicAPIURL, "GIT_ANSIBLE_ROLES_REPO": r.config.AnsibleRolesRepository,
 			"GIT_ANSIBLE_ROLES_REF": r.config.AnsibleRolesRevision, "COMMAND_FILE": commandPath,
 		},
