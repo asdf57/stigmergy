@@ -551,6 +551,139 @@ components:
             required:
                 - deleted
             type: object
+        DiskPartition:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: DiskPartition
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/DiskPartitionSpec'
+                status:
+                    $ref: '#/components/schemas/DiskPartitionStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        DiskPartitionCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: DiskPartition
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/DiskPartitionSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        DiskPartitionList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/DiskPartition'
+                    type: array
+                kind:
+                    const: DiskPartitionList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        DiskPartitionSpec:
+            additionalProperties: false
+            properties:
+                capacity:
+                    additionalProperties: false
+                    maxProperties: 1
+                    minProperties: 1
+                    properties:
+                        storage:
+                            pattern: ^[1-9][0-9]*(Mi|Gi|Ti)$
+                            type: string
+                        useRemaining:
+                            enum:
+                                - true
+                            type: boolean
+                    type: object
+                diskSelector:
+                    additionalProperties: false
+                    minProperties: 1
+                    properties:
+                        serial:
+                            minLength: 1
+                            type: string
+                        wwn:
+                            minLength: 1
+                            type: string
+                    type: object
+                filesystem:
+                    enum:
+                        - ext4
+                        - vfat
+                        - swap
+                    type: string
+                mountPoint:
+                    pattern: ^/
+                    type: string
+                number:
+                    maximum: 128
+                    minimum: 1
+                    type: integer
+                role:
+                    enum:
+                        - root
+                        - efi
+                        - swap
+                        - data
+                    type: string
+                serverRef:
+                    additionalProperties: false
+                    properties:
+                        name:
+                            minLength: 1
+                            type: string
+                        uid:
+                            minLength: 1
+                            type: string
+                    required:
+                        - name
+                    type: object
+            required:
+                - serverRef
+                - diskSelector
+                - number
+                - capacity
+                - role
+                - filesystem
+            type: object
+        DiskPartitionStatus:
+            additionalProperties: false
+            properties: {}
+            type: object
         Error:
             additionalProperties: false
             properties:
@@ -1916,6 +2049,42 @@ components:
                 - state
                 - addresses
             type: object
+        MachineReportPartition:
+            additionalProperties: false
+            properties:
+                filesystem:
+                    type: string
+                mountPoints:
+                    items:
+                        type: string
+                    type: array
+                number:
+                    minimum: 1
+                    type: integer
+                partUUID:
+                    type: string
+                path:
+                    type: string
+                size:
+                    format: int64
+                    minimum: 1
+                    type: integer
+                startBytes:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                uuid:
+                    type: string
+            required:
+                - number
+                - path
+                - size
+                - startBytes
+                - filesystem
+                - uuid
+                - partUUID
+                - mountPoints
+            type: object
         MachineReportSpec:
             additionalProperties: false
             properties:
@@ -1956,8 +2125,16 @@ components:
                     type: string
                 name:
                     type: string
+                partitions:
+                    items:
+                        $ref: '#/components/schemas/MachineReportPartition'
+                    type: array
                 path:
                     type: string
+                readOnly:
+                    type: boolean
+                removable:
+                    type: boolean
                 rota:
                     type: boolean
                 serial:
@@ -2475,6 +2652,27 @@ components:
                 - model
                 - tran
             type: object
+        ProvisioningPartitionPlan:
+            additionalProperties: false
+            properties:
+                endMiB:
+                    format: int64
+                    minimum: 2
+                    type: integer
+                partitionRef:
+                    $ref: '#/components/schemas/ReviewedPartitionReference'
+                spec:
+                    $ref: '#/components/schemas/DiskPartitionSpec'
+                startMiB:
+                    format: int64
+                    minimum: 1
+                    type: integer
+            required:
+                - partitionRef
+                - spec
+                - startMiB
+                - endMiB
+            type: object
         ProvisioningRun:
             additionalProperties: false
             properties:
@@ -2640,8 +2838,15 @@ components:
                             maxItems: 1
                             minItems: 1
                             type: array
+                        partitionRefs:
+                            items:
+                                $ref: '#/components/schemas/ReviewedPartitionReference'
+                            maxItems: 64
+                            minItems: 2
+                            type: array
                     required:
                         - disks
+                        - partitionRefs
                     type: object
             required:
                 - serverRef
@@ -2700,6 +2905,20 @@ components:
                 startedAt:
                     format: date-time
                     type: string
+                storagePlan:
+                    $ref: '#/components/schemas/ProvisioningStoragePlan'
+            type: object
+        ProvisioningStoragePlan:
+            additionalProperties: false
+            properties:
+                partitions:
+                    items:
+                        $ref: '#/components/schemas/ProvisioningPartitionPlan'
+                    maxItems: 64
+                    minItems: 2
+                    type: array
+            required:
+                - partitions
             type: object
         ResourceReference:
             additionalProperties: false
@@ -2713,6 +2932,24 @@ components:
             required:
                 - name
                 - uid
+            type: object
+        ReviewedPartitionReference:
+            additionalProperties: false
+            properties:
+                generation:
+                    format: int64
+                    minimum: 1
+                    type: integer
+                name:
+                    minLength: 1
+                    type: string
+                uid:
+                    minLength: 1
+                    type: string
+            required:
+                - name
+                - uid
+                - generation
             type: object
         Router:
             additionalProperties: false
@@ -5345,6 +5582,491 @@ paths:
             summary: Merge-patch Command status
             tags:
                 - Commands
+    /api/v1alpha1/disk-partitions:
+        get:
+            operationId: listDiskPartitions
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartitionList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List DiskPartition resources
+            tags:
+                - DiskPartitions
+        post:
+            operationId: createDiskPartition
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a DiskPartition
+            tags:
+                - DiskPartitions
+    /api/v1alpha1/disk-partitions/{name}:
+        delete:
+            operationId: deleteDiskPartition
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one DiskPartition
+            tags:
+                - DiskPartitions
+        get:
+            operationId: getDiskPartition
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one DiskPartition
+            tags:
+                - DiskPartitions
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchDiskPartition
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one DiskPartition
+            tags:
+                - DiskPartitions
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putDiskPartition
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/DiskPartitionCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one DiskPartition
+            tags:
+                - DiskPartitions
+    /api/v1alpha1/disk-partitions/{name}/status:
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: 'Update only status using {metadata: {uid}, status: {...}} and required If-Match. Separate status-subresource authorization applies; spec and other metadata writes are forbidden.'
+            operationId: patchDiskPartitionStatus
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DiskPartition'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch DiskPartition status
+            tags:
+                - DiskPartitions
     /api/v1alpha1/dns-records:
         delete:
             operationId: deleteDNSRecords
@@ -14320,6 +15042,7 @@ tags:
     - name: System
     - name: Commands
     - name: CommandsPipelines
+    - name: DiskPartitions
     - name: DNSRecords
     - name: GitRepositorys
     - name: InventoryCaptureGroups

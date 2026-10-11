@@ -84,7 +84,7 @@ func (s *Store) Get(ctx context.Context, kind, name string) (resource.Resource, 
 	return decode(response.Kvs[0].Value, response.Kvs[0].ModRevision)
 }
 
-func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any) (resource.Resource, error) {
+func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any, dependencies ...resource.Resource) (resource.Resource, error) {
 	uid, err := s.newUID()
 	if err != nil {
 		return resource.Resource{}, err
@@ -109,11 +109,19 @@ func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.
 	}
 	key := s.keys.resource(candidate.Kind, candidate.Metadata.Name)
 	ownerKey := s.keys.resource(owner.Kind, owner.Metadata.Name)
-	response, err := s.client.Txn(ctx).If(
+	comparisons := []clientv3.Cmp{
 		clientv3.Compare(clientv3.Version(key), "=", 0),
 		clientv3.Compare(clientv3.Version(s.keys.uid(uid)), "=", 0),
 		clientv3.Compare(clientv3.ModRevision(ownerKey), "=", revision),
-	).Then(clientv3.OpPut(key, string(value)), clientv3.OpPut(s.keys.uid(uid), key), clientv3.OpPut(ownerKey, string(ownerValue))).Commit()
+	}
+	for _, dependency := range dependencies {
+		dependencyRevision, parseErr := strconv.ParseInt(dependency.Metadata.ResourceVersion, 10, 64)
+		if parseErr != nil {
+			return resource.Resource{}, parseErr
+		}
+		comparisons = append(comparisons, clientv3.Compare(clientv3.ModRevision(s.keys.resource(dependency.Kind, dependency.Metadata.Name)), "=", dependencyRevision))
+	}
+	response, err := s.client.Txn(ctx).If(comparisons...).Then(clientv3.OpPut(key, string(value)), clientv3.OpPut(s.keys.uid(uid), key), clientv3.OpPut(ownerKey, string(ownerValue))).Commit()
 	if err != nil {
 		return resource.Resource{}, err
 	}

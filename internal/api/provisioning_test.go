@@ -26,18 +26,64 @@ func cloneMap(value map[string]any) map[string]any {
 func runFixture() (resource.Resource, resource.Resource, resource.Resource) {
 	serverRef := map[string]any{"name": "host", "uid": "server-uid"}
 	machineRef := map[string]any{"name": "machine", "uid": "machine-uid"}
-	disk := map[string]any{"type": "disk", "serial": "serial", "wwn": "0x123", "size": float64(10000000), "model": "SSD", "tran": "sata"}
+	disk := map[string]any{"type": "disk", "serial": "serial", "wwn": "0x123", "size": float64(10000000000), "model": "SSD", "tran": "sata"}
 	host := resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "host", UID: "server-uid", ResourceVersion: "1", Generation: 1}, Spec: map[string]any{"provisioning": map[string]any{"enabled": true}, "operatingSystem": map[string]any{"distribution": "arch"}}, Status: map[string]any{"machineRef": machineRef}}
 	keyRef := map[string]any{"name": "host-key", "uid": "key-uid"}
 	host.Status["hostSSH"] = map[string]any{"phase": "Ready", "keyReady": true, "keyPairRef": keyRef, "installedKeyPairRef": keyRef}
 	machine := resource.Resource{Kind: "Machine", Metadata: resource.Metadata{Name: "machine", UID: "machine-uid", ResourceVersion: "1"}, Status: map[string]any{"serverRef": serverRef, "inventory": map[string]any{"storage": []any{disk}}}}
 	run := resource.Resource{Kind: "ProvisioningRun", Metadata: resource.Metadata{Name: "run"}, Spec: map[string]any{"serverRef": serverRef, "serverGeneration": 1, "machineRef": machineRef, "storage": map[string]any{"disks": []any{map[string]any{"deviceID": "wwn:0x123", "role": "system"}}}}}
+	object(run.Spec["storage"])["partitionRefs"] = []any{
+		map[string]any{"name": "host-efi", "uid": "efi-uid", "generation": 1},
+		map[string]any{"name": "host-root", "uid": "root-uid", "generation": 1},
+	}
 	return host, machine, run
+}
+
+func newRunStore(host, machine resource.Resource) *testutil.Store {
+	partition := func(name, uid, role, filesystem, mount string, number int, capacity map[string]any) resource.Resource {
+		return resource.Resource{Kind: "DiskPartition", Metadata: resource.Metadata{Name: name, UID: uid, Generation: 1, ResourceVersion: "1"}, Spec: map[string]any{
+			"serverRef":    map[string]any{"name": host.Metadata.Name, "uid": host.Metadata.UID},
+			"diskSelector": map[string]any{"serial": "serial"}, "number": number,
+			"capacity": capacity, "role": role, "filesystem": filesystem, "mountPoint": mount,
+		}}
+	}
+	return testutil.NewStore(host, machine,
+		partition("host-efi", "efi-uid", "efi", "vfat", "/boot/efi", 1, map[string]any{"storage": "512Mi"}),
+		partition("host-root", "root-uid", "root", "ext4", "/", 2, map[string]any{"useRemaining": true}))
+}
+
+func TestMMCDiskSelectionRejectsHardwareAreas(t *testing.T) {
+	host, machine, run := runFixture()
+	disk := object(object(machine.Status["inventory"])["storage"].([]any)[0])
+	disk["tran"], disk["path"] = "mmc", "/dev/mmcblk12"
+	if _, err := (&Server{store: newRunStore(host, machine)}).createProvisioningRun(context.Background(), run); err != nil {
+		t.Fatalf("main MMC disk rejected: %v", err)
+	}
+	for _, field := range []string{"path", "kname", "name"} {
+		for _, name := range []string{"mmcblk0boot0", "mmcblk12boot1", "mmcblk5rpmb", "mmcblk8gp0"} {
+			t.Run(field+"/"+name, func(t *testing.T) {
+				unsafeMachine := machine
+				unsafeMachine.Status = cloneMap(machine.Status)
+				unsafeDisk := object(object(unsafeMachine.Status["inventory"])["storage"].([]any)[0])
+				unsafeDisk[field] = name
+				if field == "path" {
+					unsafeDisk[field] = "/dev/" + name
+				}
+				storage := newRunStore(host, unsafeMachine)
+				if _, err := (&Server{store: storage}).createProvisioningRun(context.Background(), run); err == nil {
+					t.Fatal("writable, identified hardware area accepted")
+				}
+				if storage.Writes != 0 {
+					t.Fatal("rejected target caused a write")
+				}
+			})
+		}
+	}
 }
 
 func TestProvisioningRunCreationReservesAndRejectsDuplicates(t *testing.T) {
 	host, machine, run := runFixture()
-	storage := testutil.NewStore(host, machine)
+	storage := newRunStore(host, machine)
 	api := &Server{store: storage}
 	created, err := api.createProvisioningRun(context.Background(), run)
 	if err != nil {
@@ -70,7 +116,7 @@ func TestDeleteBlockedRunReleasesOnlyItsReservation(t *testing.T) {
 	for _, phase := range []string{"Pending", "PreparingBoot", "Installing", "Verifying", "Blocked"} {
 		t.Run(phase, func(t *testing.T) {
 			host, machine, request := runFixture()
-			storage := testutil.NewStore(host, machine)
+			storage := newRunStore(host, machine)
 			api := &Server{store: storage}
 			run, err := api.createProvisioningRun(context.Background(), request)
 			if err != nil {
@@ -146,7 +192,7 @@ func TestProvisioningRunRejectsStaleBindingsAndUnsafeSelections(t *testing.T) {
 
 func TestRunCheckpointSafetyAndRelease(t *testing.T) {
 	host, machine, request := runFixture()
-	storage := testutil.NewStore(host, machine)
+	storage := newRunStore(host, machine)
 	api := &Server{store: storage}
 	run, err := api.createProvisioningRun(context.Background(), request)
 	if err != nil {
@@ -157,6 +203,7 @@ func TestRunCheckpointSafetyAndRelease(t *testing.T) {
 	next["attemptID"] = run.Metadata.UID
 	next["sourceBootID"] = "source"
 	next["snapshot"] = map[string]any{"serverUID": "server-uid", "machineRef": request.Spec["machineRef"], "diskIdentity": run.Status["selectedDisk"]}
+	object(next["snapshot"])["inputs"] = map[string]any{"storagePlan": run.Status["storagePlan"]}
 	if err := validateProvisioningRunStatus(run, next); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +274,7 @@ func TestBlockedRunRepairCannotReenterInstallation(t *testing.T) {
 
 func TestProvisioningRunGeneratedHTTPRoutesAndSafety(t *testing.T) {
 	host, machine, run := runFixture()
-	storage := testutil.NewStore(host, machine)
+	storage := newRunStore(host, machine)
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
 	call := func(method, path, body, version string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))

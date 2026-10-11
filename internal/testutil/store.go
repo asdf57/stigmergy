@@ -51,13 +51,19 @@ func (s *Store) Create(ctx context.Context, value resource.Resource) (resource.R
 	return value, nil
 }
 
-func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any) (resource.Resource, error) {
+func (s *Store) CreateWithStatus(ctx context.Context, candidate, owner resource.Resource, status func(resource.Resource) map[string]any, dependencies ...resource.Resource) (resource.Resource, error) {
 	current, err := s.Get(ctx, owner.Kind, owner.Metadata.Name)
 	if err != nil {
 		return resource.Resource{}, err
 	}
 	if current.Metadata.ResourceVersion != owner.Metadata.ResourceVersion {
 		return resource.Resource{}, store.ErrConflict
+	}
+	for _, dependency := range dependencies {
+		actual, readErr := s.Get(ctx, dependency.Kind, dependency.Metadata.Name)
+		if readErr != nil || actual.Metadata.ResourceVersion != dependency.Metadata.ResourceVersion || actual.Metadata.UID != dependency.Metadata.UID {
+			return resource.Resource{}, store.ErrConflict
+		}
 	}
 	created, err := s.Create(ctx, candidate)
 	if err != nil {

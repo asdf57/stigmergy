@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/asdf57/stigmergy/internal/resource"
 	"github.com/asdf57/stigmergy/internal/store"
+	"path"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -74,6 +76,20 @@ func diskDeviceID(disk map[string]any) string {
 	return ""
 }
 
+var mmcHardwareAreaName = regexp.MustCompile(`^mmcblk[0-9]+(?:boot[0-9]+|rpmb|gp[0-9]+)$`)
+
+// Hardware areas are separate from user-created GPT partitions. Discovery
+// remains policy-free; reject these targets even if reported writable.
+func isMMCHardwareArea(disk map[string]any) bool {
+	for _, field := range []string{"kname", "name", "path"} {
+		name, _ := disk[field].(string)
+		if mmcHardwareAreaName.MatchString(path.Base(name)) {
+			return true
+		}
+	}
+	return false
+}
+
 func selectedDisk(machine resource.Resource, spec map[string]any) (map[string]any, error) {
 	disks, _ := object(spec["storage"])["disks"].([]any)
 	if len(disks) != 1 || object(disks[0])["role"] != "system" {
@@ -92,8 +108,11 @@ func selectedDisk(machine resource.Resource, spec map[string]any) (map[string]an
 		return nil, fmt.Errorf("disk identity is missing or ambiguous in the bound Machine inventory")
 	}
 	disk := matches[0]
-	if disk["type"] != "disk" || (disk["tran"] != "sata" && disk["tran"] != "ata" && disk["tran"] != "nvme") {
-		return nil, fmt.Errorf("USB and nonphysical disks are not supported")
+	if isMMCHardwareArea(disk) {
+		return nil, fmt.Errorf("MMC hardware areas are not provisioning targets")
+	}
+	if disk["type"] != "disk" || disk["removable"] == true || disk["readOnly"] == true || (disk["tran"] != "sata" && disk["tran"] != "ata" && disk["tran"] != "nvme" && disk["tran"] != "mmc") {
+		return nil, fmt.Errorf("select a writable nonremovable SATA, NVMe or MMC disk")
 	}
 	encoded, _ := json.Marshal(disk["size"])
 	size, err := strconv.ParseInt(string(encoded), 10, 64)
@@ -163,7 +182,19 @@ func (s *Server) createProvisioningRun(ctx context.Context, candidate resource.R
 	if err != nil {
 		return resource.Resource{}, fmt.Errorf("%w: %s", store.ErrConflict, err)
 	}
-	candidate.Status = map[string]any{"phase": "Pending", "maintenance": true, "selectedDisk": disk, "message": "Waiting for the provisioning operator"}
+	layout, dependencies, err := s.resolveStoragePlan(ctx, candidate, server, machine, disk)
+	if err != nil {
+		return resource.Resource{}, fmt.Errorf("%w: %s", store.ErrConflict, err)
+	}
+	encodedPlan, err := json.Marshal(layout)
+	if err != nil {
+		return resource.Resource{}, err
+	}
+	var frozenPlan map[string]any
+	if err = json.Unmarshal(encodedPlan, &frozenPlan); err != nil {
+		return resource.Resource{}, err
+	}
+	candidate.Status = map[string]any{"phase": "Pending", "maintenance": true, "selectedDisk": disk, "storagePlan": frozenPlan, "message": "Waiting for the provisioning operator"}
 	atomic, ok := s.store.(store.AtomicCreator)
 	if !ok {
 		return resource.Resource{}, fmt.Errorf("store does not support atomic resource reservations")
@@ -174,7 +205,7 @@ func (s *Server) createProvisioningRun(ctx context.Context, candidate resource.R
 			"maintenance": true, "activeRunRef": map[string]any{"name": created.Metadata.Name, "uid": created.Metadata.UID},
 			"lastRunRef": map[string]any{"name": created.Metadata.Name, "uid": created.Metadata.UID},
 		}})
-	})
+	}, dependencies...)
 }
 
 func validateProvisioningRunStatus(current resource.Resource, next map[string]any) error {
@@ -185,6 +216,9 @@ func validateProvisioningRunStatus(current resource.Resource, next map[string]an
 	}
 	if !resource.EqualJSON(old["selectedDisk"], next["selectedDisk"]) {
 		return fmt.Errorf("selected disk observation is immutable")
+	}
+	if !resource.EqualJSON(old["storagePlan"], next["storagePlan"]) {
+		return fmt.Errorf("approved storage plan is immutable")
 	}
 	allowed := map[string]string{"Pending": "PreparingBoot", "PreparingBoot": "AwaitingLive", "AwaitingLive": "Installing", "Installing": "AwaitingInstalled", "AwaitingInstalled": "Verifying", "Verifying": "Succeeded"}
 	repaired := from == "Blocked" && to == "AwaitingInstalled" && old["maintenance"] == true && next["maintenance"] == true && next["netbootArmed"] == false && next["bootTarget"] == "installed" && old["liveBootID"] != nil && old["liveBootID"] != "" && resource.EqualJSON(old["liveBootID"], next["liveBootID"])
@@ -200,6 +234,9 @@ func validateProvisioningRunStatus(current resource.Resource, next map[string]an
 	}
 	if from == "Pending" && to == "PreparingBoot" {
 		snapshot := object(next["snapshot"])
+		if !resource.EqualJSON(object(snapshot["inputs"])["storagePlan"], old["storagePlan"]) {
+			return fmt.Errorf("claim must retain the approved storage plan")
+		}
 		if next["attemptID"] != current.Metadata.UID || snapshot["serverUID"] != object(current.Spec["serverRef"])["uid"] || !resource.EqualJSON(snapshot["machineRef"], current.Spec["machineRef"]) || !resource.EqualJSON(snapshot["diskIdentity"], old["selectedDisk"]) {
 			return fmt.Errorf("claim must match run, Server, Machine and selected disk identities")
 		}

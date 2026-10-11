@@ -26,7 +26,7 @@ type Store interface {
 // AtomicCreator creates a resource and reserves its related object in one CAS.
 // The callback receives the allocated UID; status is preserved by the caller.
 type AtomicCreator interface {
-	CreateWithStatus(context.Context, resource.Resource, resource.Resource, func(resource.Resource) map[string]any) (resource.Resource, error)
+	CreateWithStatus(context.Context, resource.Resource, resource.Resource, func(resource.Resource) map[string]any, ...resource.Resource) (resource.Resource, error)
 }
 
 // AtomicDeleter removes a resource and updates its owner's status in one CAS.

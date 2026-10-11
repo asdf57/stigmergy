@@ -77,6 +77,27 @@ MachineReportStorageDevice:
       type: string
     tran:
       type: string
+    removable: {type: boolean}
+    readOnly: {type: boolean}
+    partitions:
+      type: array
+      items: {$ref: '#/MachineReportPartition'}
+
+MachineReportPartition:
+  type: object
+  additionalProperties: false
+  required: [number, path, size, startBytes, filesystem, uuid, partUUID, mountPoints]
+  properties:
+    number: {type: integer, minimum: 1}
+    path: {type: string}
+    size: {type: integer, format: int64, minimum: 1}
+    startBytes: {type: integer, format: int64, minimum: 0}
+    filesystem: {type: string}
+    uuid: {type: string}
+    partUUID: {type: string}
+    mountPoints:
+      type: array
+      items: {type: string}
 
 MachineReportSystem:
   type: object

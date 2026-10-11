@@ -109,18 +109,28 @@ spec:
     disks:
       - deviceID: wwn:0x53a5a277260208cc
         role: system
+    partitionRefs:
+      - {name: beelink-efi, uid: <partition-uid>, generation: <reviewed-generation>}
+      - {name: beelink-swap, uid: <partition-uid>, generation: <reviewed-generation>}
+      - {name: beelink-root, uid: <partition-uid>, generation: <reviewed-generation>}
 ```
 
 References require names and UIDs. The array has exactly one system disk in v1.
 Multiple disks, RAID, encryption and extra storage roles require explicit layout
 semantics and acceptance tests; selecting several disks must never implicitly
-mean erase everything. Existing capture-group variables carry the reviewed
-EFI/swap/ext4 layout and common installation inputs, not disk-selection authority.
+mean erase everything. DiskPartition resources declare each Server's layout;
+capture-group variables carry only common execution inputs. Run creation checks
+the reviewed partition UIDs/generations and atomically pins their specifications
+and resolved geometry in status.storagePlan alongside the Server reservation.
+See RFC 0007 for the storage contract. Partition edits never authorize erasure.
 
 Creation checks the reviewed Server generation and reciprocal Machine binding,
 requires established managed SSH identity, and checks enabled/unpaused
 state, rejects an existing reservation, and resolves exactly one discovered
-SATA/ATA/NVMe physical disk. It records serial, WWN, size, model and transport in
+SATA/ATA/NVMe/MMC user-area disk. MMC hardware areas (`mmcblkXbootY`,
+`mmcblkXrpmb`, `mmcblkXgpY`) are excluded by reported device names, independently
+rechecked against the resolved device in the live probe. Discovery remains
+policy-free. It records serial, WWN, size, model and transport in
 status.selectedDisk. USB and ambiguous/unidentified targets are rejected.
 Discovery is not attestation: the operator rechecks real hardware, removability,
 mounts and boot identity on the node before changing anything.

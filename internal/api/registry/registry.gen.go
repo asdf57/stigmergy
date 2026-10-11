@@ -114,6 +114,59 @@ func (definition CommandsPipelineDefinition) Decode(value resource.Resource) (Co
 	}, nil
 }
 
+// DiskPartition is the concrete controller-facing resource for DiskPartition.
+type DiskPartition struct {
+	APIVersion string                      `json:"apiVersion"`
+	Kind       string                      `json:"kind"`
+	Metadata   resource.Metadata           `json:"metadata"`
+	Spec       apigen.DiskPartitionSpec    `json:"spec"`
+	Status     *apigen.DiskPartitionStatus `json:"status,omitempty"`
+}
+
+// NewDiskPartition constructs a DiskPartition with its generated type identity.
+func NewDiskPartition(metadata resource.Metadata, spec apigen.DiskPartitionSpec) DiskPartition {
+	return DiskPartition{
+		APIVersion: DiskPartitionResource.APIVersion,
+		Kind:       DiskPartitionResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed DiskPartition into the generic storage representation.
+func (value DiskPartition) Encode() (resource.Resource, error) {
+	return encodeResource(DiskPartitionResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// DiskPartitionDefinition adds concrete DiskPartition decoding to the shared API definition.
+type DiskPartitionDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed DiskPartition status to the generic storage representation.
+func (definition DiskPartitionDefinition) EncodeStatus(status *apigen.DiskPartitionStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed DiskPartition.
+func (definition DiskPartitionDefinition) Decode(value resource.Resource) (DiskPartition, error) {
+	spec, err := decodeResourceSpec[apigen.DiskPartitionSpec](definition.Definition, value)
+	if err != nil {
+		return DiskPartition{}, err
+	}
+	status, err := decodeStoredStatus[apigen.DiskPartitionStatus](definition.Kind, value.Status)
+	if err != nil {
+		return DiskPartition{}, err
+	}
+	return DiskPartition{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // DNSRecord is the concrete controller-facing resource for DNSRecord.
 type DNSRecord struct {
 	APIVersion string                  `json:"apiVersion"`
@@ -1048,6 +1101,7 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 
 var CommandResource = CommandDefinition{Definition: NewDefinition[apigen.CommandSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Command", "commands", "CommandStatus", []string{"homelab.io/command-cleanup"}, true)}
 var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"}, false)}
+var DiskPartitionResource = DiskPartitionDefinition{Definition: NewDefinition[apigen.DiskPartitionSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DiskPartition", "disk-partitions", "DiskPartitionStatus", []string(nil), false)}
 var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"}, false)}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil), false)}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil), false)}
@@ -1070,6 +1124,7 @@ var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{De
 var Definitions = []Definition{
 	CommandResource.Definition,
 	CommandsPipelineResource.Definition,
+	DiskPartitionResource.Definition,
 	DNSRecordResource.Definition,
 	GitRepositoryResource.Definition,
 	InventoryCaptureGroupResource.Definition,

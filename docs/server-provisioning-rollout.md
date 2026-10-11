@@ -43,6 +43,10 @@ or manual triggers poll requests; they never authorize disk replacement.
    USERTrust ECC/RSA roots; never bypass TLS. Preserve protected daemon enrollment.
 6. Verify discovery, Machine inventory/binding and managed SSH readiness. Test the
    full run lifecycle on disposable hardware/VM before a physical acceptance run.
+7. Declare the Server's DiskPartition resources using the discovered serial/WWN.
+   Review numbers, capacities, roles and mount points. The site manifests include
+   Beelink's layout; configure other Servers explicitly, never copy disk identities.
+   Apply resources without creating a ProvisioningRun; this performs no disk work.
 
 ## Request installation
 
@@ -61,6 +65,13 @@ current Ready ISO resources with completed builds, filtered to supported amd64
 UEFI targets (Arch rolling and Debian trixie). Multiple matching ISOs are explicit
 choices; an empty catalog prevents submission. Merely opening or changing the
 dialog writes nothing.
+
+The dialog loads DiskPartition resources for that Server and disk and shows the
+partition layout being authorized. Root and EFI are required; swap is optional.
+Use the generic DiskPartition resource editor to configure layouts. Creation
+rejects stale partition UIDs/generations or invalid geometry, rather than silently
+changing the reviewed plan. Confirmation authorizes whole-disk replacement,
+including deletion of existing partitions not listed in the new layout.
 
 Confirmation first conditionally PATCHes the selected OS and UID-qualified boot
 ISO into Server spec, preserving other OS settings and packages, then POSTs a
@@ -87,13 +98,20 @@ spec:
     disks:
       - deviceID: wwn:<discovered-wwn>
         role: system
+    partitionRefs:
+      - {name: node-efi, uid: <partition-uid>, generation: <reviewed-generation>}
+      - {name: node-root, uid: <partition-uid>, generation: <reviewed-generation>}
 ```
 
 Creation explicitly authorizes erasure, even for the first installation. There is
-no disk field or replacement counter in Server spec. V1 supports one SATA/ATA/NVMe
-system disk with EFI/swap/ext4 layout, amd64 UEFI with Secure Boot already off,
+no disk field or replacement counter in Server spec. V1 supports one SATA/ATA/NVMe/MMC
+system disk with EFI and ext4 root, optional swap/ext4 data partitions, amd64 UEFI with Secure Boot already off,
 Arch rolling or Debian trixie. USB, removable/read-only/ambiguous disks and
 unsupported layouts/features block. Do not check destructive runs into init.
+
+API, UI and operator changes must roll out together while provisioning is idle.
+Deploy the updated discovery agent for partition observations. No installed
+partition changes occur until the user explicitly creates a new run.
 
 Creation atomically reserves the Server and records discovered disk identity.
 Conflicts require a fresh review, not an automatic retry. Specs cannot be changed.

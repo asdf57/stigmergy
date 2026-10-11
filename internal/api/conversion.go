@@ -108,6 +108,15 @@ func resourceSpecMap(value any) (map[string]any, error) {
 }
 
 func (s *Server) validateResourceSpec(definition registry.Definition, spec map[string]any) (map[string]any, error) {
+	if definition.Kind == "DiskPartition" {
+		partition, err := decodePartition(spec)
+		if err != nil {
+			return nil, err
+		}
+		if err = validatePartition(partition); err != nil {
+			return nil, err
+		}
+	}
 	schemaRef, found := s.openAPI.Components.Schemas[definition.SpecSchema]
 	if !found || schemaRef.Value == nil {
 		return nil, fmt.Errorf("schema %s is not registered", definition.SpecSchema)

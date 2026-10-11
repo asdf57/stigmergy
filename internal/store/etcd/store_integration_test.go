@@ -75,6 +75,51 @@ func TestAtomicCreateWithStatusHasOneWinnerAndNoOrphans(t *testing.T) {
 	}
 }
 
+func TestReservationAtomicallyChecksReviewedDependencies(t *testing.T) {
+	client, err := clientv3.New(clientv3.Config{Endpoints: strings.Split(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379"), ","), DialTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	prefix := "/homelab/test/storage/" + time.Now().UTC().Format("20060102150405.000000000")
+	resourceStore := New(client, prefix)
+	t.Cleanup(func() { _, _ = client.Delete(context.Background(), prefix, clientv3.WithPrefix()) })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	owner, err := resourceStore.Create(ctx, resource.Resource{Kind: "Server", Metadata: resource.Metadata{Name: "owner"}, Spec: map[string]any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	partition, err := resourceStore.Create(ctx, resource.Resource{Kind: "DiskPartition", Metadata: resource.Metadata{Name: "root"}, Spec: map[string]any{"number": 3}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewed := partition
+	partition.Spec = map[string]any{"number": 7}
+	updated, err := resourceStore.Update(ctx, partition, mustRevision(t, partition.Metadata.ResourceVersion))
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := resource.Resource{Kind: "ProvisioningRun", Metadata: resource.Metadata{Name: "run"}, Spec: map[string]any{}}
+	status := func(created resource.Resource) map[string]any {
+		return map[string]any{"activeRunRef": map[string]any{"uid": created.Metadata.UID}}
+	}
+	if _, err = resourceStore.CreateWithStatus(ctx, run, owner, status, reviewed); !errors.Is(err, storage.ErrConflict) {
+		t.Fatalf("stale dependency: %v", err)
+	}
+	runs, err := resourceStore.List(ctx, "ProvisioningRun")
+	if err != nil || len(runs.Items) != 0 {
+		t.Fatalf("orphan run: %v", err)
+	}
+	current, err := resourceStore.Get(ctx, "Server", "owner")
+	if err != nil || current.Metadata.ResourceVersion != owner.Metadata.ResourceVersion {
+		t.Fatal("failed reservation mutated owner")
+	}
+	if _, err = resourceStore.CreateWithStatus(ctx, run, owner, status, updated); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestResourceLifecycle(t *testing.T) {
 	endpoints := strings.Split(envOr("ETCD_ENDPOINTS", "http://127.0.0.1:2379"), ",")
 	client, err := clientv3.New(clientv3.Config{Endpoints: endpoints, DialTimeout: 5 * time.Second})

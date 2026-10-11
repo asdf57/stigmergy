@@ -70,6 +70,12 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, definiti
 		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
 	}
+	if definition.Kind == "DiskPartition" {
+		if _, err = s.validateResourceSpec(definition, spec); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+			return
+		}
+	}
 	candidate := resource.Resource{
 		APIVersion: definition.APIVersion,
 		Kind:       definition.Kind,
@@ -172,6 +178,12 @@ func (s *Server) putResource(w http.ResponseWriter, r *http.Request, definition 
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
 		return
+	}
+	if definition.Kind == "DiskPartition" {
+		if _, err = s.validateResourceSpec(definition, spec); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "Invalid", err.Error())
+			return
+		}
 	}
 
 	candidate := resource.Resource{

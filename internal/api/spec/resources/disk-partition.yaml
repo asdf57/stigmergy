@@ -1,0 +1,76 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: DiskPartition
+  plural: disk-partitions
+  spec-schema: DiskPartitionSpec
+  status-schema: DiskPartitionStatus
+  operations: [create, list, get, put, patch, delete]
+
+DiskPartitionSpec:
+  type: object
+  additionalProperties: false
+  required: [serverRef, diskSelector, number, capacity, role, filesystem]
+  properties:
+    serverRef:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1}
+        uid: {type: string, minLength: 1}
+    diskSelector:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        serial: {type: string, minLength: 1}
+        wwn: {type: string, minLength: 1}
+    number: {type: integer, minimum: 1, maximum: 128}
+    capacity:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      maxProperties: 1
+      properties:
+        storage: {type: string, pattern: '^[1-9][0-9]*(Mi|Gi|Ti)$'}
+        useRemaining: {type: boolean, enum: [true]}
+    role: {type: string, enum: [root, efi, swap, data]}
+    filesystem: {type: string, enum: [ext4, vfat, swap]}
+    mountPoint: {type: string, pattern: '^/'}
+
+# Observations are not authorization to format or resize disks.
+DiskPartitionStatus:
+  type: object
+  additionalProperties: false
+  properties: {}
+
+ReviewedPartitionReference:
+  type: object
+  additionalProperties: false
+  required: [name, uid, generation]
+  properties:
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+    generation: {type: integer, format: int64, minimum: 1}
+
+ProvisioningStoragePlan:
+  type: object
+  additionalProperties: false
+  required: [partitions]
+  properties:
+    partitions:
+      type: array
+      minItems: 2
+      maxItems: 64
+      items: {$ref: '#/ProvisioningPartitionPlan'}
+
+ProvisioningPartitionPlan:
+  type: object
+  additionalProperties: false
+  required: [partitionRef, spec, startMiB, endMiB]
+  properties:
+    partitionRef: {$ref: '#/ReviewedPartitionReference'}
+    spec: {$ref: '#/DiskPartitionSpec'}
+    startMiB: {type: integer, format: int64, minimum: 1}
+    endMiB: {type: integer, format: int64, minimum: 2}

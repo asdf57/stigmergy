@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/asdf57/stigmergy/internal/resource"
 	"github.com/asdf57/stigmergy/internal/store"
-	"github.com/asdf57/stigmergy/internal/testutil"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -48,7 +47,7 @@ func TestServerOperationStatusCAS(t *testing.T) {
 	host.APIVersion = resource.APIVersion
 	host.Spec["operatingSystem"] = map[string]any{"distribution": "arch", "version": "rolling", "architecture": "amd64", "bootMode": "uefi"}
 	host.Spec["machineSelector"] = map[string]any{"location": map[string]any{"switch_mac": "00:11:22:33:44:55", "lldp_port": "1"}}
-	storage := testutil.NewStore(host, machine)
+	storage := newRunStore(host, machine)
 	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
 	patch := func(version, id, phase string) int {
 		r := httptest.NewRequest("PATCH", "/api/v1alpha1/servers/host/status", strings.NewReader(`{"metadata":{"uid":"server-uid"},"status":{"operation":{"id":"`+id+`","phase":"`+phase+`"}}}`))

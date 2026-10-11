@@ -24,8 +24,13 @@ ProvisioningRunSpec:
     storage:
       type: object
       additionalProperties: false
-      required: [disks]
+      required: [disks, partitionRefs]
       properties:
+        partitionRefs:
+          type: array
+          minItems: 2
+          maxItems: 64
+          items: {$ref: '#/ReviewedPartitionReference'}
         disks:
           type: array
           minItems: 1
@@ -61,6 +66,7 @@ ProvisioningRunStatus:
     backendRunID: {type: string}
     message: {type: string}
     selectedDisk: {$ref: '#/ProvisioningDiskIdentity'}
+    storagePlan: {$ref: '#/ProvisioningStoragePlan'}
 
 ProvisioningDiskIdentity:
   type: object
