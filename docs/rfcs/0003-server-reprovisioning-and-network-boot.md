@@ -1,7 +1,7 @@
 # RFC 0003: Provisioning runs and network boot
 
 - Status: Deployed; Debian live-to-installed and installed Debian-to-Arch accepted on Beelink; full failure-stage matrix remains
-- Updated: 2026-10-09
+- Updated: 2026-10-11
 - Related: RFC 0001 (ISO/SSH management), RFC 0002 (external operators)
 
 ## Decision
@@ -244,6 +244,10 @@ and masks networkd, dhcpcd and ifupdown services. Initramfs DHCP remains necessa
 to fetch the live root; NetworkManager replaces that configuration after handoff
 rather than assuming it. ISO publication checks this contract in the actual
 ISO and netboot filesystems.
+
+Offline setup preserves the build root's regular DNS file until package
+downloads finish. NetworkManager manages DNS directly at boot; factory resolver
+symlinks and competing resolved services are not retained.
 
 Absent or ambiguous management networking is an unavailable observation, not
 proof that the pinned NIC changed. AwaitingLive/AwaitingInstalled wait within
