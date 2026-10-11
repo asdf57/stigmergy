@@ -124,6 +124,20 @@ no installation. Polling the job without a run is an idle no-op.
 
 ## Progress and recovery
 
+Both live images and installed systems use the shared NetworkManager-only
+networking recipe. The ISO publication gate checks the persistent DHCP profile
+and competing-service masks in both actual root filesystems. Initramfs DHCP is
+only the fetch bootstrap; NetworkManager takes over after handoff.
+
+If ManagementAddressReady is false because the boot NIC reports multiple
+addresses, inspect Machine inventory and the Server conditions. The operator
+waits for an unambiguous address without weakening the pinned MAC/key guards;
+an owned Server omitted from inventory makes the pass fail visibly. Publishing
+a corrected image does not repair an already-running session or change an
+existing request's pinned image/operator revision. Unreachable nodes require
+manual live-media recovery; never bypass host-key verification or rewrite a run
+snapshot to pick up a fix.
+
 Post verification installs `acl` before querying LLDP as homelabd, so Ansible
 can safely share its module files using Linux POSIX ACLs. A failure in Verifying
 never requires another wipe: attest the installed marker/disk/boot, apply only

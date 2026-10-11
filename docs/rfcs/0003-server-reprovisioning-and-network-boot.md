@@ -237,6 +237,22 @@ invented event history. Stale/replaced-UID poll results are rejected.
 
 ## Boot contract
 
+NetworkManager is the sole persistent network owner in both live images and
+installed systems. A shared offline root configuration installs a private wired
+DHCP profile, uses NetworkManager's internal DHCP client with a MAC client ID,
+and masks networkd, dhcpcd and ifupdown services. Initramfs DHCP remains necessary
+to fetch the live root; NetworkManager replaces that configuration after handoff
+rather than assuming it. ISO publication checks this contract in the actual
+ISO and netboot filesystems.
+
+Absent or ambiguous management networking is an unavailable observation, not
+proof that the pinned NIC changed. AwaitingLive/AwaitingInstalled wait within
+their existing deadline without connecting until networking resolves. A reported
+different MAC or host-key reference still fails the identity guard. An owned
+Server omitted from capture inventory fails the operator pass visibly rather
+than producing an idle-success build. Rebuilding images does not modify a
+running node or the immutable image/operator pins of an existing request.
+
 Normal: firmware -> disk GRUB -> installed OS.
 Requested replacement: disk GRUB -> local iPXE -> API -> pinned live ISO.
 First discovery: manually booted live/PXE -> enrollment and managed SSH.
