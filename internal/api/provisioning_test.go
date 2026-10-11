@@ -81,6 +81,34 @@ func TestMMCDiskSelectionRejectsHardwareAreas(t *testing.T) {
 	}
 }
 
+func TestMMCProvisioningRunRoundTripsThroughHTTP(t *testing.T) {
+	host, machine, run := runFixture()
+	disk := object(object(machine.Status["inventory"])["storage"].([]any)[0])
+	disk["tran"], disk["path"] = "mmc", "/dev/mmcblk12"
+	run.APIVersion = resource.APIVersion
+	storage := newRunStore(host, machine)
+	handler := New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second)
+	body, err := json.Marshal(map[string]any{"apiVersion": run.APIVersion, "kind": run.Kind,
+		"metadata": map[string]any{"name": run.Metadata.Name}, "spec": run.Spec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1alpha1/provisioning-runs", strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("MMC creation: %d %s", response.Code, response.Body.String())
+	}
+	for _, endpoint := range []string{"/api/v1alpha1/provisioning-runs/run", "/api/v1alpha1/provisioning-runs"} {
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, endpoint, nil))
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"tran":"mmc"`) {
+			t.Fatalf("MMC retrieval %s: %d %s", endpoint, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestProvisioningRunCreationReservesAndRejectsDuplicates(t *testing.T) {
 	host, machine, run := runFixture()
 	storage := newRunStore(host, machine)

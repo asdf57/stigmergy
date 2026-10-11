@@ -77,7 +77,7 @@ ProvisioningDiskIdentity:
     wwn: {type: string}
     size: {type: integer, format: int64, minimum: 1}
     model: {type: string}
-    tran: {type: string, enum: [sata, ata, nvme]}
+    tran: {type: string, enum: [sata, ata, nvme, mmc]}
 
 ProvisioningRunSnapshot:
   type: object

@@ -2642,6 +2642,7 @@ components:
                         - sata
                         - ata
                         - nvme
+                        - mmc
                     type: string
                 wwn:
                     type: string
