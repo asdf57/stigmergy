@@ -27,6 +27,7 @@ func generate(directory string) error {
 		"agent":  {{Kind: "MachineReport", Methods: []string{"POST"}}, {Kind: "Server", Methods: []string{"GET"}}},
 		"runner": {{Kind: "InventoryCaptureGroup", Methods: []string{"GET"}}, {Kind: "Server", Methods: []string{"GET"}}, {Kind: "SSHKeyPair", Methods: []string{"GET"}}, {Kind: "Machine", Methods: []string{"GET"}}, {Kind: "ISO", Methods: []string{"GET"}}, {Kind: "SSHCertificateAuthority", Methods: []string{"GET"}}, {Kind: "Command", Methods: []string{"GET"}}, {Kind: "ProvisioningRun", Methods: []string{"GET"}}, {Kind: "ProvisioningRun", Subresource: "status", Methods: []string{"PATCH"}}, {Kind: "Server", Subresource: "status", Methods: []string{"PATCH"}}},
 	}
+	permissions["runner"] = append(permissions["runner"], configurationPermissions()...)
 	for _, name := range []string{"admin", "agent", "runner"} {
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {

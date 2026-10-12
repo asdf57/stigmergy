@@ -114,6 +114,59 @@ func (definition CommandsPipelineDefinition) Decode(value resource.Resource) (Co
 	}, nil
 }
 
+// Configuration is the concrete controller-facing resource for Configuration.
+type Configuration struct {
+	APIVersion string                      `json:"apiVersion"`
+	Kind       string                      `json:"kind"`
+	Metadata   resource.Metadata           `json:"metadata"`
+	Spec       apigen.ConfigurationSpec    `json:"spec"`
+	Status     *apigen.ConfigurationStatus `json:"status,omitempty"`
+}
+
+// NewConfiguration constructs a Configuration with its generated type identity.
+func NewConfiguration(metadata resource.Metadata, spec apigen.ConfigurationSpec) Configuration {
+	return Configuration{
+		APIVersion: ConfigurationResource.APIVersion,
+		Kind:       ConfigurationResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Configuration into the generic storage representation.
+func (value Configuration) Encode() (resource.Resource, error) {
+	return encodeResource(ConfigurationResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// ConfigurationDefinition adds concrete Configuration decoding to the shared API definition.
+type ConfigurationDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed Configuration status to the generic storage representation.
+func (definition ConfigurationDefinition) EncodeStatus(status *apigen.ConfigurationStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed Configuration.
+func (definition ConfigurationDefinition) Decode(value resource.Resource) (Configuration, error) {
+	spec, err := decodeResourceSpec[apigen.ConfigurationSpec](definition.Definition, value)
+	if err != nil {
+		return Configuration{}, err
+	}
+	status, err := decodeStoredStatus[apigen.ConfigurationStatus](definition.Kind, value.Status)
+	if err != nil {
+		return Configuration{}, err
+	}
+	return Configuration{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // DiskPartition is the concrete controller-facing resource for DiskPartition.
 type DiskPartition struct {
 	APIVersion string                      `json:"apiVersion"`
@@ -424,6 +477,59 @@ func (definition ISODefinition) Decode(value resource.Resource) (ISO, error) {
 		return ISO{}, err
 	}
 	return ISO{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
+// KubeCluster is the concrete controller-facing resource for KubeCluster.
+type KubeCluster struct {
+	APIVersion string                    `json:"apiVersion"`
+	Kind       string                    `json:"kind"`
+	Metadata   resource.Metadata         `json:"metadata"`
+	Spec       apigen.KubeClusterSpec    `json:"spec"`
+	Status     *apigen.KubeClusterStatus `json:"status,omitempty"`
+}
+
+// NewKubeCluster constructs a KubeCluster with its generated type identity.
+func NewKubeCluster(metadata resource.Metadata, spec apigen.KubeClusterSpec) KubeCluster {
+	return KubeCluster{
+		APIVersion: KubeClusterResource.APIVersion,
+		Kind:       KubeClusterResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed KubeCluster into the generic storage representation.
+func (value KubeCluster) Encode() (resource.Resource, error) {
+	return encodeResource(KubeClusterResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// KubeClusterDefinition adds concrete KubeCluster decoding to the shared API definition.
+type KubeClusterDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed KubeCluster status to the generic storage representation.
+func (definition KubeClusterDefinition) EncodeStatus(status *apigen.KubeClusterStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed KubeCluster.
+func (definition KubeClusterDefinition) Decode(value resource.Resource) (KubeCluster, error) {
+	spec, err := decodeResourceSpec[apigen.KubeClusterSpec](definition.Definition, value)
+	if err != nil {
+		return KubeCluster{}, err
+	}
+	status, err := decodeStoredStatus[apigen.KubeClusterStatus](definition.Kind, value.Status)
+	if err != nil {
+		return KubeCluster{}, err
+	}
+	return KubeCluster{
 		APIVersion: value.APIVersion,
 		Kind:       value.Kind,
 		Metadata:   value.Metadata,
@@ -1101,12 +1207,14 @@ func (definition UsernamePasswordCredentialDefinition) Decode(value resource.Res
 
 var CommandResource = CommandDefinition{Definition: NewDefinition[apigen.CommandSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Command", "commands", "CommandStatus", []string{"homelab.io/command-cleanup"}, true)}
 var CommandsPipelineResource = CommandsPipelineDefinition{Definition: NewDefinition[apigen.CommandsPipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "CommandsPipeline", "commands-pipelines", "CommandsPipelineStatus", []string{"homelab.io/commands-pipeline-cleanup"}, false)}
+var ConfigurationResource = ConfigurationDefinition{Definition: NewDefinition[apigen.ConfigurationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Configuration", "configurations", "ConfigurationStatus", []string(nil), false)}
 var DiskPartitionResource = DiskPartitionDefinition{Definition: NewDefinition[apigen.DiskPartitionSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DiskPartition", "disk-partitions", "DiskPartitionStatus", []string(nil), false)}
 var DNSRecordResource = DNSRecordDefinition{Definition: NewDefinition[apigen.DNSRecordSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "DNSRecord", "dns-records", "DNSRecordStatus", []string{"homelab.io/dns-record-cleanup"}, false)}
 var GitRepositoryResource = GitRepositoryDefinition{Definition: NewDefinition[apigen.GitRepositorySpec]("homelab.io/v1alpha1", "/api/v1alpha1", "GitRepository", "git-repositories", "GitRepositoryStatus", []string(nil), false)}
 var InventoryCaptureGroupResource = InventoryCaptureGroupDefinition{Definition: NewDefinition[apigen.InventoryCaptureGroupSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryCaptureGroup", "inventory-capture-groups", "InventoryCaptureGroupStatus", []string(nil), false)}
 var InventoryPublicationResource = InventoryPublicationDefinition{Definition: NewDefinition[apigen.InventoryPublicationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "InventoryPublication", "inventory-publications", "InventoryPublicationStatus", []string(nil), false)}
 var ISOResource = ISODefinition{Definition: NewDefinition[apigen.ISOSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "ISO", "isos", "ISOStatus", []string{"homelab.io/iso-cleanup"}, false)}
+var KubeClusterResource = KubeClusterDefinition{Definition: NewDefinition[apigen.KubeClusterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "KubeCluster", "kube-clusters", "KubeClusterStatus", []string(nil), false)}
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil), false)}
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil), false)}
 var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil), false)}
@@ -1124,12 +1232,14 @@ var UsernamePasswordCredentialResource = UsernamePasswordCredentialDefinition{De
 var Definitions = []Definition{
 	CommandResource.Definition,
 	CommandsPipelineResource.Definition,
+	ConfigurationResource.Definition,
 	DiskPartitionResource.Definition,
 	DNSRecordResource.Definition,
 	GitRepositoryResource.Definition,
 	InventoryCaptureGroupResource.Definition,
 	InventoryPublicationResource.Definition,
 	ISOResource.Definition,
+	KubeClusterResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
 	PipelineProviderResource.Definition,

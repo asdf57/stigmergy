@@ -1,0 +1,32 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: KubeCluster
+  plural: kube-clusters
+  spec-schema: KubeClusterSpec
+  status-schema: KubeClusterStatus
+  operations: [create, list, get, put, patch, delete]
+
+# Settings only. Configuration playbooks own bootstrap and verification.
+KubeClusterSpec:
+  type: object
+  additionalProperties: false
+  required: [kubernetesVersion, containerdVersion, controlPlaneEndpoint, podCIDR, serviceCIDR, network]
+  properties:
+    kubernetesVersion: {type: string, pattern: '^1\.[0-9]+\.[0-9]+$'}
+    containerdVersion: {type: string, pattern: '^[12]\.[0-9]+\.[0-9]+$'}
+    controlPlaneEndpoint: {type: string, minLength: 1}
+    podCIDR: {type: string, minLength: 1}
+    serviceCIDR: {type: string, minLength: 1}
+    network:
+      type: object
+      additionalProperties: false
+      required: [provider, version]
+      properties:
+        provider: {type: string, minLength: 1}
+        version: {type: string, minLength: 1}
+
+KubeClusterStatus:
+  type: object
+  additionalProperties: false
+  properties: {}

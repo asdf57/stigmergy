@@ -25,7 +25,7 @@ func prepareOperatorPolicy(source, directory string) error {
 			continue
 		}
 		runnerFound = true
-		for _, kind := range []string{"SSHKeyPair", "Machine", "ISO", "SSHCertificateAuthority", "Command", "ProvisioningRun"} {
+		for _, kind := range []string{"SSHKeyPair", "Machine", "ISO", "SSHCertificateAuthority", "Command", "ProvisioningRun", "Configuration", "KubeCluster", "GitRepository"} {
 			permitted := false
 			for _, permission := range identity.Permissions {
 				if permission.Kind == kind && permission.Subresource == "" && len(permission.ResourceNames) == 0 {
@@ -40,18 +40,20 @@ func prepareOperatorPolicy(source, directory string) error {
 				identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: kind, Methods: []string{"GET"}})
 			}
 		}
-		permitted := false
-		for _, permission := range identity.Permissions {
-			if permission.Kind == "ProvisioningRun" && permission.Subresource == "status" && len(permission.ResourceNames) == 0 {
-				for _, method := range permission.Methods {
-					if method == "PATCH" {
-						permitted = true
+		for _, statusKind := range []string{"ProvisioningRun", "Configuration"} {
+			permitted := false
+			for _, permission := range identity.Permissions {
+				if permission.Kind == statusKind && permission.Subresource == "status" && len(permission.ResourceNames) == 0 {
+					for _, method := range permission.Methods {
+						if method == "PATCH" {
+							permitted = true
+						}
 					}
 				}
 			}
-		}
-		if !permitted {
-			identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: "ProvisioningRun", Subresource: "status", Methods: []string{"PATCH"}})
+			if !permitted {
+				identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: statusKind, Subresource: "status", Methods: []string{"PATCH"}})
+			}
 		}
 	}
 	if !runnerFound || tokens["admin"] == "" || tokens["agent"] == "" {
@@ -76,4 +78,15 @@ func prepareOperatorPolicy(source, directory string) error {
 		}
 	}
 	return nil
+}
+
+// Configuration operators need public settings and their own observation route,
+// not Secret reads or permission to create installation requests.
+func configurationPermissions() []api.AccessPermission {
+	return []api.AccessPermission{
+		{Kind: "Configuration", Methods: []string{"GET"}},
+		{Kind: "KubeCluster", Methods: []string{"GET"}},
+		{Kind: "GitRepository", Methods: []string{"GET"}},
+		{Kind: "Configuration", Subresource: "status", Methods: []string{"PATCH"}},
+	}
 }

@@ -345,6 +345,218 @@ components:
                 pipelineRef:
                     $ref: '#/components/schemas/ResourceReference'
             type: object
+        Configuration:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Configuration
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/ConfigurationSpec'
+                status:
+                    $ref: '#/components/schemas/ConfigurationStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        ConfigurationCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: Configuration
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/ConfigurationSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        ConfigurationList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/Configuration'
+                    type: array
+                kind:
+                    const: ConfigurationList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        ConfigurationSpec:
+            additionalProperties: false
+            properties:
+                dependsOn:
+                    items:
+                        additionalProperties: false
+                        properties:
+                            name:
+                                minLength: 1
+                                type: string
+                            uid:
+                                minLength: 1
+                                type: string
+                        required:
+                            - name
+                            - uid
+                        type: object
+                    maxItems: 64
+                    type: array
+                    uniqueItems: true
+                inventoryCaptureGroupRef:
+                    additionalProperties: false
+                    properties:
+                        name:
+                            minLength: 1
+                            type: string
+                        uid:
+                            minLength: 1
+                            type: string
+                    required:
+                        - name
+                        - uid
+                    type: object
+                playbook:
+                    additionalProperties: false
+                    properties:
+                        path:
+                            pattern: ^plays/[a-zA-Z0-9_/-]+\.ya?ml$
+                            type: string
+                        repositoryRef:
+                            additionalProperties: false
+                            properties:
+                                name:
+                                    minLength: 1
+                                    type: string
+                                uid:
+                                    minLength: 1
+                                    type: string
+                            required:
+                                - name
+                                - uid
+                            type: object
+                        revision:
+                            description: Exact reviewed commit available in the operator Git input.
+                            pattern: ^[0-9a-f]{40}$
+                            type: string
+                    required:
+                        - repositoryRef
+                        - revision
+                        - path
+                    type: object
+                suspended:
+                    default: false
+                    type: boolean
+                targetRef:
+                    additionalProperties: false
+                    properties:
+                        kind:
+                            enum:
+                                - Server
+                                - KubeCluster
+                            type: string
+                        name:
+                            minLength: 1
+                            type: string
+                        uid:
+                            minLength: 1
+                            type: string
+                    required:
+                        - kind
+                        - name
+                        - uid
+                    type: object
+                values:
+                    additionalProperties: true
+                    description: Public inputs exposed only as configuration_values; credentials remain runner-managed, never inline here.
+                    type: object
+            required:
+                - targetRef
+                - inventoryCaptureGroupRef
+                - playbook
+            type: object
+        ConfigurationStatus:
+            additionalProperties: false
+            properties:
+                buildURL:
+                    format: uri
+                    type: string
+                conditions:
+                    items:
+                        additionalProperties: false
+                        properties:
+                            message:
+                                type: string
+                            observedGeneration:
+                                format: int64
+                                minimum: 0
+                                type: integer
+                            reason:
+                                type: string
+                            status:
+                                enum:
+                                    - "True"
+                                    - "False"
+                                    - Unknown
+                                type: string
+                            type:
+                                enum:
+                                    - Ready
+                                type: string
+                        required:
+                            - type
+                            - status
+                            - reason
+                            - observedGeneration
+                        type: object
+                    type: array
+                inputRevision:
+                    pattern: ^sha256:[0-9a-f]{64}$
+                    type: string
+                lastVerifiedAt:
+                    format: date-time
+                    type: string
+                message:
+                    type: string
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                phase:
+                    enum:
+                        - Pending
+                        - Reconciling
+                        - Ready
+                        - Failed
+                        - Suspended
+                    type: string
+                reason:
+                    type: string
+            type: object
         DNSRecord:
             additionalProperties: false
             properties:
@@ -1581,6 +1793,111 @@ components:
                 - rootPath
                 - layout
                 - inventoryFile
+            type: object
+        KubeCluster:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: KubeCluster
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/KubeClusterSpec'
+                status:
+                    $ref: '#/components/schemas/KubeClusterStatus'
+                    readOnly: true
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        KubeClusterCreate:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                kind:
+                    const: KubeCluster
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/Metadata'
+                spec:
+                    $ref: '#/components/schemas/KubeClusterSpec'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - spec
+            type: object
+        KubeClusterList:
+            additionalProperties: false
+            properties:
+                apiVersion:
+                    const: homelab.io/v1alpha1
+                    type: string
+                items:
+                    items:
+                        $ref: '#/components/schemas/KubeCluster'
+                    type: array
+                kind:
+                    const: KubeClusterList
+                    type: string
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            required:
+                - apiVersion
+                - kind
+                - metadata
+                - items
+            type: object
+        KubeClusterSpec:
+            additionalProperties: false
+            properties:
+                containerdVersion:
+                    pattern: ^[12]\.[0-9]+\.[0-9]+$
+                    type: string
+                controlPlaneEndpoint:
+                    minLength: 1
+                    type: string
+                kubernetesVersion:
+                    pattern: ^1\.[0-9]+\.[0-9]+$
+                    type: string
+                network:
+                    additionalProperties: false
+                    properties:
+                        provider:
+                            minLength: 1
+                            type: string
+                        version:
+                            minLength: 1
+                            type: string
+                    required:
+                        - provider
+                        - version
+                    type: object
+                podCIDR:
+                    minLength: 1
+                    type: string
+                serviceCIDR:
+                    minLength: 1
+                    type: string
+            required:
+                - kubernetesVersion
+                - containerdVersion
+                - controlPlaneEndpoint
+                - podCIDR
+                - serviceCIDR
+                - network
+            type: object
+        KubeClusterStatus:
+            additionalProperties: false
+            properties: {}
             type: object
         ListMetadata:
             additionalProperties: false
@@ -5583,6 +5900,491 @@ paths:
             summary: Merge-patch Command status
             tags:
                 - Commands
+    /api/v1alpha1/configurations:
+        get:
+            operationId: listConfigurations
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConfigurationList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List Configuration resources
+            tags:
+                - Configurations
+        post:
+            operationId: createConfiguration
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a Configuration
+            tags:
+                - Configurations
+    /api/v1alpha1/configurations/{name}:
+        delete:
+            operationId: deleteConfiguration
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one Configuration
+            tags:
+                - Configurations
+        get:
+            operationId: getConfiguration
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one Configuration
+            tags:
+                - Configurations
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchConfiguration
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one Configuration
+            tags:
+                - Configurations
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putConfiguration
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/ConfigurationCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one Configuration
+            tags:
+                - Configurations
+    /api/v1alpha1/configurations/{name}/status:
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: 'Update only status using {metadata: {uid}, status: {...}} and required If-Match. Separate status-subresource authorization applies; spec and other metadata writes are forbidden.'
+            operationId: patchConfigurationStatus
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Configuration'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch Configuration status
+            tags:
+                - Configurations
     /api/v1alpha1/disk-partitions:
         get:
             operationId: listDiskPartitions
@@ -8643,6 +9445,491 @@ paths:
             summary: Merge-patch ISO status
             tags:
                 - ISOs
+    /api/v1alpha1/kube-clusters:
+        get:
+            operationId: listKubeClusters
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeClusterList'
+                    description: Resource list at one storage revision
+                    headers:
+                        X-Resource-Version:
+                            description: Storage revision used for the list
+                            schema:
+                                type: string
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: List KubeCluster resources
+            tags:
+                - KubeClusters
+        post:
+            operationId: createKubeCluster
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                required: true
+            responses:
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource already exists
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create a KubeCluster
+            tags:
+                - KubeClusters
+    /api/v1alpha1/kube-clusters/{name}:
+        delete:
+            operationId: deleteKubeCluster
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "202":
+                    description: Deletion accepted and awaiting finalizers
+                "204":
+                    description: Resource deleted
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Delete one KubeCluster
+            tags:
+                - KubeClusters
+        get:
+            operationId: getKubeCluster
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource name is invalid
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Get one KubeCluster
+            tags:
+                - KubeClusters
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: Applies an RFC 7396 JSON Merge Patch to the resource spec. Arrays are replaced atomically.
+            operationId: patchKubeCluster
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch one KubeCluster
+            tags:
+                - KubeClusters
+        put:
+            description: Idempotently creates or replaces client-owned resource state. Without If-Match, concurrent server/controller-owned updates are retried, while concurrent client-owned changes conflict.
+            operationId: putKubeCluster
+            parameters:
+                - description: Optional ETag or resourceVersion. When present, the replacement succeeds only at that exact version.
+                  in: header
+                  name: If-Match
+                  required: false
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                    application/x-yaml:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                    application/yaml:
+                        schema:
+                            $ref: '#/components/schemas/KubeClusterCreate'
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "201":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                        Location:
+                            description: Canonical resource path
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not match the resource schema
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Concurrent resource update
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource is invalid
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Create or replace one KubeCluster
+            tags:
+                - KubeClusters
+    /api/v1alpha1/kube-clusters/{name}/status:
+        parameters:
+            - in: path
+              name: name
+              required: true
+              schema:
+                maxLength: 253
+                pattern: ^[a-z0-9](?:[-a-z0-9.]{0,251}[a-z0-9])?$
+                type: string
+        patch:
+            description: 'Update only status using {metadata: {uid}, status: {...}} and required If-Match. Separate status-subresource authorization applies; spec and other metadata writes are forbidden.'
+            operationId: patchKubeClusterStatus
+            parameters:
+                - description: ETag or resourceVersion returned by the latest read
+                  in: header
+                  name: If-Match
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/merge-patch+json:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                    application/merge-patch+yaml:
+                        schema:
+                            additionalProperties: true
+                            type: object
+                required: true
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/KubeCluster'
+                    description: Resource
+                    headers:
+                        ETag:
+                            description: Quoted storage modification revision
+                            schema:
+                                type: string
+                "400":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Request does not contain a valid merge patch
+                "401":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Missing or invalid API bearer token
+                "403":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Authenticated identity is not permitted to perform this operation
+                "404":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource not found
+                "409":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource version conflict
+                "422":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Merged resource spec is invalid
+                "428":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: If-Match is required
+                "500":
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                    description: Resource store request failed
+            summary: Merge-patch KubeCluster status
+            tags:
+                - KubeClusters
     /api/v1alpha1/machine-reports:
         delete:
             operationId: deleteMachineReports
@@ -15043,12 +16330,14 @@ tags:
     - name: System
     - name: Commands
     - name: CommandsPipelines
+    - name: Configurations
     - name: DiskPartitions
     - name: DNSRecords
     - name: GitRepositorys
     - name: InventoryCaptureGroups
     - name: InventoryPublications
     - name: ISOs
+    - name: KubeClusters
     - name: MachineReports
     - name: Machines
     - name: PipelineProviders

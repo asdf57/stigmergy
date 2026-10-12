@@ -1,6 +1,6 @@
 # RFC 0006: kubeadm clusters on managed Servers
 
-- Status: Draft; containerd role is implemented, cluster resources/operator are proposed
+- Status: KubeCluster and Configuration executor implemented in source; kubeadm roles and cluster acceptance pending
 - Scope: KubeCluster desired state, common Server membership, and separate kube/containerd roles
 - Related: RFC 0002 (external operators), RFC 0004 (physical/virtual managed nodes)
 
@@ -8,9 +8,10 @@
 
 Use kubeadm, not K3s. Keep two reusable Ansible roles: containerd owns the
 runtime; kube owns kubeadm/kubelet installation and init/join configuration.
-KubeCluster owns version pins and cluster-wide settings. A bounded external
-operator looks up the selected cluster and its Servers, resolves inventory and
-credentials, invokes reviewed plays, and reports generic object status.
+KubeCluster owns version pins and cluster-wide settings. A Configuration targets
+that cluster and a reviewed ordered platform playbook. The shared configuration
+operator resolves membership, inventory and credentials, invokes that playbook
+and reports Configuration status. See RFC 0008 for execution and dependencies.
 Roles receive concrete inputs; they do not query Stigmergy or select resources.
 
 VM-backed and physical Servers are opaque to this workflow. A cluster can contain
@@ -34,10 +35,10 @@ a condition, never a fallback to latest. Runtime and Kubernetes upgrades need a
 separate reviewed upgrade sequence; changing a version field is not permission to
 restart a busy cluster indiscriminately.
 
-Observed status records observed generation, resolved member Server/Machine UID
-references, cluster identity, bootstrap progress, effective versions, Kubernetes
-Node identity/readiness and conditions. A green Ansible build or open API port
-alone does not prove node membership or a functioning pod network.
+Readiness belongs to the platform Configuration, not a competing KubeCluster
+bootstrap controller. KubeCluster currently has no execution status fields.
+Its playbook must verify actual cluster identity, versions, Nodes and networking;
+package installation or an open API port is insufficient.
 
 ## Membership metadata
 
@@ -94,18 +95,19 @@ credentials as needed and use no_log only for credential-bearing Ansible tasks.
 The external operator owns resource lookup, credentials, operation claims,
 bootstrap ordering and status. Roles own host mutations and remain reusable.
 
-Planned code: new API resource schema/generated endpoints in stigmergy;
-operators/kube_clusters.py and reviewed cluster plays in ansible-roles;
-KubeCluster/Server metadata, capture groups and one shared scheduled/manual
-operator pipeline in homelab-init. No pipeline per Server or parallel VM workflow.
+Implemented infrastructure: KubeCluster/Configuration API schemas and generated
+endpoints, operators/configurations.py, shared scheduled/manual configuration
+pipeline and generic UI support. Cluster bootstrap/platform ordering belongs to
+one reviewed playbook; downstream setups may depend on that Configuration.
+There is no separate kube_clusters operator or per-Server pipeline.
 The current containerd role and explicit-target play do not implement API locks
 or cluster lookup and are not wired to automatic node reconciliation.
 
 ## First implementation and acceptance
 
 First build/test the independent containerd role without changing managed nodes.
-Next implement KubeCluster validation/resource generation, member selection and
-a single-control-plane kubeadm operator. Keep cluster bootstrap separate from OS
+Next implement and accept the ordered platform playbook and single-control-plane
+kubeadm roles using the Configuration executor. Keep cluster bootstrap separate from OS
 provisioning and VM creation. No existing node is implicitly selected or modified.
 
 Test duplicate node names, replaced cluster/Server UIDs, wrong-cluster labels,

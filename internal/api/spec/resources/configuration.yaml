@@ -1,0 +1,83 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: Configuration
+  plural: configurations
+  spec-schema: ConfigurationSpec
+  status-schema: ConfigurationStatus
+  operations: [create, list, get, put, patch, delete]
+
+ConfigurationSpec:
+  type: object
+  additionalProperties: false
+  required: [targetRef, inventoryCaptureGroupRef, playbook]
+  properties:
+    targetRef:
+      type: object
+      additionalProperties: false
+      required: [kind, name, uid]
+      properties:
+        kind: {type: string, enum: [Server, KubeCluster]}
+        name: {type: string, minLength: 1}
+        uid: {type: string, minLength: 1}
+    inventoryCaptureGroupRef:
+      type: object
+      additionalProperties: false
+      required: [name, uid]
+      properties:
+        name: {type: string, minLength: 1}
+        uid: {type: string, minLength: 1}
+    playbook:
+      type: object
+      additionalProperties: false
+      required: [repositoryRef, revision, path]
+      properties:
+        repositoryRef:
+          type: object
+          additionalProperties: false
+          required: [name, uid]
+          properties:
+            name: {type: string, minLength: 1}
+            uid: {type: string, minLength: 1}
+        revision: {type: string, pattern: '^[0-9a-f]{40}$', description: Exact reviewed commit available in the operator Git input.}
+        path: {type: string, pattern: '^plays/[a-zA-Z0-9_/-]+\.ya?ml$'}
+    values:
+      type: object
+      additionalProperties: true
+      description: Public inputs exposed only as configuration_values; credentials remain runner-managed, never inline here.
+    dependsOn:
+      type: array
+      maxItems: 64
+      uniqueItems: true
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, uid]
+        properties:
+          name: {type: string, minLength: 1}
+          uid: {type: string, minLength: 1}
+    suspended: {type: boolean, default: false}
+
+ConfigurationStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string, enum: [Pending, Reconciling, Ready, Failed, Suspended]}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    inputRevision: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+    reason: {type: string}
+    message: {type: string}
+    lastVerifiedAt: {type: string, format: date-time}
+    buildURL: {type: string, format: uri}
+    conditions:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [type, status, reason, observedGeneration]
+        properties:
+          type: {type: string, enum: [Ready]}
+          status: {type: string, enum: ['True', 'False', Unknown]}
+          reason: {type: string}
+          message: {type: string}
+          observedGeneration: {type: integer, format: int64, minimum: 0}
