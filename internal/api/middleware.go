@@ -12,10 +12,20 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/asdf57/stigmergy/internal/store"
+
 	"go.yaml.in/yaml/v3"
 )
 
 func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "NotFound", "resource not found")
+		return
+	}
+	if errors.Is(err, store.ErrConflict) {
+		writeError(w, http.StatusConflict, "Conflict", "resource identity or version changed")
+		return
+	}
 	s.logger.Error("resource store request failed", "error", err)
 	writeError(w, http.StatusInternalServerError, "Internal", "resource store request failed")
 }

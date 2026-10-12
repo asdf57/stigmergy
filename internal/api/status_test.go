@@ -73,3 +73,22 @@ func TestGenericStatusPatchAuthorizationSchemaAndConcurrency(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericStatusPatchMissingResourceIsNotAnInternalError(t *testing.T) {
+	storage := testutil.NewStore()
+	policy := &AccessPolicy{Identities: []AccessIdentity{
+		{Name: "runner", Token: "fixture", Permissions: []AccessPermission{
+			{Kind: "Configuration", Subresource: "status", Methods: []string{"PATCH"}},
+		}},
+	}}
+	handler := WithAccessPolicy(New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second), policy)
+	request := httptest.NewRequest("PATCH", "/api/v1alpha1/configurations/absent/status", strings.NewReader(`{"metadata":{"uid":"absent"},"status":{}}`))
+	request.Header.Set("Authorization", "Bearer fixture")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("Content-Type", "application/merge-patch+json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != 404 || storage.Writes != 0 {
+		t.Fatalf("missing resource must return 404 without writes: %d %s", response.Code, response.Body.String())
+	}
+}
