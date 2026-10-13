@@ -5,6 +5,29 @@
 
 ## Decision
 
+### Interactive inventory-group Kubernetes context
+
+An InventoryCaptureGroup may select an existing KubeCluster as its interactive
+default context with `metadata.labels.homelab.io/kube-cluster: lab`. This is a
+context association, not cluster creation or membership. Server cluster/role
+labels still define membership; other captured Servers remain ordinary hosts.
+No Kubernetes-specific fields are added to the generic capture-group schema.
+
+`homelabc run` stays unchanged. Normal-mode profile initialization resolves the
+label, requires one captured control-plane Server, verifies its managed SSH
+identity, and reads its protected admin kubeconfig over strict SSH. The installed
+marker must match the Server UID and KubeCluster UID; the actual Kubernetes
+namespace and identity ConfigMap must agree. Only a self-contained TLS client
+certificate context for the specified endpoint is accepted, without executable
+credential plugins or TLS bypasses. The matching kubectl release is fetched over
+HTTPS and checksum-verified. Credentials remain private in the disposable
+container; neither API status nor logs carry kubeconfig. Refresh discards the
+previous generated context and refuses changed lifetimes or unmanaged files.
+
+Command/operator modes never retrieve this admin context. Unlabeled groups
+remain unchanged. Interactive cluster-admin credentials are the intentionally
+simple learning-stage policy; finer Kubernetes RBAC is future work.
+
 A Configuration represents one coherent setup, not one role or disposable job.
 Its reviewed Ansible playbook orders roles locally. dependsOn references order
 separate setups. ProvisioningRun authorizes OS replacement; Configuration never
