@@ -1,0 +1,89 @@
+# kubeadm/Flannel cluster rollout
+
+Source implementation is not live acceptance. The lab site declares Zima as
+control-plane and Beelink as worker; no node is configured just by building code.
+Applying an enabled Configuration authorizes its reviewed setup, not OS erasure.
+
+## Prerequisites
+
+- Deploy the generated API accepting name-based Configuration refs, optional
+  revisions, public outputs and KubeCluster runtime/CNI pins. Preserve existing
+  API tokens and Git/SSH credentials. No new authentication scheme is required.
+- Publish the reviewed ansible-roles implementation and verify the shared
+  reconcile-configurations-ssh-managed/operator pipeline's code input contains
+  that commit/ref. No per-cluster pipeline or Kubernetes API bootstrap controller.
+- Require both Servers to be bound and successfully provisioned into installed
+  OSes, with Ready managed SSH and no active provisioning/operation ownership.
+  The capture must be current and complete, with no omitted selected resources.
+- Reserve a stable control-plane IPv4 address and create direct DNS for
+  kube-api.lab.ryuugu.dev pointing to Zima. Do not point it at the HTTP reverse
+  proxy: kubeadm owns API TLS and client authentication. Both nodes must resolve
+  that name to the selected address. Configure site networking explicitly; do not
+  infer a permanent DNS value from an old discovery snapshot.
+- Confirm 172.28.0.0/16 pods and 172.29.0.0/16 services do not overlap LAN/VPN/
+  container networks. Host connected-network checks run before setup. Permit
+  normal Kubernetes traffic and Flannel UDP 8472 between members.
+- V1 supports one control plane, IPv4, Flannel and installed Debian/Arch Linux
+  amd64/arm64 hosts. The control plane needs at least two CPUs; nodes need about
+  2 GiB RAM and enough free memory to disable occupied swap safely.
+
+## Declare and reconcile
+
+Review homelab-init/KubeCluster/kube-cluster-lab.yaml,
+Configuration/configuration-kube-lab.yaml and the two Server label changes.
+Cluster pins include Kubernetes 1.37.1, containerd 2.4.1, runc 1.5.2,
+CNI plugins 1.9.1 and Flannel 0.28.10. The Configuration targets lab, uses
+ssh-managed capture and plays/configure_kube.yml from ansible-roles.
+
+Use the existing admin resource workflow to apply only these reviewed declarations
+after explicitly approving node configuration. References use names, not copied
+UIDs. Omitted revision resolves GitRepository.ref (default main) from the trusted
+pipeline input; an optional full commit pin is supported. Missing code fails
+visibly, never falls back or fetches an arbitrary repository.
+
+The shared operator runs every five minutes; a manual trigger polls the same
+desired state. It resolves identities/commit, checks dependencies, verifies
+installed hosts, holds Server claims and runs the ordered playbook. Ansible task
+progress streams normally; init/join credential tasks alone are hidden.
+
+Inspect a setup first with the separate plays/inspect_kube.yml through a reviewed
+inspection Configuration if desired. Its success is not platform readiness.
+
+## Acceptance
+
+Require Configuration/kube-setup-lab Ready for its current generation and
+inputRevision. Inspect playbookRevision, resolvedReferences, lastVerifiedAt and
+outputs: clusterUID, actual clusterNamespaceUID, versions and selected Nodes.
+Check the exact job logs, not merely a green trigger or stale status.
+
+From the initialized management container, use ssh zima and the node's root-only
+admin configuration to inspect actual state:
+
+```sh
+sudo /usr/local/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes -o wide
+sudo /usr/local/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf get pods -A
+```
+
+The playbook checks API/kubelet/runtime versions, ownership, roles, addresses and
+pod subnets; Flannel/CoreDNS rollout; and DNS/HTTP from temporary pods on every
+selected node. Root-owned 0600 node markers persist the verified identity and
+file hashes. Unchanged same-commit installations reuse verified artifacts without
+repeated large downloads or runtime restarts. Safe host drift is reconciled;
+disruptive binary/configuration changes with active consumers are refused.
+
+## Failures and boundaries
+
+No kubeadm reset, etcd deletion, reboot, OS provisioning or automatic upgrade.
+Conflicting markers, unowned installations and incomplete init/join fail visibly.
+A lost control plane with an existing recorded identity must be restored, not
+silently reinitialized. Domain identity survives ordinary reboots and named
+references are revalidated against resolved UIDs on each pass.
+
+Join credentials are short-lived, private and cleaned up; node admin kubeconfigs
+remain root-only. API status contains public observations, never tokens or keys.
+SSH loss/timeouts retain operation claims when remote work may continue. Inspect
+the worker/node and stop uncertain work before conditionally releasing an exact
+claim. Never clear it merely to make the pipeline run.
+
+Source tests and runner syntax/localhost fixtures are non-mutating. A real cluster
+must still pass the acceptance above on the explicitly approved installed nodes.

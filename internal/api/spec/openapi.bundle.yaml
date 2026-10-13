@@ -417,12 +417,8 @@ components:
                             name:
                                 minLength: 1
                                 type: string
-                            uid:
-                                minLength: 1
-                                type: string
                         required:
                             - name
-                            - uid
                         type: object
                     maxItems: 64
                     type: array
@@ -433,12 +429,8 @@ components:
                         name:
                             minLength: 1
                             type: string
-                        uid:
-                            minLength: 1
-                            type: string
                     required:
                         - name
-                        - uid
                     type: object
                 playbook:
                     additionalProperties: false
@@ -452,20 +444,15 @@ components:
                                 name:
                                     minLength: 1
                                     type: string
-                                uid:
-                                    minLength: 1
-                                    type: string
                             required:
                                 - name
-                                - uid
                             type: object
                         revision:
-                            description: Exact reviewed commit available in the operator Git input.
+                            description: Optional exact commit; otherwise resolve the GitRepository ref from the operator Git input.
                             pattern: ^[0-9a-f]{40}$
                             type: string
                     required:
                         - repositoryRef
-                        - revision
                         - path
                     type: object
                 suspended:
@@ -482,13 +469,9 @@ components:
                         name:
                             minLength: 1
                             type: string
-                        uid:
-                            minLength: 1
-                            type: string
                     required:
                         - kind
                         - name
-                        - uid
                     type: object
                 values:
                     additionalProperties: true
@@ -546,6 +529,10 @@ components:
                     format: int64
                     minimum: 0
                     type: integer
+                outputs:
+                    additionalProperties: true
+                    description: Public verified playbook observations; never credentials or private configuration.
+                    type: object
                 phase:
                     enum:
                         - Pending
@@ -554,8 +541,35 @@ components:
                         - Failed
                         - Suspended
                     type: string
+                playbookRevision:
+                    pattern: ^[0-9a-f]{40}$
+                    type: string
                 reason:
                     type: string
+                resolvedReferences:
+                    items:
+                        additionalProperties: false
+                        properties:
+                            generation:
+                                format: int64
+                                minimum: 0
+                                type: integer
+                            kind:
+                                minLength: 1
+                                type: string
+                            name:
+                                minLength: 1
+                                type: string
+                            uid:
+                                minLength: 1
+                                type: string
+                        required:
+                            - kind
+                            - name
+                            - uid
+                            - generation
+                        type: object
+                    type: array
             type: object
         DNSRecord:
             additionalProperties: false
@@ -1030,6 +1044,10 @@ components:
                     $ref: '#/components/schemas/GitRepositoryAuthentication'
                 commit:
                     $ref: '#/components/schemas/GitRepositoryCommitSpec'
+                ref:
+                    description: Playbook source ref available in the operator Git input; defaults to main.
+                    minLength: 1
+                    type: string
                 url:
                     minLength: 1
                     type: string
@@ -1859,6 +1877,9 @@ components:
         KubeClusterSpec:
             additionalProperties: false
             properties:
+                cniPluginsVersion:
+                    pattern: ^1\.[0-9]+\.[0-9]+$
+                    type: string
                 containerdVersion:
                     pattern: ^[12]\.[0-9]+\.[0-9]+$
                     type: string
@@ -1883,6 +1904,9 @@ components:
                     type: object
                 podCIDR:
                     minLength: 1
+                    type: string
+                runcVersion:
+                    pattern: ^1\.[0-9]+\.[0-9]+$
                     type: string
                 serviceCIDR:
                     minLength: 1

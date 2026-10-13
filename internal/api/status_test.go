@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -19,6 +20,11 @@ func TestGenericStatusPatchAuthorizationSchemaAndConcurrency(t *testing.T) {
 	}{
 		{"server-broad-status", "Server", "servers", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"phase":"Updated"}}`, 200},
 		{"secret-generic-status", "Secret", "secrets", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"phase":"Ready"}}`, 200},
+		{"configuration-resolved-status", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"playbookRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","resolvedReferences":[{"kind":"KubeCluster","name":"lab","uid":"cluster-uid","generation":1}]}}`, 200},
+		{"configuration-invalid-commit", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"playbookRevision":"main"}}`, 422},
+		{"configuration-public-observations", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"outputs":{"clusterNamespaceUID":"fixture","kubernetesVersion":"1.37.1"}}}`, 200},
+		{"configuration-invalid-observations", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"outputs":"invalid"}}`, 422},
+		{"configuration-unresolved-status", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"resolvedReferences":[{"kind":"KubeCluster","name":"lab","generation":1}]}}`, 422},
 		{"no-spec-permission", "Server", "servers", "reader", `"1"`, `{"metadata":{"uid":"uid"},"status":{"phase":"Updated"}}`, 403},
 		{"forbid-spec", "Server", "servers", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{},"spec":{}}`, 422},
 		{"forbid-metadata-edit", "Server", "servers", "writer", `"1"`, `{"metadata":{"uid":"uid","labels":{"x":"y"}},"status":{}}`, 422},
@@ -38,6 +44,11 @@ func TestGenericStatusPatchAuthorizationSchemaAndConcurrency(t *testing.T) {
 			}
 			if tc.kind == "Secret" {
 				spec = map[string]any{"secretStoreRef": map[string]any{"name": "bao"}, "path": "test", "data": map[string]any{"value": "public"}}
+			}
+			if tc.kind == "Configuration" {
+				if err := json.Unmarshal([]byte(`{"targetRef":{"kind":"KubeCluster","name":"lab"},"inventoryCaptureGroupRef":{"name":"managed"},"playbook":{"repositoryRef":{"name":"roles"},"path":"plays/base.yml"}}`), &spec); err != nil {
+					t.Fatal(err)
+				}
 			}
 			original := resource.Resource{APIVersion: resource.APIVersion, Kind: tc.kind, Metadata: resource.Metadata{Name: "host", UID: "uid", ResourceVersion: "1", Generation: 1}, Spec: spec, Status: map[string]any{"phase": "Pending", "observedGeneration": 1}}
 			s := testutil.NewStore(original)

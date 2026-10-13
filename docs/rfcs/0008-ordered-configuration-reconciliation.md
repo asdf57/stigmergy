@@ -28,11 +28,10 @@ kind: Configuration
 metadata:
   name: lab-platform
 spec:
-  targetRef: {kind: KubeCluster, name: lab, uid: <cluster-uid>}
-  inventoryCaptureGroupRef: {name: ssh-managed, uid: <group-uid>}
+  targetRef: {kind: KubeCluster, name: lab}
+  inventoryCaptureGroupRef: {name: ssh-managed}
   playbook:
-    repositoryRef: {name: ansible-roles, uid: <repository-uid>}
-    revision: <full-reviewed-40-character-git-commit>
+    repositoryRef: {name: ansible-roles}
     path: plays/lab-platform.yml
   values: {}
 ---
@@ -41,30 +40,35 @@ kind: Configuration
 metadata:
   name: lab-applications
 spec:
-  targetRef: {kind: KubeCluster, name: lab, uid: <cluster-uid>}
-  inventoryCaptureGroupRef: {name: ssh-managed, uid: <group-uid>}
+  targetRef: {kind: KubeCluster, name: lab}
+  inventoryCaptureGroupRef: {name: ssh-managed}
   playbook:
-    repositoryRef: {name: ansible-roles, uid: <repository-uid>}
-    revision: <full-reviewed-40-character-git-commit>
+    repositoryRef: {name: ansible-roles}
     path: plays/lab-applications.yml
   dependsOn:
-    - {name: lab-platform, uid: <configuration-uid>}
+    - {name: lab-platform}
 ```
 
-Server targets use targetRef.kind: Server. No Kubernetes dependency is implicit
-for host services. References pin resource lifetimes; recreating a name never
-adopts the replacement silently. suspended stops application without uninstalling.
+Server targets use targetRef.kind: Server. The target supplies context, not an
+implicit readiness dependency or host selector. dependsOn explicitly orders
+setups. Desired references use unique names; the operator resolves UIDs and
+generations and records them in status. Recreating a reference invalidates old
+success and requires fresh validation. suspended stops application without uninstalling.
 Deletion also leaves installed software intact in v1.
 
 The playbook is an existing, reviewed file, not inline shell/YAML from the API.
 The repository reference must match the operator Git input's origin URL. The
-exact commit must be available in that input; missing history fails visibly,
-never falls back to main. Extraction rejects unsafe archive paths and playbooks
+optional revision pins a full commit. Otherwise GitRepository.spec.ref (default
+main) resolves from local branch/tag refs in that input. The resolved immutable
+commit is recorded in status and included in inputRevision. Missing refs/history
+fail visibly, never fall back to another ref or fetch arbitrary repositories.
+Extraction rejects unsafe archive paths and playbooks
 outside the plays directory. There is one shared repository input in v1, not
 arbitrary fetching of repositories using privileged runner credentials.
 
 Public values are passed under configuration_values. Target settings are passed
-under configuration_target; cluster nodes under configuration_nodes. Values do
+under configuration_target; captured Servers and their labels/annotations under
+configuration_nodes. Values do
 not become top-level Ansible variables and cannot override scoped SSH/inventory
 settings. Credentials are supplied by the existing private runner context or
 reviewed secret-store tasks, never by inline values or status. Configuration
@@ -74,14 +78,18 @@ operators receive no new API Secret-read grant.
 
 KubeCluster specifies exact Kubernetes/containerd versions, endpoint, pod and
 service CIDRs and explicit network provider/version. Server labels select the
-cluster and control-plane/worker role. homelab.io/kube-cluster-uid binds the
-cluster lifetime; homelab.io/kube-node-name optionally overrides the Server name.
+cluster and control-plane/worker role. An optional homelab.io/kube-cluster-uid
+annotation binds the cluster lifetime; homelab.io/kube-node-name optionally
+overrides the Server name. Protected installed identity must be checked before
+bootstrap/adoption; desired names alone do not prove the installed cluster.
 V1 requires exactly one control plane and unique valid Kubernetes node names.
 
-The executor provides control_plane and worker inventory groups, preserving
-resolved inherited capture variables. The complete platform remains one
-playbook, even when its plays target different groups or localhost for cluster
-API operations. All remote mutation targets must be selected managed members.
+The executor preserves capture inventory groups and resolved inherited variables.
+It does not interpret cluster membership, require a control plane or synthesize
+Kubernetes groups. The reviewed platform playbook selects members from the
+captured Servers' labels, validates membership/identity, and builds its own
+control_plane/worker groups. The complete platform remains one playbook.
+All remote mutation targets must stay within the capture group's managed hosts.
 
 A kubeadm role must detect existing cluster/node identity, avoid replaying init
 or reset, resolve exact package versions, handle short-lived join credentials
@@ -93,15 +101,18 @@ Configuration does not authorize destructive cluster recovery.
 
 1. Read Configurations selected by the pipeline's capture-group name.
 2. Visit dependencies before dependents. Cycles fail before execution; unrelated
-   components can still be examined. Missing/replaced references never satisfy
-   dependencies.
-3. Resolve each target and current capture inventory. Require reciprocal
+   components can still be examined. Missing references or old verification of
+   recreated resources never satisfy dependencies.
+3. Resolve each target and complete current capture inventory. Omitted selected
+   resources defer the setup rather than silently shrinking its membership.
+   Require reciprocal
    Server/Machine binding, a successful installation for the same Server UID,
    no active provisioning, an unpaused Server and strict verified SSH identity.
 4. A prerequisite must be Ready for its current generation and resolved inputs.
    An old green result is insufficient after a spec, membership or installation
    change.
-5. Extract the pinned playbook and scope inventory/credentials to selected hosts.
+5. Resolve and extract the playbook commit. Preserve the capture inventory and
+   protect its hosts' management transport; the playbook selects execution hosts.
    Acquire existing Server operation claims in deterministic order. Partial claim
    acquisition releases only this pass's already-acquired claims.
 6. Execute the installed-host guard, ordered playbook and guard again. The guard
@@ -117,7 +128,7 @@ health checks. Ansible success plus installed identity verification means the
 reviewed playbook contract succeeded; it is not unconditional proof of arbitrary
 application health.
 
-Timeouts retain claims when remote work may remain. Worker crashes also retain
+Timeouts and unreachable SSH retain claims when remote work may remain. Worker crashes also retain
 claims. No automatic expiry, blind cleanup, OS reboot or erasure retry exists.
 Inspect the worker and node before conditionally releasing the exact stopped
 operation. Normal completed failures release their claims and report failure.
@@ -143,10 +154,18 @@ generations remain unchanged. Dependents therefore wait for fresh verification.
 A normal host reboot does not create a new installation or authorize rejoining
 another cluster.
 
-Status contains phase, observedGeneration, Ready condition, reason, inputRevision
-and lastVerifiedAt. A buildURL may be supplied by the execution environment.
+Status contains phase, observedGeneration, Ready condition, reason, inputRevision,
+playbookRevision, resolvedReferences (kind/name/UID/generation) and lastVerifiedAt.
+A buildURL may be supplied by the execution environment.
 Failed or pending reconciliation never reports Ready. Status writes are guarded
 against same-name recreation and concurrent desired-generation changes.
+
+Reviewed playbooks may publish a public JSON object in configuration_workspace/result.json.
+The executor rejects symlinks, non-regular files and results over 64 KiB, and reports
+it as status.outputs only after successful guarded execution and input revalidation.
+Previous verified outputs are supplied as configuration_observed; private credentials
+must never enter these files. This allows domain roles to retain observed identities
+without adding a second controller or custom reporting endpoint.
 
 ## Implementation and rollout
 
@@ -157,6 +176,8 @@ against same-name recreation and concurrent desired-generation changes.
 - plays/configuration_guard.yml: protected installed-host attestation.
 - plays/configure_containerd.yml: concrete public-input adapter to the existing
   containerd role. Exact package/version inputs are mandatory.
+- plays/inspect_kube.yml and roles/kube/tasks/plan.yml: read-only Kubernetes planning and
+  preflight, not platform installation or readiness. See RFC 0006 for staged work.
 - homelab-init: shared pipeline and ansible-roles GitRepository declaration.
   No Configuration, cluster membership or Kubernetes installation is applied
   automatically by these site declarations.
@@ -167,14 +188,16 @@ Before enabling the pipeline, deploy the generated API and prepare its runner
 policy from the existing policy, preserving all tokens and Git keys. Apply only
 the new GitRepository/Pipeline manifests through the normal conditional/admin
 workflow; applying executable Configuration resources is separate approval.
-Pin a commit containing the chosen reviewed playbook and use actual reference
-UIDs. Start with an explicitly approved installed test target.
+Use name-based references and either a reviewed repository ref or an optional
+full commit pin. The pipeline Git input must contain that ref/commit. Start with
+an explicitly approved installed capture group; the executor validates and
+locks every captured host, even if the playbook uses only a subset.
 
-This implementation provides the generic configuration executor and cluster
-input model. The existing kube role is not a completed kubeadm implementation;
-a production lab-platform playbook, kubeadm init/join/upgrade roles and Kubernetes
-application roles require their own implementation and acceptance. Do not point
-a Configuration at an unverified bootstrap play or claim a cluster was installed.
+plays/configure_kube.yml implements the single-control-plane kubeadm/Flannel
+platform under this executor; see RFC 0006 and the Kubernetes rollout guide.
+Live acceptance remains separate from source tests. Additional application roles
+and disruptive upgrades/reset/removal workflows require explicit implementation;
+ordinary reconciliation never implies permission to erase/reset cluster state.
 
 Test dependency cycles/staleness, UID replacement, reprovisioning invalidation,
 heartbeat stability, strict scoped transport, ownership loss, timeout retention,

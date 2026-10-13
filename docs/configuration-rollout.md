@@ -30,7 +30,7 @@ setups. The full contract is RFC 0008.
 
 ## Declare an explicitly approved setup
 
-Read the target Server and capture/repository resource UIDs first. Require a
+Use unique names for target, capture group, repository and dependency references. Require a
 verified successful installed OS, current reciprocal Machine binding and Ready
 management SSH. Configuration does not install software in the live ISO.
 
@@ -42,11 +42,10 @@ kind: Configuration
 metadata:
   name: node-runtime
 spec:
-  targetRef: {kind: Server, name: node, uid: <server-uid>}
-  inventoryCaptureGroupRef: {name: ssh-managed, uid: <group-uid>}
+  targetRef: {kind: Server, name: node}
+  inventoryCaptureGroupRef: {name: ssh-managed}
   playbook:
-    repositoryRef: {name: ansible-roles, uid: <repository-uid>}
-    revision: <full-commit-containing-the-playbook>
+    repositoryRef: {name: ansible-roles}
     path: plays/configure_containerd.yml
   values:
     packageReference: <exact-distro-package-reference>
@@ -57,13 +56,42 @@ Review the exact package's availability before applying this object. The existin
 containerd role refuses disruptive reconfiguration with active Docker/kubelet
 consumers; this adapter does not bypass that maintenance safeguard.
 
+An omitted revision resolves GitRepository.spec.ref (default main) from the
+pipeline's local Git input. An optional revision pins a full 40-character commit.
+The pipeline input must contain the selected ref/commit; missing history does
+not cause a fallback or remote fetch. Status records the actual playbookRevision
+and resolvedReferences including UIDs/generations. Changed code or recreated
+references invalidate old verification.
+
+targetRef supplies settings/context, not automatic readiness or host selection.
+The executor preserves the Server-only capture inventory and validates/locks
+every captured installed host. The playbook selects hosts/groups within that
+boundary. A Server target does not implicitly limit a broad capture to that Server;
+use an appropriately scoped capture group or reviewed playbook selection.
+dependsOn supplies explicit readiness dependencies.
+
 For a Kubernetes platform, create KubeCluster settings, label its approved Servers
 with homelab.io/kube-cluster and homelab.io/kube-role, and bind
 homelab.io/kube-cluster-uid in annotations. Then target that cluster with one
 Configuration and an ordered, verified platform playbook. The executor supplies
-control_plane/worker groups, configuration_target settings and
-configuration_nodes. kubeadm bootstrap/join/platform roles are not supplied by
-the generic executor; implement and accept those before creating the setup.
+configuration_target settings and configuration_nodes with captured Server labels
+and annotations. The platform playbook validates membership and creates its
+control_plane/worker groups. plays/configure_kube.yml supplies the ordered
+kubeadm/Flannel platform through kube and containerd roles; the executor itself
+contains no Kubernetes bootstrap logic. Follow kubernetes-rollout.md for acceptance.
+
+Kubernetes planning/preflight is available separately in plays/inspect_kube.yml.
+It selects labeled cluster members, validates inputs and connected networks,
+checks endpoint DNS and reports existing installation artifacts without changing
+nodes. Its success means inspection passed, not a Ready Kubernetes platform.
+Do not replace the site's configure_kube.yml path with this inspection playbook
+to make the platform Configuration appear successful.
+
+Reviewed playbooks may write public observations to
+configuration_workspace/result.json (a regular JSON object, at most 64 KiB).
+The executor records these as status.outputs only after verification; previous
+outputs are supplied as configuration_observed. Never publish credentials.
+Kubernetes uses this for its verified installed namespace identity and versions.
 
 Use configuration_values for public role parameters. Do not interpolate them as
 shell, put credentials in them or override protected inventory/transport inputs.

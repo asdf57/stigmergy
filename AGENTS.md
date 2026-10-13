@@ -28,6 +28,12 @@
 - Update source OpenAPI schemas and generated artifacts when changing API
   contracts. Keep Swagger auth usable with bearer tokens; do not invent a new
   custom login protocol or permission framework for this v1.
+- Configuration desired refs use names. Its status records resolved UIDs and
+  playbookRevision; omitted revision resolves the repository ref from the trusted
+  pipeline Git input. targetRef is context, not implicit readiness or selection.
+- Kubernetes setup uses plays/configure_kube.yml through Configuration; see
+  docs/kubernetes-rollout.md. outputs records verified public cluster identity,
+  never credentials. Do not infer node rollout approval from editing manifests.
 
 ## Quick resource recipes
 

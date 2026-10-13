@@ -1,4 +1,4 @@
-# GitRepository describes a Git destination used by publication controllers.
+# GitRepository describes a publication destination or reviewed playbook source.
 x-stigmergy-resource:
   api-version: homelab.io/v1alpha1
   path-prefix: /api/v1alpha1
@@ -16,6 +16,10 @@ GitRepositorySpec:
     url:
       type: string
       minLength: 1
+    ref:
+      type: string
+      minLength: 1
+      description: Playbook source ref available in the operator Git input; defaults to main.
     authentication:
       $ref: '#/components/schemas/GitRepositoryAuthentication'
     commit:
