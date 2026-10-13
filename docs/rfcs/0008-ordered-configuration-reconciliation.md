@@ -115,6 +115,9 @@ Configuration does not authorize destructive cluster recovery.
    protect its hosts' management transport; the playbook selects execution hosts.
    Acquire existing Server operation claims in deterministic order. Partial claim
    acquisition releases only this pass's already-acquired claims.
+   Reread each Server immediately before its claim: heartbeat-only resource
+   revisions are refreshed, but changed execution inputs or SSH identity refuse
+   execution. A stale pre-checkout snapshot is not used as the claim revision.
 6. Execute the installed-host guard, ordered playbook and guard again. The guard
    checks the protected Server/run marker and refuses live environments. Reread
    ownership before each play. Stream normal Ansible output; protect credential

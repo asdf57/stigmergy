@@ -20,6 +20,14 @@ Applying an enabled Configuration authorizes its reviewed setup, not OS erasure.
   proxy: kubeadm owns API TLS and client authentication. Both nodes must resolve
   that name to the selected address. Configure site networking explicitly; do not
   infer a permanent DNS value from an old discovery snapshot.
+  The lab uses static DHCP reservations for both managed nodes: Zima
+  10.1.1.28 (00:e0:4c:34:97:90), Beelink 10.1.1.243 (e8:ff:1e:d4:03:fa).
+  `plays/reserve_router_dhcp.yml` validates one explicitly approved, uniquely
+  bound address/MAC pair, makes only that lease static and verifies it. It
+  requires the standard community.routeros collection and librouteros; credentials
+  are private extra-vars, never source/status. The site DNSRecord/kube-api-lab
+  maps the API endpoint directly to Zima. Reserving a lease does not restart
+  NetworkManager or alter the current node connection.
 - Confirm 172.28.0.0/16 pods and 172.29.0.0/16 services do not overlap LAN/VPN/
   container networks. Host connected-network checks run before setup. Permit
   normal Kubernetes traffic and Flannel UDP 8472 between members.
