@@ -71,8 +71,9 @@ use an appropriately scoped capture group or reviewed playbook selection.
 dependsOn supplies explicit readiness dependencies.
 
 For a Kubernetes platform, create KubeCluster settings, label its approved Servers
-with homelab.io/kube-cluster and homelab.io/kube-role, and bind
-homelab.io/kube-cluster-uid in annotations. Then target that cluster with one
+with homelab.io/kube-cluster and homelab.io/kube-role. Optionally bind
+homelab.io/kube-cluster-uid in annotations for a stricter lifetime constraint.
+Then target that cluster with one
 Configuration and an ordered, verified platform playbook. The executor supplies
 configuration_target settings and configuration_nodes with captured Server labels
 and annotations. The platform playbook validates membership and creates its
@@ -97,6 +98,10 @@ Use configuration_values for public role parameters. Do not interpolate them as
 shell, put credentials in them or override protected inventory/transport inputs.
 Fetch credentials through reviewed no_log tasks and the private runner context.
 Component playbooks must verify actual services/API objects before succeeding.
+Local runner plays must set `vars: {ansible_become: false}` as well as
+`become: false`; Ansible connection variables outrank play keywords, including
+captured `all.vars`. Apply the same task-variable override to delegated local
+result writes. Keep node escalation scoped to managed-node tasks.
 
 ## Reconcile and inspect
 
