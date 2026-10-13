@@ -1,6 +1,6 @@
 # RFC 0006: kubeadm clusters on managed Servers
 
-- Status: V1 configuration executor and kubeadm/Flannel bootstrap/reconciliation implemented in source; rollout and live acceptance pending
+- Status: V1 deployed; lab cluster accepted on Zima and Beelink on 2026-10-13 UTC
 - Scope: KubeCluster desired state, common Server membership, and separate kube/containerd roles
 - Related: RFC 0002 (external operators), RFC 0004 (physical/virtual managed nodes)
 
@@ -46,7 +46,7 @@ package installation or an open API port is insufficient.
 ## Membership metadata
 
 Use labels for selection and annotations for non-selector information. Proposed
-Server metadata (not deployed API conventions yet):
+Server metadata:
 
 ```yaml
 metadata:

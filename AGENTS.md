@@ -126,6 +126,10 @@ the named resource first and use its resourceVersion with If-Match.
 - Check API `/readyz` first when the UI reports offline. For HTTP 502 inspect the
   reverse proxy's upstream and service/container state before changing resources.
   For 401 check the intended route's auth policy/token, not TLS bypasses.
+- After a Concourse trigger, match its job build number to the global build ID
+  in `fly builds --json`, then use `fly watch -b <id>`. A queued trigger can leave
+  `watch -j` following the previous running build. Confirm Configuration's actual
+  playbookRevision; an idle OperationBusy build is not setup acceptance.
 - Machine `status.lastSeenTime` and bound Server `status.agent.lastSeenTime` use
   the report's API-assigned creation timestamp. The pulse is reporting freshness,
   not host/SSH availability. Reboots use ordinary Commands and the reviewed

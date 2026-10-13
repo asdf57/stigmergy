@@ -1,6 +1,6 @@
 # RFC 0008: Ordered configuration reconciliation
 
-- Status: Implemented in source; rollout and managed-node acceptance pending
+- Status: Deployed; Kubernetes setup accepted through the shared executor on 2026-10-13 UTC
 - Related: RFC 0002 (external operators), RFC 0003 (provisioning), RFC 0006 (kubeadm)
 
 ## Decision

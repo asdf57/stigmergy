@@ -1,7 +1,8 @@
 # kubeadm/Flannel cluster rollout
 
-Source implementation is not live acceptance. The lab site declares Zima as
-control-plane and Beelink as worker; no node is configured just by building code.
+The lab cluster is deployed and accepted: Zima is control-plane and Beelink is
+worker. Source tests alone are not live acceptance; each rollout must verify the
+actual cluster. No node is configured just by building code.
 Applying an enabled Configuration authorizes its reviewed setup, not OS erasure.
 
 ## Prerequisites
@@ -95,3 +96,32 @@ claim. Never clear it merely to make the pipeline run.
 
 Source tests and runner syntax/localhost fixtures are non-mutating. A real cluster
 must still pass the acceptance above on the explicitly approved installed nodes.
+
+## Lab acceptance: 2026-10-13 UTC
+
+Configuration build 277 (global build 107115) succeeded with ansible-roles
+commit c91fcf59cbeb64c33f36c1dd306bfe271dfa67dc. The recorded verification time
+was 02:38:55 UTC. Both installed Debian nodes were Ready with Kubernetes 1.37.1
+and containerd 2.4.1; Flannel 0.28.10 and CoreDNS were Running. Temporary pods
+passed Kubernetes service DNS on both nodes and HTTP in all four ordered pairs.
+The probes were removed, and protected Ready markers on both nodes matched
+the Configuration's actual kube-system namespace UID
+bc3194f1-58f4-41c8-b841-9f670b77da10. Independent strict-SSH checks confirmed
+node/pod state and active containerd, kubelet, homelabd and NetworkManager.
+No OS reprovisioning, erasure or kubeadm reset was performed. The temporary
+Concourse Git pin was removed after acceptance; normal scheduling continues.
+
+Inside a normal homelabc shell, access the cluster through its captured,
+verified control-plane SSH alias:
+
+```sh
+ssh zima 'sudo /usr/local/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes -o wide'
+```
+
+Inventory capture membership is not Kubernetes membership. A future explicit
+homelabc cluster-context option should select KubeCluster independently, validate
+the installed control-plane identity, and keep any fetched kubeconfig private to
+the disposable container. That local kubectl bootstrap is not implemented yet.
+Kubernetes-safe reprovision preparation is also not implemented; RFC 0009 records
+the future cleanup-gate design. Do not reprovision cluster members assuming they
+will automatically drain.
