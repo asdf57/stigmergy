@@ -110,6 +110,10 @@ bc3194f1-58f4-41c8-b841-9f670b77da10. Independent strict-SSH checks confirmed
 node/pod state and active containerd, kubelet, homelabd and NetworkManager.
 No OS reprovisioning, erasure or kubeadm reset was performed. The temporary
 Concourse Git pin was removed after acceptance; normal scheduling continues.
+Scheduled build 278 (107202) also succeeded, reused the protected artifact
+identities and repeated the networking probes. Beelink had zero configuration
+changes; the control-plane changes were the temporary probe lifecycle/result
+publication. No runtime service restart or release download was needed.
 
 Inside a normal homelabc shell, access the cluster through its captured,
 verified control-plane SSH alias:
