@@ -32,6 +32,8 @@ KubeClusterStatus:
   type: object
   additionalProperties: false
   properties:
+    observation:
+      $ref: '#/KubeClusterObservation'
     observedGeneration: {type: integer, format: int64, minimum: 0}
     lastVerifiedAt: {type: string, format: date-time}
     configurationRef:
@@ -81,3 +83,26 @@ KubeClusterNodeObservation:
     containerdVersion: {type: string, minLength: 1}
     operatingSystem: {type: string}
     kernelVersion: {type: string}
+
+KubeClusterObservation:
+  type: object
+  additionalProperties: false
+  required: [observedAt, observedGeneration, configurationRef, configurationGeneration, inputRevision, playbookRevision, membership]
+  properties:
+    observedAt: {type: string, format: date-time}
+    observedGeneration: {type: integer, format: int64, minimum: 0}
+    configurationRef:
+      $ref: '#/components/schemas/ResourceReference'
+    configurationGeneration: {type: integer, format: int64, minimum: 0}
+    inputRevision: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+    playbookRevision: {type: string, pattern: '^[0-9a-f]{40}$'}
+    membership:
+      type: object
+      additionalProperties: false
+      required: [ready, missingMembers, notReadyMembers, unexpectedNodes, identityConflicts]
+      properties:
+        ready: {type: boolean}
+        missingMembers: {type: array, items: {type: string, minLength: 1}}
+        notReadyMembers: {type: array, items: {type: string, minLength: 1}}
+        unexpectedNodes: {type: array, items: {type: string, minLength: 1}}
+        identityConflicts: {type: array, items: {type: string, minLength: 1}}

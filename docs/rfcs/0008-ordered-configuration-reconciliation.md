@@ -65,6 +65,38 @@ SSH and setup progress; changed membership/settings or reporting lifetimes make
 the snapshot historical. Browser polling never contacts the Kubernetes API or
 fetches credentials. Failed refreshes explicitly retain an older API snapshot.
 
+### Membership convergence and current observations
+
+Kubernetes setup compares desired members with actual API Nodes on every pass;
+the presence of kubelet.conf is not evidence of current cluster membership.
+Uninitialized owned workers follow the normal short-lived-token join. Every
+initialized member proves its protected Server/cluster marker, intended API
+endpoint and existing authenticated `system:node:<name>` identity. Existing
+Nodes must match the managed address and cannot carry conflicting ownership
+labels. The role restores missing managed identity/role labels with an API
+resourceVersion precondition; unrelated labels remain untouched.
+
+A missing Node triggers one kubelet restart to repeat registration with the
+existing credentials, then waits for its own Node/address and normal readiness
+verification. Healthy members are unchanged; NotReady alone does not authorize
+restarts. This applies to both roles without rerunning init/join, resetting
+Kubernetes, erasing credentials, recreating etcd or deleting unexpected Nodes.
+Conflicts, invalid credentials, lost control-plane identity and disruptive
+upgrades remain explicit maintenance cases.
+
+`KubeCluster.status.observation` is the current membership report: observedAt,
+observedGeneration, Configuration identity/generation, input/playbook revisions
+and membership (ready, missingMembers, notReadyMembers, unexpectedNodes,
+identityConflicts). It is distinct from lastVerifiedAt and the last fully
+verified Node/network snapshot. The role writes `target-observation.json`
+before repair and after verification, including unsuccessful verification.
+The generic executor may publish that observation after a completed failed
+play, but only with intact claims and unchanged inputs; it never publishes
+target-status.json success output on failure or observations after uncertain
+remote work. Domain roles own their status fields/generations; the executor
+does not synthesize them. The UI prioritizes current negative observations and
+marks reports older than fifteen minutes or changed-input reports stale.
+
 ## Resource example
 
 ```yaml

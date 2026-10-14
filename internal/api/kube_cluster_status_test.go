@@ -15,11 +15,15 @@ import (
 
 func TestKubeClusterTypedObservationsUseGenericStatusRoute(t *testing.T) {
 	const valid = `{"metadata":{"uid":"cluster-uid"},"status":{"observedGeneration":1,"lastVerifiedAt":"2026-10-13T00:00:00Z","configurationRef":{"name":"setup","uid":"setup-uid"},"nodes":[{"serverRef":{"name":"zima","uid":"server-uid"},"nodeName":"zima","nodeUID":"node-uid","role":"control-plane","ready":true,"internalIP":"192.0.2.1","podCIDR":"172.28.0.0/24","kubeletVersion":"v1.37.1","containerdVersion":"2.4.1"}],"checks":{"serviceDNS":true,"podConnectivity":true}}}`
+	observation := `{"metadata":{"uid":"cluster-uid"},"status":{"observation":{"observedAt":"2026-10-14T00:00:00Z","observedGeneration":1,"configurationRef":{"name":"setup","uid":"setup-uid"},"configurationGeneration":2,"inputRevision":"sha256:` + strings.Repeat("a", 64) + `","playbookRevision":"` + strings.Repeat("b", 40) + `","membership":{"ready":false,"missingMembers":["beelink"],"notReadyMembers":[],"unexpectedNodes":[],"identityConflicts":[]}}}}`
 	for _, testcase := range []struct {
 		name, body string
 		code       int
 	}{
 		{"verified observations", valid, 200},
+		{"negative membership observation", observation, 200},
+		{"typed missing members", strings.Replace(observation, `["beelink"]`, `[42]`, 1), 422},
+		{"no private observation fields", strings.Replace(observation, `"observedAt":`, `"kubeconfig":"private","observedAt":`, 1), 422},
 		{"no private fields", strings.Replace(valid, `"observedGeneration":1`, `"kubeconfig":"private","observedGeneration":1`, 1), 422},
 		{"typed readiness", strings.Replace(valid, `"ready":true`, `"ready":"true"`, 1), 422},
 		{"node identity required", strings.Replace(valid, `"nodeUID":"node-uid",`, "", 1), 422},
@@ -30,7 +34,7 @@ func TestKubeClusterTypedObservationsUseGenericStatusRoute(t *testing.T) {
 			if err := json.Unmarshal([]byte(`{"kubernetesVersion":"1.37.1","containerdVersion":"2.4.1","controlPlaneEndpoint":"lab.example.test:6443","podCIDR":"172.28.0.0/16","serviceCIDR":"172.29.0.0/16","network":{"provider":"flannel","version":"0.28.10"}}`), &spec); err != nil {
 				t.Fatal(err)
 			}
-			cluster := resource.Resource{APIVersion: resource.APIVersion, Kind: "KubeCluster", Metadata: resource.Metadata{Name: "lab", UID: "cluster-uid", ResourceVersion: "1", Generation: 1}, Spec: spec, Status: map[string]any{}}
+			cluster := resource.Resource{APIVersion: resource.APIVersion, Kind: "KubeCluster", Metadata: resource.Metadata{Name: "lab", UID: "cluster-uid", ResourceVersion: "1", Generation: 1}, Spec: spec, Status: map[string]any{"lastVerifiedAt": "2026-10-13T00:00:00Z"}}
 			storage := testutil.NewStore(cluster)
 			policy := &AccessPolicy{Identities: []AccessIdentity{{Name: "operator", Token: "fixture", Permissions: []AccessPermission{{Kind: "KubeCluster", Subresource: "status", Methods: []string{"PATCH"}}}}}}
 			handler := WithAccessPolicy(New(slog.New(slog.NewTextHandler(io.Discard, nil)), storage, time.Second), policy)
@@ -49,6 +53,9 @@ func TestKubeClusterTypedObservationsUseGenericStatusRoute(t *testing.T) {
 			}
 			if testcase.code != 200 && storage.Writes != 0 {
 				t.Fatal("invalid observation wrote status")
+			}
+			if updated.Status["lastVerifiedAt"] != "2026-10-13T00:00:00Z" {
+				t.Fatal("membership observation overwrote last successful verification")
 			}
 		})
 	}
