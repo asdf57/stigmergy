@@ -40,7 +40,7 @@ func prepareOperatorPolicy(source, directory string) error {
 				identity.Permissions = append(identity.Permissions, api.AccessPermission{Kind: kind, Methods: []string{"GET"}})
 			}
 		}
-		for _, statusKind := range []string{"ProvisioningRun", "Configuration"} {
+		for _, statusKind := range []string{"ProvisioningRun", "Configuration", "KubeCluster"} {
 			permitted := false
 			for _, permission := range identity.Permissions {
 				if permission.Kind == statusKind && permission.Subresource == "status" && len(permission.ResourceNames) == 0 {
@@ -88,5 +88,6 @@ func configurationPermissions() []api.AccessPermission {
 		{Kind: "KubeCluster", Methods: []string{"GET"}},
 		{Kind: "GitRepository", Methods: []string{"GET"}},
 		{Kind: "Configuration", Subresource: "status", Methods: []string{"PATCH"}},
+		{Kind: "KubeCluster", Subresource: "status", Methods: []string{"PATCH"}},
 	}
 }

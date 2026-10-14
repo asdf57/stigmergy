@@ -62,14 +62,14 @@ func TestOperatorPolicyPreservesTokensAndAddsOnlyPublicDependencyReads(t *testin
 		}
 		expected := len(identity.Permissions)
 		if identity.Name == "runner" {
-			expected += 11
+			expected += 12
 		}
 		if len(updated.Identities[i].Permissions) != expected {
 			t.Fatal("unexpected grant")
 		}
 	}
 	grant := updated.Identities[2].Permissions[len(updated.Identities[2].Permissions)-1]
-	if grant.Kind != "Configuration" || grant.Subresource != "status" || len(grant.Methods) != 1 || grant.Methods[0] != "PATCH" {
+	if grant.Kind != "KubeCluster" || grant.Subresource != "status" || len(grant.Methods) != 1 || grant.Methods[0] != "PATCH" {
 		t.Fatal("wrong public-key grant")
 	}
 	if err := prepareOperatorPolicy(filepath.Join(source, "api-access.json"), target); err == nil {

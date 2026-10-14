@@ -1874,6 +1874,51 @@ components:
                 - metadata
                 - items
             type: object
+        KubeClusterNodeObservation:
+            additionalProperties: false
+            properties:
+                containerdVersion:
+                    minLength: 1
+                    type: string
+                internalIP:
+                    minLength: 1
+                    type: string
+                kernelVersion:
+                    type: string
+                kubeletVersion:
+                    minLength: 1
+                    type: string
+                nodeName:
+                    minLength: 1
+                    type: string
+                nodeUID:
+                    minLength: 1
+                    type: string
+                operatingSystem:
+                    type: string
+                podCIDR:
+                    minLength: 1
+                    type: string
+                ready:
+                    type: boolean
+                role:
+                    enum:
+                        - control-plane
+                        - worker
+                    type: string
+                serverRef:
+                    $ref: '#/components/schemas/ResourceReference'
+            required:
+                - serverRef
+                - nodeName
+                - nodeUID
+                - role
+                - ready
+                - internalIP
+                - podCIDR
+                - kubeletVersion
+                - containerdVersion
+            type: object
         KubeClusterSpec:
             additionalProperties: false
             properties:
@@ -1921,7 +1966,72 @@ components:
             type: object
         KubeClusterStatus:
             additionalProperties: false
-            properties: {}
+            properties:
+                checks:
+                    additionalProperties: false
+                    properties:
+                        podConnectivity:
+                            type: boolean
+                        serviceDNS:
+                            type: boolean
+                    required:
+                        - serviceDNS
+                        - podConnectivity
+                    type: object
+                clusterNamespaceUID:
+                    minLength: 1
+                    type: string
+                configurationGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                configurationRef:
+                    $ref: '#/components/schemas/ResourceReference'
+                containerdVersion:
+                    minLength: 1
+                    type: string
+                controlPlaneEndpoint:
+                    minLength: 1
+                    type: string
+                inputRevision:
+                    pattern: ^sha256:[0-9a-f]{64}$
+                    type: string
+                kubernetesVersion:
+                    minLength: 1
+                    type: string
+                lastVerifiedAt:
+                    format: date-time
+                    type: string
+                network:
+                    additionalProperties: false
+                    properties:
+                        provider:
+                            minLength: 1
+                            type: string
+                        version:
+                            minLength: 1
+                            type: string
+                    required:
+                        - provider
+                        - version
+                    type: object
+                nodes:
+                    items:
+                        $ref: '#/components/schemas/KubeClusterNodeObservation'
+                    type: array
+                observedGeneration:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                playbookRevision:
+                    pattern: ^[0-9a-f]{40}$
+                    type: string
+                podCIDR:
+                    minLength: 1
+                    type: string
+                serviceCIDR:
+                    minLength: 1
+                    type: string
             type: object
         ListMetadata:
             additionalProperties: false

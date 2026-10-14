@@ -39,9 +39,31 @@ Configuration targeting it can run containerd, kubeadm, initial CNI, joins and
 platform roles in a human-readable playbook. Subsequent application configurations
 depend on the platform Configuration, not on a circular cluster Ready flag.
 
-Configuration.status is the execution/readiness authority. KubeCluster currently
-has no executable status fields. Declaring either resource alone does not prove
-a functioning cluster.
+Configuration.status is the execution/readiness authority. KubeCluster.status
+holds the verified public domain snapshot, not another bootstrap state machine.
+Declaring either resource alone does not prove a functioning cluster.
+
+After the reviewed playbook succeeds, verifies Node identities/readiness and
+workload DNS/connectivity, it writes `target-status.json` in the private task
+workspace. The generic Configuration executor publishes that optional object
+through the target's normal status route while Server claims are still held,
+after rechecking inputs. Status writes bind target UID and observed generation
+and use a fresh resourceVersion/If-Match; replacement or changed inputs refuse
+publication. A failed playbook never publishes a successful target snapshot.
+
+KubeCluster.status records lastVerifiedAt, reporting Configuration name/UID and
+generation, input/playbook revisions, actual cluster namespace UID, endpoint,
+software/network settings and workload checks. Each observed Node includes its
+Server name/UID, actual Node UID/name, role, Ready condition, InternalIP, pod
+subnet, kubelet/containerd versions, OS and kernel. No kubeconfig, private keys,
+tokens or arbitrary private output are permitted by the typed status schema.
+The runner policy grants KubeCluster status PATCH, not Secret reads.
+
+The web overview reads the generic KubeCluster, Server and Configuration routes.
+It presents timestamped Node observations separately from agent pulse, managed
+SSH and setup progress; changed membership/settings or reporting lifetimes make
+the snapshot historical. Browser polling never contacts the Kubernetes API or
+fetches credentials. Failed refreshes explicitly retain an older API snapshot.
 
 ## Resource example
 

@@ -13,6 +13,12 @@ Applying an enabled Configuration authorizes its reviewed setup, not OS erasure.
 - Publish the reviewed ansible-roles implementation and verify the shared
   reconcile-configurations-ssh-managed/operator pipeline's code input contains
   that commit/ref. No per-cluster pipeline or Kubernetes API bootstrap controller.
+- Deploy the typed KubeCluster status schema before publishing its reporting
+  operator. Prepare the existing API policy with `create-api-auth --policy-source`
+  to add runner KubeCluster status PATCH while preserving every token. Apply the
+  same policy to the bootstrap environment and runtime policy file; do not grant
+  runner Secret reads. Then deploy the web overview and verify an actual operator
+  pass populated KubeCluster/lab.status, not merely a green build.
 - Require both Servers to be bound and successfully provisioned into installed
   OSes, with Ready managed SSH and no active provisioning/operation ownership.
   The capture must be current and complete, with no omitted selected resources.
@@ -64,6 +70,13 @@ Require Configuration/kube-setup-lab Ready for its current generation and
 inputRevision. Inspect playbookRevision, resolvedReferences, lastVerifiedAt and
 outputs: clusterUID, actual clusterNamespaceUID, versions and selected Nodes.
 Check the exact job logs, not merely a green trigger or stale status.
+
+KubeCluster.status is the public domain report: inspect lastVerifiedAt,
+observedGeneration, configurationRef/generation, inputRevision/playbookRevision,
+clusterNamespaceUID, workload checks and the actual per-Node observations. The
+web cluster overview renders this status separately from Configuration execution
+and Server heartbeats. Older timestamps are historical observations, not ongoing
+health monitoring. No kubeconfig is stored in object status.
 
 From the initialized management container, use ssh zima and the node's root-only
 admin configuration to inspect actual state:
