@@ -76,7 +76,9 @@ Nodes must match the managed address and cannot carry conflicting ownership
 labels. The role restores missing managed identity/role labels with an API
 resourceVersion precondition; unrelated labels remain untouched.
 
-A missing Node triggers one kubelet restart to repeat registration with the
+A kubelet endpoint is reconciled to exactly spec.controlPlaneEndpoint; there
+are no accepted alternate endpoints. A corrected endpoint or missing Node
+triggers one kubelet restart to apply configuration/repeat registration with the
 existing credentials, then waits for its own Node/address and normal readiness
 verification. Healthy members are unchanged; NotReady alone does not authorize
 restarts. This applies to both roles without rerunning init/join, resetting
