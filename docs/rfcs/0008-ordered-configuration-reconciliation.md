@@ -73,8 +73,10 @@ Uninitialized owned workers follow the normal short-lived-token join. Every
 initialized member proves its protected Server/cluster marker, intended API
 endpoint and existing authenticated `system:node:<name>` identity. Existing
 Nodes must match the managed address and cannot carry conflicting ownership
-labels. The role restores missing managed identity/role labels with an API
-resourceVersion precondition; unrelated labels remain untouched.
+labels. The role restores missing managed identity/role labels with an atomic
+JSON Patch testing Node UID and the read label state, so status heartbeats do
+not cause conflicts. Unrelated labels remain untouched; concurrent label changes
+or replacement Nodes refuse the update.
 
 A kubelet endpoint is reconciled to exactly spec.controlPlaneEndpoint; there
 are no accepted alternate endpoints. A corrected endpoint or missing Node
@@ -91,7 +93,8 @@ observedGeneration, Configuration identity/generation, input/playbook revisions
 and membership (ready, missingMembers, notReadyMembers, unexpectedNodes,
 identityConflicts). It is distinct from lastVerifiedAt and the last fully
 verified Node/network snapshot. The role writes `target-observation.json`
-before repair and after verification, including unsuccessful verification.
+before repair, after membership reconciliation and after verification, including
+unsuccessful membership/verification stages.
 The generic executor may publish that observation after a completed failed
 play, but only with intact claims and unchanged inputs; it never publishes
 target-status.json success output on failure or observations after uncertain
