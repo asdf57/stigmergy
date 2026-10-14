@@ -19,6 +19,10 @@ Applying an enabled Configuration authorizes its reviewed setup, not OS erasure.
   same policy to the bootstrap environment and runtime policy file; do not grant
   runner Secret reads. Then deploy the web overview and verify an actual operator
   pass populated KubeCluster/lab.status, not merely a green build.
+  The protected runtime policy must be owned by numeric UID/GID `65532:65532`
+  with mode `0400`, matching the distroless API user. Do not use the host account
+  name `nobody` (UID 65534 on Arch). When replacing a file bind-mounted into the
+  API, recreate that container so the mount picks up the installed file.
 - Require both Servers to be bound and successfully provisioned into installed
   OSes, with Ready managed SSH and no active provisioning/operation ownership.
   The capture must be current and complete, with no omitted selected resources.
