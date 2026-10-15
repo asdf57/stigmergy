@@ -139,10 +139,30 @@ verified control-plane SSH alias:
 ssh zima 'sudo /usr/local/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes -o wide'
 ```
 
-Inventory capture membership is not Kubernetes membership. A future explicit
-homelabc cluster-context option should select KubeCluster independently, validate
-the installed control-plane identity, and keep any fetched kubeconfig private to
-the disposable container. That local kubectl bootstrap is not implemented yet.
+Inventory capture membership is not Kubernetes membership. The capture group's
+homelab.io/kube-cluster label selects the interactive runner's cluster context;
+Server labels select members. The runner verifies the captured control plane's
+protected identity and actual cluster namespace before fetching a private,
+container-local kubeconfig. Unlabeled groups do not initialize kubectl.
 Kubernetes-safe reprovision preparation is also not implemented; RFC 0009 records
 the future cleanup-gate design. Do not reprovision cluster members assuming they
 will automatically drain.
+
+## Membership reconciliation acceptance: 2026-10-15 UTC
+
+Build 890 (global 158759), ansible-roles commit
+72c79d132de1e2a821665c1892d05f212a390615, completed with Configuration Ready.
+KubeCluster.status was verified at 22:51:23 UTC, with fresh membership observation,
+both Nodes Ready and successful pod DNS and all four ordered HTTP checks.
+Beelink's recreated Node received 172.28.2.0/24; the managed CNI configuration
+reconciled cni0 from its old gateway to 172.28.2.1 without a cluster reset or
+out-of-band bridge cleanup. The ConfigMap checksum rolled both Flannel Pods.
+Independent SSH inspection confirmed that gateway and healthy system Pods;
+the deployed UI accepted the fresh status as current.
+
+During rollout the platform etcd (not the Kubernetes etcd on Zima) reached its
+2 GiB backend quota despite having less than 1 MiB of live data after automatic
+compaction. Defragmentation reclaimed the free pages; clearing NOSPACE restored
+writes without deleting resources. Compaction alone does not shrink the backend
+file. Periodic fragmentation monitoring/defragmentation is still needed for
+platform maintenance; raising the quota or resetting resources is not the fix.
