@@ -88,6 +88,13 @@ Kubernetes, erasing credentials, recreating etcd or deleting unexpected Nodes.
 Conflicts, invalid credentials, lost control-plane identity and disruptive
 upgrades remain explicit maintenance cases.
 
+Node re-registration may allocate a different pod subnet. The managed Flannel
+CNI bridge delegate sets `forceAddress: true` so the bridge reconciles its
+gateway to the currently allocated subnet. A configuration checksum on the
+DaemonSet pod template rolls Flannel when its ConfigMap changes: its init
+container must install updated CNI files on each host. This is normal desired
+configuration, not a node-specific bridge deletion or cluster reset.
+
 `KubeCluster.status.observation` is the current membership report: observedAt,
 observedGeneration, Configuration identity/generation, input/playbook revisions
 and membership (ready, missingMembers, notReadyMembers, unexpectedNodes,
