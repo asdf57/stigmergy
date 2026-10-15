@@ -232,7 +232,7 @@ func (s *Store) UpdateStatus(ctx context.Context, kind, name string, status map[
 	}
 
 	existing.Metadata.ResourceVersion = ""
-	existing.Status = status
+	existing.Status = resource.PreserveOperationRef(existing.Status, status)
 	value, err := encode(existing)
 	if err != nil {
 		return resource.Resource{}, err
@@ -257,6 +257,9 @@ func (s *Store) Delete(ctx context.Context, kind, name string, expectedRevision 
 	existing, err := s.Get(ctx, kind, name)
 	if err != nil {
 		return err
+	}
+	if existing.Status["operationRef"] != nil || (kind == "Operation" && existing.Status["phase"] != "Succeeded" && existing.Status["phase"] != "Failed") {
+		return fmt.Errorf("%w: active Operation prevents deletion", storage.ErrConflict)
 	}
 	if existing.Metadata.ResourceVersion != strconv.FormatInt(expectedRevision, 10) {
 		return fmt.Errorf("%w: expected %d, current %s", storage.ErrConflict, expectedRevision, existing.Metadata.ResourceVersion)

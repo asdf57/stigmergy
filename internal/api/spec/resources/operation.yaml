@@ -1,0 +1,40 @@
+x-stigmergy-resource:
+  api-version: homelab.io/v1alpha1
+  path-prefix: /api/v1alpha1
+  kind: Operation
+  plural: operations
+  spec-schema: OperationSpec
+  status-schema: OperationStatus
+  immutable-spec: true
+  operations: [create, list, get, delete]
+
+OperationSpec:
+  type: object
+  additionalProperties: false
+  required: [targetRef, action, operator]
+  description: Immutable exclusive coordination record; execution stays in external operators.
+  properties:
+    targetRef: {$ref: '#/OperationResourceReference'}
+    requestedBy: {$ref: '#/OperationResourceReference'}
+    action: {type: string, minLength: 1, maxLength: 128}
+    operator: {type: string, minLength: 1, maxLength: 128}
+
+OperationResourceReference:
+  type: object
+  additionalProperties: false
+  required: [kind, name, uid]
+  properties:
+    kind: {type: string, minLength: 1}
+    name: {type: string, minLength: 1}
+    uid: {type: string, minLength: 1}
+
+OperationStatus:
+  type: object
+  additionalProperties: false
+  properties:
+    phase: {type: string, enum: [Running, Succeeded, Failed, Uncertain]}
+    startedAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+    completedAt: {type: string, format: date-time}
+    currentStep: {type: string, maxLength: 512}
+    message: {type: string, maxLength: 2048}

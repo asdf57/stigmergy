@@ -33,3 +33,8 @@ type AtomicCreator interface {
 type AtomicDeleter interface {
 	DeleteWithStatus(context.Context, resource.Resource, resource.Resource, map[string]any) error
 }
+
+// AtomicStatusUpdater completes an operation and releases its exact target in one CAS.
+type AtomicStatusUpdater interface {
+	UpdateStatusPair(context.Context, resource.Resource, resource.Resource) (resource.Resource, error)
+}

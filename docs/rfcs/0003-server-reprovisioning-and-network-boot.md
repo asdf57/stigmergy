@@ -153,8 +153,9 @@ destructive intent blindly. Specs are immutable from creation.
    model, capacity, serial/WWN and transport. Unsupported devices are unavailable.
    The current inventory does not report per-disk partitions/mounts; do not
    pretend it does. The execution probe checks those on the node.
-5. The owner selects one system disk and types the exact Server name to confirm
-   permanent replacement. In the same dialog, distribution/version/live ISO
+5. The owner selects one system disk and explicitly clicks "Erase disk and
+   provision" after reviewing the warning; no typed-name confirmation is required.
+   The dialog refreshes the Server before loading its bound hardware. OS/live ISO
    choices are derived from current Ready ISO resources with completed builds,
    filtered to supported amd64 UEFI targets (Arch rolling and Debian trixie).
    Multiple matching images require an explicit choice. On confirmation the UI
@@ -306,10 +307,10 @@ SSH reconciliation runs in reconcile-ssh-host-keys-ssh-managed/operator;
 provisioning runs in provision-ssh-managed/provision. Both select ssh-managed,
 with serial jobs independently. Concourse serialization does not cross pipelines.
 
-Short mutations claim Server.status.operation with a fresh ID and phase Held
-through UID-checked, If-Match status PATCH. Only the same ID may release it
-(phase Released). ProvisioningRun creation atomically reserves the Server and
-rejects a held operation; a short claim rejects provisioning ownership/maintenance.
+Short mutations create generic Operation resources (RFC 0010). Acquisition
+atomically sets the target's API-owned status.operationRef; terminal completion
+atomically clears that exact reference. ProvisioningRun creation reserves the
+Server and rejects an active Operation; an Operation rejects provisioning ownership.
 SSH reconciliation and ordinary system operations claim before changing a node
 and release in finally. Provisioning retains its existing full-run reservation.
 Provisioning maintenance pauses API Command dispatch; already-dispatched Commands must
@@ -317,9 +318,11 @@ drain before reboot/erase. This coordinates supported workers, not administrator
 SSH or arbitrary external jobs; broad trusted status access remains v1 policy.
 
 Claims have no automatic expiry: a timed-out worker may leave remote work running.
-Before releasing a stranded operation, stop/inspect the worker and remote Ansible
-work, then conditionally PATCH the matching ID to Released. Never clear another
-owner's ID or bypass maintenance. No lease resource or extra endpoint is needed.
+Before resolving an Uncertain Operation, stop/inspect the worker and remote Ansible
+work, then conditionally report its inspected terminal outcome through the generic
+Operation status endpoint. Never clear another owner's reference or bypass
+maintenance. The UI links busy ownership to that object instead of calling every
+conflict a desired-spec change.
 
 Pause/disable prevents new stages, not proof of cancellation. A completed install
 may finish its safe final boot before paused post-configuration resumes.

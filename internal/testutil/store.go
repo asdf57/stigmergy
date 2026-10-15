@@ -104,7 +104,7 @@ func (s *Store) UpdateStatus(ctx context.Context, kind, name string, status map[
 	if value.Metadata.ResourceVersion != strconv.FormatInt(version, 10) {
 		return resource.Resource{}, store.ErrConflict
 	}
-	value.Status = status
+	value.Status = resource.PreserveOperationRef(value.Status, status)
 	value.Metadata.ResourceVersion = strconv.FormatInt(version+1, 10)
 	s.Writes++
 	s.Resources[kind+"/"+name] = value
@@ -137,6 +137,9 @@ func (s *Store) Delete(ctx context.Context, kind, name string, version int64) er
 		return err
 	}
 	if value.Metadata.ResourceVersion != strconv.FormatInt(version, 10) {
+		return store.ErrConflict
+	}
+	if value.Status["operationRef"] != nil || (kind == "Operation" && value.Status["phase"] != "Succeeded" && value.Status["phase"] != "Failed") {
 		return store.ErrConflict
 	}
 	if len(value.Metadata.Finalizers) == 0 {

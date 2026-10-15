@@ -135,6 +135,14 @@ components:
           type: object
           additionalProperties:
             type: string
+    ActiveOperationReference:
+      type: object
+      additionalProperties: false
+      description: API-owned exclusive Operation; ordinary status patches cannot change it.
+      required: [name, uid]
+      properties:
+        name: {type: string, minLength: 1}
+        uid: {type: string, minLength: 1}
     ListMetadata:
       type: object
       additionalProperties: false

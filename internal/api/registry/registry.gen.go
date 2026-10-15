@@ -633,6 +633,59 @@ func (definition MachineDefinition) Decode(value resource.Resource) (Machine, er
 	}, nil
 }
 
+// Operation is the concrete controller-facing resource for Operation.
+type Operation struct {
+	APIVersion string                  `json:"apiVersion"`
+	Kind       string                  `json:"kind"`
+	Metadata   resource.Metadata       `json:"metadata"`
+	Spec       apigen.OperationSpec    `json:"spec"`
+	Status     *apigen.OperationStatus `json:"status,omitempty"`
+}
+
+// NewOperation constructs a Operation with its generated type identity.
+func NewOperation(metadata resource.Metadata, spec apigen.OperationSpec) Operation {
+	return Operation{
+		APIVersion: OperationResource.APIVersion,
+		Kind:       OperationResource.Kind,
+		Metadata:   metadata,
+		Spec:       spec,
+	}
+}
+
+// Encode converts the typed Operation into the generic storage representation.
+func (value Operation) Encode() (resource.Resource, error) {
+	return encodeResource(OperationResource.Definition, value.APIVersion, value.Kind, value.Metadata, value.Spec, value.Status)
+}
+
+// OperationDefinition adds concrete Operation decoding to the shared API definition.
+type OperationDefinition struct {
+	Definition
+}
+
+// EncodeStatus converts a typed Operation status to the generic storage representation.
+func (definition OperationDefinition) EncodeStatus(status *apigen.OperationStatus) (map[string]any, error) {
+	return encodeStatus(definition.Kind, status)
+}
+
+// Decode converts a generic storage resource into a typed Operation.
+func (definition OperationDefinition) Decode(value resource.Resource) (Operation, error) {
+	spec, err := decodeResourceSpec[apigen.OperationSpec](definition.Definition, value)
+	if err != nil {
+		return Operation{}, err
+	}
+	status, err := decodeStoredStatus[apigen.OperationStatus](definition.Kind, value.Status)
+	if err != nil {
+		return Operation{}, err
+	}
+	return Operation{
+		APIVersion: value.APIVersion,
+		Kind:       value.Kind,
+		Metadata:   value.Metadata,
+		Spec:       spec,
+		Status:     status,
+	}, nil
+}
+
 // PipelineProvider is the concrete controller-facing resource for PipelineProvider.
 type PipelineProvider struct {
 	APIVersion string                         `json:"apiVersion"`
@@ -1217,6 +1270,7 @@ var ISOResource = ISODefinition{Definition: NewDefinition[apigen.ISOSpec]("homel
 var KubeClusterResource = KubeClusterDefinition{Definition: NewDefinition[apigen.KubeClusterSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "KubeCluster", "kube-clusters", "KubeClusterStatus", []string(nil), false)}
 var MachineReportResource = MachineReportDefinition{Definition: NewDefinition[apigen.MachineReportSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "MachineReport", "machine-reports", "", []string(nil), false)}
 var MachineResource = MachineDefinition{Definition: NewDefinition[apigen.MachineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Machine", "machines", "MachineStatus", []string(nil), false)}
+var OperationResource = OperationDefinition{Definition: NewDefinition[apigen.OperationSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Operation", "operations", "OperationStatus", []string(nil), true)}
 var PipelineProviderResource = PipelineProviderDefinition{Definition: NewDefinition[apigen.PipelineProviderSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "PipelineProvider", "pipeline-providers", "PipelineProviderStatus", []string(nil), false)}
 var PipelineResource = PipelineDefinition{Definition: NewDefinition[apigen.PipelineSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "Pipeline", "pipelines", "PipelineStatus", []string{"homelab.io/pipeline-cleanup"}, false)}
 var ProvisioningRunResource = ProvisioningRunDefinition{Definition: NewDefinition[apigen.ProvisioningRunSpec]("homelab.io/v1alpha1", "/api/v1alpha1", "ProvisioningRun", "provisioning-runs", "ProvisioningRunStatus", []string(nil), true)}
@@ -1242,6 +1296,7 @@ var Definitions = []Definition{
 	KubeClusterResource.Definition,
 	MachineReportResource.Definition,
 	MachineResource.Definition,
+	OperationResource.Definition,
 	PipelineProviderResource.Definition,
 	PipelineResource.Definition,
 	ProvisioningRunResource.Definition,

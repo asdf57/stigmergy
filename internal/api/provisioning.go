@@ -16,25 +16,7 @@ func object(value any) map[string]any { result, _ := value.(map[string]any); ret
 
 func activeProvisioning(status map[string]any) bool {
 	p := object(status["provisioning"])
-	return p["maintenance"] == true || p["activeRunRef"] != nil || object(status["operation"])["phase"] == "Held"
-}
-
-func validateServerOperation(current resource.Resource, status map[string]any) error {
-	old, next := object(current.Status["operation"]), object(status["operation"])
-	if resource.EqualJSON(old, next) {
-		return nil
-	}
-	if old["phase"] == "Held" {
-		if next["id"] != old["id"] || (next["phase"] != "Held" && next["phase"] != "Released") {
-			return fmt.Errorf("release must retain the held operation ID")
-		}
-		return nil
-	}
-	p := object(current.Status["provisioning"])
-	if next["phase"] != "Held" || next["id"] == old["id"] || p["maintenance"] == true || p["activeRunRef"] != nil || current.Metadata.DeletionTimestamp != nil {
-		return fmt.Errorf("operation claim requires a new ID and an unreserved Server")
-	}
-	return nil
+	return p["maintenance"] == true || p["activeRunRef"] != nil || status["operationRef"] != nil
 }
 
 // Deletion releases only this run's references, never a newer reservation.
@@ -60,6 +42,9 @@ func validateProvisioningSpec(existing resource.Resource, spec map[string]any, _
 	}
 	for _, field := range []string{"machineSelector", "boot", "operatingSystem", "sshCertificateAuthorityRef", "users", "groups", "packages", "sysctls", "featureFlags", "networking", "hostName", "domainName"} {
 		if !resource.EqualJSON(existing.Spec[field], spec[field]) {
+			if reference := object(existing.Status["operationRef"]); reference != nil {
+				return fmt.Errorf("%s is pinned by Operation %s; wait for completion or inspect it", field, reference["name"])
+			}
 			return fmt.Errorf("%s is pinned by the active ProvisioningRun", field)
 		}
 	}
@@ -154,8 +139,14 @@ func (s *Server) createProvisioningRun(ctx context.Context, candidate resource.R
 	if err != nil {
 		return resource.Resource{}, err
 	}
-	if server.Metadata.UID != ref["uid"] || server.Metadata.DeletionTimestamp != nil || activeProvisioning(server.Status) {
-		return resource.Resource{}, fmt.Errorf("%w: Server identity changed or another operation owns it", store.ErrConflict)
+	if server.Metadata.UID != ref["uid"] || server.Metadata.DeletionTimestamp != nil {
+		return resource.Resource{}, fmt.Errorf("%w: Server identity changed", store.ErrConflict)
+	}
+	if server.Status["operationRef"] != nil {
+		return resource.Resource{}, fmt.Errorf("%w: Operation %s owns this Server; wait for completion or inspect it", store.ErrConflict, object(server.Status["operationRef"])["name"])
+	}
+	if activeProvisioning(server.Status) {
+		return resource.Resource{}, fmt.Errorf("%w: a provisioning run already owns this Server", store.ErrConflict)
 	}
 	if !resource.EqualJSON(candidate.Spec["serverGeneration"], server.Metadata.Generation) {
 		return resource.Resource{}, fmt.Errorf("%w: Server desired configuration changed; review it again", store.ErrConflict)

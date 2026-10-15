@@ -11,13 +11,14 @@ Use ordinary disposable Command resources and existing CommandsPipeline runners
 for system operations. Do not add Reboot resources, per-Server pipelines or a
 Server action endpoint. Managed-node mutations stay in Ansible.
 
-The UI exposes Reboot on Server list/detail views. It requires explicit
-Server-name confirmation, chooses a current Ready CommandsPipeline whose capture
+The UI exposes Reboot on Server list/detail views. It uses an explicit warning
+and action dialog without typed-name confirmation, and chooses a Ready CommandsPipeline whose capture
 group contains the Server, and creates one immutable Command. The script invokes
 the reviewed system-operation helper with Server name/UID and bound Machine UID.
 It does not contain an arbitrary remote SSH command.
 
-There are no new resource kinds or custom auth mechanisms in this design.
+Execution ownership uses the generic Operation contract from RFC 0010.
+There is no reboot-specific resource or custom auth mechanism.
 
 ## Execution contract
 

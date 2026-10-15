@@ -28,6 +28,17 @@ func (s *Server) getReadiness(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteAllResources(w http.ResponseWriter, r *http.Request) {
+	operations, operationErr := s.store.List(r.Context(), "Operation")
+	if operationErr != nil {
+		s.writeStoreError(w, operationErr)
+		return
+	}
+	for _, operation := range operations.Items {
+		if !operationTerminal(operation.Status) {
+			writeError(w, http.StatusConflict, "Conflict", "resolve active Operations before deleting resources")
+			return
+		}
+	}
 	servers, err := s.store.List(r.Context(), "Server")
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -91,6 +102,8 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request, definiti
 	var created resource.Resource
 	if definition.Kind == "ProvisioningRun" {
 		created, err = s.createProvisioningRun(r.Context(), candidate)
+	} else if definition.Kind == "Operation" {
+		created, err = s.createOperation(r.Context(), candidate)
 	} else {
 		created, err = s.store.Create(r.Context(), candidate)
 	}
@@ -377,6 +390,10 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 		return
 	}
 	waitsForFinalizers := len(existing.Metadata.Finalizers) != 0
+	if existing.Status["operationRef"] != nil || (definition.Kind == "Operation" && !operationTerminal(existing.Status)) {
+		writeError(w, http.StatusConflict, "Conflict", "resolve the active Operation before deleting it or its target")
+		return
+	}
 	if definition.Kind == "Server" && activeProvisioning(existing.Status) {
 		writeError(w, http.StatusConflict, "Conflict", "finish the active ProvisioningRun before deleting its Server")
 		return
@@ -431,6 +448,17 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request, definiti
 }
 
 func (s *Server) deleteResources(w http.ResponseWriter, r *http.Request, definition registry.Definition) {
+	values, listErr := s.store.List(r.Context(), definition.Kind)
+	if listErr != nil {
+		s.writeStoreError(w, listErr)
+		return
+	}
+	for _, value := range values.Items {
+		if value.Status["operationRef"] != nil || (definition.Kind == "Operation" && !operationTerminal(value.Status)) {
+			writeError(w, http.StatusConflict, "Conflict", "resolve active Operations before collection deletion")
+			return
+		}
+	}
 	if definition.Kind == "ProvisioningRun" {
 		writeError(w, http.StatusConflict, "Conflict", "delete provisioning runs individually with If-Match")
 		return

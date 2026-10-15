@@ -62,7 +62,7 @@ visibly, never falls back or fetches an arbitrary repository.
 
 The shared operator runs every five minutes; a manual trigger polls the same
 desired state. It resolves identities/commit, checks dependencies, verifies
-installed hosts, holds Server claims and runs the ordered playbook. Ansible task
+installed hosts, holds one generic Operation per Server and runs the ordered playbook. Ansible task
 progress streams normally; init/join credential tasks alone are hidden.
 
 Inspect a setup first with the separate plays/inspect_kube.yml through a reviewed
@@ -109,7 +109,8 @@ Join credentials are short-lived, private and cleaned up; node admin kubeconfigs
 remain root-only. API status contains public observations, never tokens or keys.
 SSH loss/timeouts retain operation claims when remote work may continue. Inspect
 the worker/node and stop uncertain work before conditionally releasing an exact
-claim. Never clear it merely to make the pipeline run.
+Operation. Never clear it merely to make the pipeline run. See
+operations-rollout.md for the coordinated API/policy/operator deployment.
 
 Source tests and runner syntax/localhost fixtures are non-mutating. A real cluster
 must still pass the acceptance above on the explicitly approved installed nodes.

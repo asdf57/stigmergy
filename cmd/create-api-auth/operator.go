@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/asdf57/stigmergy/internal/api"
 )
@@ -25,6 +26,18 @@ func prepareOperatorPolicy(source, directory string) error {
 			continue
 		}
 		runnerFound = true
+		for _, desired := range operationPermissions() {
+			found := false
+			for _, existing := range identity.Permissions {
+				if reflect.DeepEqual(existing, desired) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				identity.Permissions = append(identity.Permissions, desired)
+			}
+		}
 		for _, kind := range []string{"SSHKeyPair", "Machine", "ISO", "SSHCertificateAuthority", "Command", "ProvisioningRun", "Configuration", "KubeCluster", "GitRepository"} {
 			permitted := false
 			for _, permission := range identity.Permissions {

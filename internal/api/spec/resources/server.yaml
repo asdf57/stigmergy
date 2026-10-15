@@ -230,7 +230,6 @@ ServerStatus:
       type: array
       items: {type: string}
     agent: {$ref: '#/components/schemas/ServerAgentStatus'}
-    operation: {$ref: '#/ServerOperationStatus'}
     provisioning: {$ref: '#/components/schemas/ServerProvisioningStatus'}
     resourceSummary: {$ref: '#/components/schemas/ServerResourceSummary'}
     features: {$ref: '#/components/schemas/ServerFeatureStatuses'}
@@ -245,14 +244,6 @@ ServerStatus:
     conditions:
       type: array
       items: {$ref: '#/components/schemas/ServerCondition'}
-
-ServerOperationStatus:
-  type: object
-  additionalProperties: false
-  required: [id, phase]
-  properties:
-    id: {type: string, minLength: 1}
-    phase: {type: string, enum: [Held, Released]}
 
 ServerHostSSHStatus:
   type: object

@@ -9,7 +9,7 @@ import (
 func TestAccessPolicyConfinesAgentAndRunner(t *testing.T) {
 	policy := &AccessPolicy{Identities: []AccessIdentity{
 		{Name: "agent", Token: "agent-token", Permissions: []AccessPermission{{Kind: "MachineReport", Methods: []string{"POST", "PUT"}}, {Kind: "Server", Methods: []string{"GET"}}}},
-		{Name: "runner", Token: "runner-token", Permissions: []AccessPermission{{Kind: "Secret", Methods: []string{"GET"}, ResourceNames: []string{"ansible-runner"}}}},
+		{Name: "runner", Token: "runner-token", Permissions: []AccessPermission{{Kind: "Secret", Methods: []string{"GET"}, ResourceNames: []string{"ansible-runner"}}, {Kind: "Operation", Methods: []string{"GET", "POST"}}, {Kind: "Operation", Subresource: "status", Methods: []string{"PATCH"}}}},
 	}}
 	handler := WithAccessPolicy(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }), policy)
 	cases := []struct {
@@ -28,6 +28,11 @@ func TestAccessPolicyConfinesAgentAndRunner(t *testing.T) {
 		{"GET", "/api/v1alpha1/secrets/ansible-runner", "runner-token", 204},
 		{"GET", "/api/v1alpha1/secrets/ca-key", "runner-token", 403},
 		{"GET", "/api/v1alpha1/secrets", "runner-token", 403},
+		{"GET", "/api/v1alpha1/operations", "runner-token", 204},
+		{"POST", "/api/v1alpha1/operations", "runner-token", 204},
+		{"PATCH", "/api/v1alpha1/operations/work/status", "runner-token", 204},
+		{"DELETE", "/api/v1alpha1/operations/work", "runner-token", 403},
+		{"POST", "/api/v1alpha1/operations", "agent-token", 403},
 		{"GET", "/api/v1alpha1/servers", "", 401},
 		{"GET", "/api/v1alpha1/servers", "wrong-token", 401},
 		{"GET", "/healthz", "", 204},

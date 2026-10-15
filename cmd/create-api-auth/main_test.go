@@ -62,7 +62,7 @@ func TestOperatorPolicyPreservesTokensAndAddsOnlyPublicDependencyReads(t *testin
 		}
 		expected := len(identity.Permissions)
 		if identity.Name == "runner" {
-			expected += 12
+			expected += 14
 		}
 		if len(updated.Identities[i].Permissions) != expected {
 			t.Fatal("unexpected grant")

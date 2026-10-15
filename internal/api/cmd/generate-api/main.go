@@ -198,6 +198,16 @@ func addResource(root map[string]any, module resourceModule) {
 		}
 		schemas[name] = schema
 	}
+	if metadata.StatusSchema != "" {
+		// Coordination belongs to the generic status contract, not individual kinds.
+		status := requiredMap(schemas, metadata.StatusSchema)
+		properties, _ := status["properties"].(map[string]any)
+		if properties == nil {
+			properties = map[string]any{}
+			status["properties"] = properties
+		}
+		properties["operationRef"] = schemaRef("ActiveOperationReference")
+	}
 
 	createName := metadata.Kind + "Create"
 	listName := metadata.Kind + "List"

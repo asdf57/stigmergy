@@ -56,6 +56,7 @@ import json
 from common import API
 api = API()
 for collection in ('servers', 'machines', 'isos', 'pipelines', 'commands',
+                   'operations',
                    'inventory-capture-groups', 'ssh-certificate-authorities',
                    'ssh-key-pairs', 'ssh-certificates'):
     for item in api.list(collection):
@@ -112,6 +113,10 @@ the named resource first and use its resourceVersion with If-Match.
   `pipelineRef`; follow that Pipeline to `spec.externalName`/provider.
 - Command: inspect phase, conditions, `pipelineRef` and `buildID`; use that exact
   Concourse build for logs, not the newest unrelated build.
+- Operation: follow target.status.operationRef by name/UID; inspect action,
+  operator, requestedBy, phase/currentStep/message and timestamps. The API owns
+  acquisition/release. Uncertain retains ownership until inspected resolution;
+  age, deletion and ordinary target status writes never clear it.
 - Capture group: inspect `observedGeneration`, `inventory`, and
   `omittedResources`. A Partial group may still contain usable Servers.
   Command executors accept a current Partial capture only with a nonempty

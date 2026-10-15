@@ -1,12 +1,14 @@
 package api
 
 import (
+	"errors"
 	"github.com/getkin/kin-openapi/openapi3"
 	"net/http"
 	"strconv"
 
 	"github.com/asdf57/stigmergy/internal/api/registry"
 	"github.com/asdf57/stigmergy/internal/resource"
+	"github.com/asdf57/stigmergy/internal/store"
 )
 
 // Status merges preserve other writers' fields. The UID and ETag bind the
@@ -37,6 +39,10 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 		return
 	}
 	merged := applyJSONMergePatch(current.Status, patch.Status)
+	if !resource.EqualJSON(current.Status["operationRef"], merged["operationRef"]) {
+		writeError(w, http.StatusConflict, "Conflict", "operationRef is API-owned; create or complete its Operation instead")
+		return
+	}
 	schema := s.openAPI.Components.Schemas[definition.StatusSchema]
 	if schema == nil || schema.Value == nil {
 		writeError(w, http.StatusInternalServerError, "Internal", "status schema is unavailable")
@@ -47,10 +53,6 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 		return
 	}
 	if definition.Kind == registry.ServerResource.Kind {
-		if err := validateServerOperation(current, merged); err != nil {
-			writeError(w, http.StatusConflict, "Conflict", err.Error())
-			return
-		}
 		if err := s.validateProvisioningStatus(r.Context(), current, merged); err != nil {
 			writeError(w, http.StatusConflict, "Conflict", err.Error())
 			return
@@ -74,8 +76,16 @@ func (s *Server) patchResourceStatus(w http.ResponseWriter, r *http.Request, def
 	}
 	updated := current
 	if !resource.EqualJSON(current.Status, merged) {
-		updated, err = s.store.UpdateStatus(r.Context(), current.Kind, current.Metadata.Name, merged, expected)
+		if definition.Kind == "Operation" {
+			updated, err = s.updateOperationStatus(r.Context(), current, merged)
+		} else {
+			updated, err = s.store.UpdateStatus(r.Context(), current.Kind, current.Metadata.Name, merged, expected)
+		}
 		if err != nil {
+			if definition.Kind == "Operation" && errors.Is(err, store.ErrConflict) {
+				writeError(w, http.StatusConflict, "Conflict", err.Error())
+				return
+			}
 			s.writeStoreError(w, err)
 			return
 		}
