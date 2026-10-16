@@ -1,6 +1,6 @@
 # RFC 0010: Observable exclusive operations
 
-Status: Implemented in source; coordinated rollout requires verification.
+Status: Deployed and verified on 2026-10-16 UTC.
 
 Operation is an immutable coordination record, not a job runner or workflow
 engine. Its spec contains an action, operator name, UID-qualified targetRef
@@ -46,3 +46,10 @@ Deploy the API/status schema and token-preserving permission update before the
 new executors, then the UI. Source and isolated store tests must not provision or
 reboot real nodes. Acceptance requires observable operations, exclusive ownership
 and verified existing cluster state, not a green trigger alone.
+
+Rollout acceptance: API 50544e8, operators 1918613 and UI 9498492. Configuration
+build 900 verified both existing nodes, service DNS and cross-node HTTP, then
+completed its two Operations successfully. SSH reconciliation also completed
+Operations for both nodes. Target ownership was released on completion; fresh
+KubeCluster observations and the served UI were verified. All four execution
+jobs are unpaused. No provisioning or reboot request was created.

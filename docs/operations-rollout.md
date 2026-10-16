@@ -45,3 +45,19 @@ The browser exposes Operations under Automation and on every target detail page.
 Operation details poll public status every five seconds. Provision/reboot retain
 explicit warning/action dialogs but no name typing. Provisioning refreshes its
 Server snapshot before loading hardware; conflicts retain the actual API reason.
+
+## Deployment acceptance: 2026-10-16 UTC
+
+- API 50544e8, operators 1918613 and UI 9498492 deployed; existing API tokens
+  preserved. Runner Operation GET/POST/status PATCH verified; DELETE and Secret
+  reads remain forbidden.
+- Configuration build 900 (global ID 160082) completed successfully. Its two
+  Operations recorded target/requester identity and progress, then atomically
+  released ownership. The competing configuration poll correctly reported busy
+  ownership while SSH reconciliation held a target.
+- Both SSH Operations succeeded. Fresh KubeCluster verification at 00:30:21Z
+  records both nodes Ready, service DNS and cross-node HTTP checks passing with
+  operator revision 1918613. The UI overview consumes that current observation.
+- Configuration, SSH, Commands and provisioning jobs are unpaused. No new Command,
+  reboot or ProvisioningRun was created. Arch and Debian ISO resources remain
+  Ready, and all eight public artifact URLs return HTTP 200; no ISO rebuild needed.
