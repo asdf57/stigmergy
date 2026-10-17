@@ -1,6 +1,6 @@
 # RFC 0008: Ordered configuration reconciliation
 
-Status: Generic argv execution implemented in source; coordinated rollout pending.
+Status: Generic argv execution deployed and verified on 2026-10-17 UTC.
 
 ## Contract
 
@@ -150,3 +150,13 @@ contract, then enable the two reviewed application resources. Do not run init or
 provision nodes as a substitute for a scoped rollout. Verify real Operations,
 Configuration source revisions, Helm readiness and actual cluster state afterward.
 Source tests do not constitute deployment acceptance.
+
+Deployment acceptance: Configuration build 1007 (global ID 168982) verified
+kube-setup-lab generation 3, lab-grafana and lab-node-exporter generation 1 using
+source 878bf9f. All six Operations succeeded and released their targets. Both
+Nodes remained Ready; fresh DNS/cross-node HTTP checks, exporter metrics and
+Grafana database health passed. API 7336e22 and UI f5fe4d0 were deployed, site
+resources came from ac94f26, and the runner used the published Helm-capable image.
+The existing setup UID, tokens, Git keys and installed cluster lifetime were
+preserved. Scheduling resumed; a subsequent periodic pass may show Reconciling
+while preserving the completed verification. No reboot or provisioning occurred.

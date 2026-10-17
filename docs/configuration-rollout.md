@@ -1,5 +1,18 @@
 # Configuration reconciliation
 
+## Verified deployment: 2026-10-17 UTC
+
+Build 1007 (global ID 168982) verified all three site Configurations using source
+878bf9f: kube-setup-lab at generation 3, lab-grafana and lab-node-exporter at
+generation 1. All six Operations completed successfully and released ownership.
+Exporter is Ready on both nodes and serves metrics; Grafana is Ready and its
+database health endpoint reports ok. Cluster DNS and cross-node HTTP passed.
+The API/UI are deployed and Configuration/SSH schedules are unpaused.
+
+Before cutover, the owner reclaimed compacted etcd space and cleared its NOSPACE
+alarm; writes and normal migration then succeeded. No automatic repair job,
+quota workaround, token rotation, reboot or reprovision was added.
+
 ## Source and command execution
 
 `spec.source.repositoryRef` selects the trusted pipeline Git input; optional
