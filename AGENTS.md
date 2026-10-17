@@ -29,7 +29,7 @@
   contracts. Keep Swagger auth usable with bearer tokens; do not invent a new
   custom login protocol or permission framework for this v1.
 - Configuration desired refs use names. Its status records resolved UIDs and
-  playbookRevision; omitted revision resolves the repository ref from the trusted
+  sourceRevision; omitted revision resolves the repository ref from the trusted
   pipeline Git input. targetRef is context, not implicit readiness or selection.
 - Kubernetes setup uses plays/configure_kube.yml through Configuration; see
   docs/kubernetes-rollout.md. outputs records verified public cluster identity,
@@ -134,7 +134,7 @@ the named resource first and use its resourceVersion with If-Match.
 - After a Concourse trigger, match its job build number to the global build ID
   in `fly builds --json`, then use `fly watch -b <id>`. A queued trigger can leave
   `watch -j` following the previous running build. Confirm Configuration's actual
-  playbookRevision; an idle OperationBusy build is not setup acceptance.
+  sourceRevision; an idle OperationBusy build is not setup acceptance.
 - Machine `status.lastSeenTime` and bound Server `status.agent.lastSeenTime` use
   the report's API-assigned creation timestamp. The pulse is reporting freshness,
   not host/SSH availability. Reboots use ordinary Commands and the reviewed

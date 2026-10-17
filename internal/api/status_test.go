@@ -20,8 +20,8 @@ func TestGenericStatusPatchAuthorizationSchemaAndConcurrency(t *testing.T) {
 	}{
 		{"server-broad-status", "Server", "servers", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"phase":"Updated"}}`, 200},
 		{"secret-generic-status", "Secret", "secrets", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"phase":"Ready"}}`, 200},
-		{"configuration-resolved-status", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"playbookRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","resolvedReferences":[{"kind":"KubeCluster","name":"lab","uid":"cluster-uid","generation":1}]}}`, 200},
-		{"configuration-invalid-commit", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"playbookRevision":"main"}}`, 422},
+		{"configuration-resolved-status", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"sourceRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","resolvedReferences":[{"kind":"KubeCluster","name":"lab","uid":"cluster-uid","generation":1}]}}`, 200},
+		{"configuration-invalid-commit", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"sourceRevision":"main"}}`, 422},
 		{"configuration-public-observations", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"outputs":{"clusterNamespaceUID":"fixture","kubernetesVersion":"1.37.1"}}}`, 200},
 		{"configuration-invalid-observations", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"outputs":"invalid"}}`, 422},
 		{"configuration-unresolved-status", "Configuration", "configurations", "writer", `"1"`, `{"metadata":{"uid":"uid"},"status":{"resolvedReferences":[{"kind":"KubeCluster","name":"lab","generation":1}]}}`, 422},
@@ -46,7 +46,7 @@ func TestGenericStatusPatchAuthorizationSchemaAndConcurrency(t *testing.T) {
 				spec = map[string]any{"secretStoreRef": map[string]any{"name": "bao"}, "path": "test", "data": map[string]any{"value": "public"}}
 			}
 			if tc.kind == "Configuration" {
-				if err := json.Unmarshal([]byte(`{"targetRef":{"kind":"KubeCluster","name":"lab"},"inventoryCaptureGroupRef":{"name":"managed"},"playbook":{"repositoryRef":{"name":"roles"},"path":"plays/base.yml"}}`), &spec); err != nil {
+				if err := json.Unmarshal([]byte(`{"targetRef":{"kind":"KubeCluster","name":"lab"},"inventoryCaptureGroupRef":{"name":"managed"},"source":{"repositoryRef":{"name":"roles"}},"command":{"argv":["ansible-playbook","plays/base.yml"]}}`), &spec); err != nil {
 					t.Fatal(err)
 				}
 			}

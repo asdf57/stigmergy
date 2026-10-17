@@ -7,7 +7,7 @@ engine. Its spec contains an action, operator name, UID-qualified targetRef
 (kind/name/uid), and optional UID-qualified requestedBy resource reference.
 Any registered resource with a status schema may be a target except Operation
 itself. One operation targets one resource; a multi-node Configuration acquires
-one per Server before executing its existing reviewed Ansible playbook.
+one per Server before executing its reviewed repository-backed command.
 
 POST atomically creates a Running Operation and sets the target's generic
 status.operationRef. Existing ownership, deletion or Server provisioning

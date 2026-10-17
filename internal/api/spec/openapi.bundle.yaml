@@ -428,6 +428,35 @@ components:
         ConfigurationSpec:
             additionalProperties: false
             properties:
+                command:
+                    additionalProperties: false
+                    properties:
+                        argv:
+                            description: Executed directly in the resolved source checkout, without implicit shell parsing. Never include credentials.
+                            items:
+                                maxLength: 8192
+                                minLength: 1
+                                type: string
+                            maxItems: 256
+                            minItems: 1
+                            type: array
+                    required:
+                        - argv
+                    type: object
+                context:
+                    additionalProperties: false
+                    properties:
+                        kubeClusterRef:
+                            additionalProperties: false
+                            description: Opt in to a private, identity-verified Kubernetes context from a captured control plane. Not required for cluster bootstrap.
+                            properties:
+                                name:
+                                    minLength: 1
+                                    type: string
+                            required:
+                                - name
+                            type: object
+                    type: object
                 dependsOn:
                     items:
                         additionalProperties: false
@@ -450,12 +479,9 @@ components:
                     required:
                         - name
                     type: object
-                playbook:
+                source:
                     additionalProperties: false
                     properties:
-                        path:
-                            pattern: ^plays/[a-zA-Z0-9_/-]+\.ya?ml$
-                            type: string
                         repositoryRef:
                             additionalProperties: false
                             properties:
@@ -471,7 +497,6 @@ components:
                             type: string
                     required:
                         - repositoryRef
-                        - path
                     type: object
                 suspended:
                     default: false
@@ -498,7 +523,8 @@ components:
             required:
                 - targetRef
                 - inventoryCaptureGroupRef
-                - playbook
+                - source
+                - command
             type: object
         ConfigurationStatus:
             additionalProperties: false
@@ -561,9 +587,6 @@ components:
                         - Failed
                         - Suspended
                     type: string
-                playbookRevision:
-                    pattern: ^[0-9a-f]{40}$
-                    type: string
                 reason:
                     type: string
                 resolvedReferences:
@@ -590,6 +613,9 @@ components:
                             - generation
                         type: object
                     type: array
+                sourceRevision:
+                    pattern: ^[0-9a-f]{40}$
+                    type: string
             type: object
         DNSRecord:
             additionalProperties: false

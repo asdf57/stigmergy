@@ -71,7 +71,7 @@ inspection Configuration if desired. Its success is not platform readiness.
 ## Acceptance
 
 Require Configuration/kube-setup-lab Ready for its current generation and
-inputRevision. Inspect playbookRevision, resolvedReferences, lastVerifiedAt and
+inputRevision. Inspect sourceRevision, resolvedReferences, lastVerifiedAt and
 outputs: clusterUID, actual clusterNamespaceUID, versions and selected Nodes.
 Check the exact job logs, not merely a green trigger or stale status.
 

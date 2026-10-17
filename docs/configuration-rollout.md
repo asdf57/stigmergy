@@ -1,13 +1,47 @@
 # Configuration reconciliation
 
+## Source and command execution
+
+`spec.source.repositoryRef` selects the trusted pipeline Git input; optional
+`source.revision` pins a full commit. `spec.command.argv` is executed directly
+from its extracted checkout, without shell or template expansion. Arguments use
+ordinary tool syntax, for example `[ansible-playbook, plays/grafana.yml, -e,
+mode=install]`. Public values/context are in `CONFIGURATION_CONTEXT_FILE`;
+Ansible plays that need them explicitly pass `-e @../values.json`. Inventory and
+role/plugin paths are already configured in the command environment.
+
+`context.kubeClusterRef: {name: lab}` explicitly requests a private Kubernetes
+context, verified through a captured control plane's managed SSH and protected
+cluster identity. Bootstrap omits it. Retrieval failure prevents execution, and
+no previous context is inherited. The workspace owns mode-0600 kubeconfig and
+matching checksum-verified kubectl; credentials never enter API status/values.
+No API token or Secret-read permissions are changed.
+
+Site manifests are `Configuration/configuration-kube-lab.yaml`,
+`Configuration/configuration-node-exporter-lab.yaml` and
+`Configuration/configuration-grafana-lab.yaml` in homelab-init. Both application
+setups depend on current `kube-setup-lab` verification, not on each other.
+
+For rollout, pause/drain configuration execution, deploy matching API and
+executor revisions, and conditionally update the existing setup spec to this
+contract before applying the two new Configurations. Preserve tokens, identities
+and node state. Then resume and verify actual Helm releases and Operations;
+source tests alone are not deployment acceptance. Do not upload the whole site
+or reprovision nodes just to apply these three resources.
+
+Refresh the shared pipeline's runner image input to the published Helm-capable
+image before resuming (`fly -t homelab check-resource -r
+reconcile-configurations-ssh-managed/runner`). No new per-Configuration pipeline
+or API permission grant is needed.
+
 Configuration maintains a coherent setup on installed Servers independently of
-ProvisioningRuns. Its pinned playbook defines role order. dependsOn links separate
+ProvisioningRuns. Its repository-backed command defines role order. dependsOn links separate
 setups. The full contract is RFC 0008.
 
 ## Stand up the executor
 
 1. Deploy the API containing Configuration and KubeCluster schemas/generated
-   routes. No API controller executes these playbooks.
+   routes. No API controller executes these commands.
 2. Prepare the runner policy using the existing policy and a fresh private
    output directory:
 
@@ -44,9 +78,10 @@ metadata:
 spec:
   targetRef: {kind: Server, name: node}
   inventoryCaptureGroupRef: {name: ssh-managed}
-  playbook:
+  source:
     repositoryRef: {name: ansible-roles}
-    path: plays/configure_containerd.yml
+  command:
+    argv: [ansible-playbook, plays/configure_containerd.yml, -e, "@../values.json"]
   values:
     packageReference: <exact-distro-package-reference>
     version: <exact-upstream-runtime-version>
@@ -59,7 +94,7 @@ consumers; this adapter does not bypass that maintenance safeguard.
 An omitted revision resolves GitRepository.spec.ref (default main) from the
 pipeline's local Git input. An optional revision pins a full 40-character commit.
 The pipeline input must contain the selected ref/commit; missing history does
-not cause a fallback or remote fetch. Status records the actual playbookRevision
+not cause a fallback or remote fetch. Status records the actual sourceRevision
 and resolvedReferences including UIDs/generations. Changed code or recreated
 references invalidate old verification.
 

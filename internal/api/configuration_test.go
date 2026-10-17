@@ -10,7 +10,7 @@ import (
 )
 
 func TestConfigurationAndClusterGeneratedRoutes(t *testing.T) {
-	configuration := `{"apiVersion":"homelab.io/v1alpha1","kind":"Configuration","metadata":{"name":"base"},"spec":{"targetRef":{"kind":"Server","name":"node"},"inventoryCaptureGroupRef":{"name":"managed"},"playbook":{"repositoryRef":{"name":"roles"},"path":"plays/base.yml"}}}`
+	configuration := `{"apiVersion":"homelab.io/v1alpha1","kind":"Configuration","metadata":{"name":"base"},"spec":{"targetRef":{"kind":"Server","name":"node"},"inventoryCaptureGroupRef":{"name":"managed"},"source":{"repositoryRef":{"name":"roles"}},"command":{"argv":["ansible-playbook","plays/base.yml"]}}}`
 	cluster := `{"apiVersion":"homelab.io/v1alpha1","kind":"KubeCluster","metadata":{"name":"lab"},"spec":{"kubernetesVersion":"1.34.1","containerdVersion":"2.1.5","controlPlaneEndpoint":"lab.example.test:6443","podCIDR":"10.244.0.0/16","serviceCIDR":"10.96.0.0/12","network":{"provider":"cilium","version":"1.18.1"}}}`
 	for _, test := range []struct {
 		name, path, payload string
@@ -18,9 +18,12 @@ func TestConfigurationAndClusterGeneratedRoutes(t *testing.T) {
 	}{
 		{"configuration", "configurations", configuration, true},
 		{"cluster", "kube-clusters", cluster, true},
-		{"pinned code", "configurations", strings.Replace(configuration, `"path":`, `"revision":"`+strings.Repeat("a", 40)+`","path":`, 1), true},
-		{"invalid revision", "configurations", strings.Replace(configuration, `"path":`, `"revision":"main","path":`, 1), false},
-		{"path escape", "configurations", strings.Replace(configuration, "plays/base.yml", "plays/../base.yml", 1), false},
+		{"pinned code", "configurations", strings.Replace(configuration, `"source":{`, `"source":{"revision":"`+strings.Repeat("a", 40)+`",`, 1), true},
+		{"invalid revision", "configurations", strings.Replace(configuration, `"source":{`, `"source":{"revision":"main",`, 1), false},
+		{"empty argv", "configurations", strings.Replace(configuration, `["ansible-playbook","plays/base.yml"]`, `[]`, 1), false},
+		{"invalid argv type", "configurations", strings.Replace(configuration, `["ansible-playbook","plays/base.yml"]`, `"ansible-playbook plays/base.yml"`, 1), false},
+		{"empty executable", "configurations", strings.Replace(configuration, `"ansible-playbook"`, `""`, 1), false},
+		{"Kubernetes context", "configurations", strings.Replace(configuration, `"targetRef":`, `"context":{"kubeClusterRef":{"name":"lab"}},"targetRef":`, 1), true},
 		{"spec UID", "configurations", strings.Replace(configuration, `"name":"node"`, `"name":"node","uid":"node-uid"`, 1), false},
 		{"named dependency", "configurations", strings.Replace(configuration, `"targetRef":`, `"dependsOn":[{"name":"prerequisite"}],"targetRef":`, 1), true},
 		{"floating Kubernetes", "kube-clusters", strings.Replace(cluster, "1.34.1", "latest", 1), false},
