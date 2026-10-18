@@ -76,13 +76,30 @@ type probeCall struct {
 }
 
 type fakeProber struct {
-	calls []probeCall
-	err   error
+	calls      []probeCall
+	err        error
+	connection probeCall
 }
 
-func (p *fakeProber) Probe(_ context.Context, address, username, password string) error {
-	p.calls = append(p.calls, probeCall{address: address, username: username, password: password})
+func (p *fakeProber) Probe(_ context.Context) error {
+	p.calls = append(p.calls, p.connection)
 	return p.err
+}
+
+func (*fakeProber) ListAddresses(context.Context) ([]RouterOSAddress, error) {
+	panic("unexpected address management for omitted addresses")
+}
+func (*fakeProber) AddSubnet(context.Context, RouterOSAddress) error { panic("unexpected AddSubnet") }
+func (*fakeProber) UpdateSubnet(context.Context, RouterOSAddress) error {
+	panic("unexpected UpdateSubnet")
+}
+func (*fakeProber) RemoveSubnet(context.Context, string) error { panic("unexpected RemoveSubnet") }
+
+func newTestReconciler(storage store.Store, prober *fakeProber) *Reconciler {
+	return NewReconcilerWithClientFactory(storage, func(address, username, password string) RouterClient {
+		prober.connection = probeCall{address: address, username: username, password: password}
+		return prober
+	})
 }
 
 func TestReconcileMarksRouterReadyAfterAuthenticatedProbe(t *testing.T) {
@@ -90,7 +107,7 @@ func TestReconcileMarksRouterReadyAfterAuthenticatedProbe(t *testing.T) {
 	credential := testCredential("mikrotik-creds", apigen.UsernamePasswordCredentialStatusPhaseReady)
 	storage := newFakeStore(routerResource, credential)
 	prober := &fakeProber{}
-	reconciler := NewReconcilerWithProber(storage, prober)
+	reconciler := newTestReconciler(storage, prober)
 	request := controller.Request{Kind: registry.RouterResource.Kind, Name: routerResource.Metadata.Name}
 
 	if err := reconciler.Reconcile(context.Background(), request); err != nil {
@@ -117,7 +134,7 @@ func TestReconcileWaitsForCredential(t *testing.T) {
 	storage := newFakeStore(routerResource)
 	prober := &fakeProber{}
 
-	if err := NewReconcilerWithProber(storage, prober).Reconcile(context.Background(), controller.Request{Kind: routerResource.Kind, Name: routerResource.Metadata.Name}); err != nil {
+	if err := newTestReconciler(storage, prober).Reconcile(context.Background(), controller.Request{Kind: routerResource.Kind, Name: routerResource.Metadata.Name}); err != nil {
 		t.Fatalf("Reconcile() error = %v", err)
 	}
 	if len(prober.calls) != 0 {
@@ -132,7 +149,7 @@ func TestReconcileRecordsProbeFailureAndReturnsErrorForRetry(t *testing.T) {
 	storage := newFakeStore(routerResource, credential)
 	prober := &fakeProber{err: errors.New("connection refused")}
 
-	err := NewReconcilerWithProber(storage, prober).Reconcile(context.Background(), controller.Request{Kind: routerResource.Kind, Name: routerResource.Metadata.Name})
+	err := newTestReconciler(storage, prober).Reconcile(context.Background(), controller.Request{Kind: routerResource.Kind, Name: routerResource.Metadata.Name})
 	if err == nil {
 		t.Fatal("Reconcile() error = nil, want probe failure")
 	}
@@ -146,7 +163,7 @@ func TestRequestsForCredentialReturnsReferencingRouters(t *testing.T) {
 		testRouter("third", "shared-creds"),
 	)
 
-	requests, err := NewReconcilerWithProber(storage, &fakeProber{}).RequestsForCredential(context.Background(), controller.Request{
+	requests, err := newTestReconciler(storage, &fakeProber{}).RequestsForCredential(context.Background(), controller.Request{
 		Kind: registry.UsernamePasswordCredentialResource.Kind, Name: "shared-creds",
 	})
 	if err != nil {

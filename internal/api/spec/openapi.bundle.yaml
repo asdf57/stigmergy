@@ -3686,6 +3686,31 @@ components:
                 - metadata
                 - spec
             type: object
+        RouterAddress:
+            additionalProperties: false
+            properties:
+                address:
+                    description: IPv4 interface address with prefix length; the host part is preserved.
+                    minLength: 1
+                    type: string
+                interface:
+                    minLength: 1
+                    type: string
+                name:
+                    maxLength: 63
+                    minLength: 1
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                network:
+                    description: IPv4 network address. An explicit peer network is permitted for /32 RouterOS point-to-point addressing.
+                    minLength: 1
+                    type: string
+            required:
+                - name
+                - address
+                - network
+                - interface
+            type: object
         RouterAuthenticationReference:
             additionalProperties: false
             properties:
@@ -3771,6 +3796,11 @@ components:
         RouterSpec:
             additionalProperties: false
             properties:
+                addresses:
+                    description: Omitted leaves addresses unmanaged; an empty list removes only safe entries owned by this Router UID. Exact preexisting unowned matches are preserved without adoption.
+                    items:
+                        $ref: '#/components/schemas/RouterAddress'
+                    type: array
                 authentication:
                     $ref: '#/components/schemas/RouterAuthenticationReference'
                 mgmtAddr:

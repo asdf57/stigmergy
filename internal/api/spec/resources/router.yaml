@@ -34,6 +34,33 @@ RouterSpec:
       type: string
       enum: [Mikrotik]
       x-enum-varnames: [RouterTypeMikrotik]
+    addresses:
+      type: array
+      description: Omitted leaves addresses unmanaged; an empty list removes only safe entries owned by this Router UID. Exact preexisting unowned matches are preserved without adoption.
+      items:
+        $ref: '#/RouterAddress'
+
+RouterAddress:
+  type: object
+  additionalProperties: false
+  required: [name, address, network, interface]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+    address:
+      type: string
+      minLength: 1
+      description: IPv4 interface address with prefix length; the host part is preserved.
+    network:
+      type: string
+      minLength: 1
+      description: IPv4 network address. An explicit peer network is permitted for /32 RouterOS point-to-point addressing.
+    interface:
+      type: string
+      minLength: 1
 
 RouterAuthenticationReference:
   type: object

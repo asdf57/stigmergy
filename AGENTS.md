@@ -5,6 +5,9 @@
 - Keep generic API resources separate from backend execution. ISO controllers
   render owned Pipeline resources; Pipeline controllers manage the provider;
   Concourse/Ansible operators execute work and report generic object status.
+- Router address ownership and management guards follow RFC 0011. Preserve exact
+  preexisting unowned matches without adoption; never prune unrelated/dynamic
+  addresses or mutate a prefix containing the management IP. Test with fake clients.
 - Do not add bespoke Server action/reporting endpoints for behavior that belongs
   in `/servers/<name>/status`. Do not put SSH/provisioning fields in generic
   InventoryCaptureGroup schemas.

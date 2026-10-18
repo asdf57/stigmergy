@@ -22,16 +22,18 @@ const (
 )
 
 type Reconciler struct {
-	store  store.Store
-	prober APIProber
+	store     store.Store
+	newClient ClientFactory
 }
 
 func NewReconciler(resourceStore store.Store) *Reconciler {
-	return NewReconcilerWithProber(resourceStore, routerOSAPIProber{})
+	return NewReconcilerWithClientFactory(resourceStore, func(address, username, password string) RouterClient {
+		return NewRouterOSApi(address, username, password)
+	})
 }
 
-func NewReconcilerWithProber(resourceStore store.Store, prober APIProber) *Reconciler {
-	return &Reconciler{store: resourceStore, prober: prober}
+func NewReconcilerWithClientFactory(resourceStore store.Store, factory ClientFactory) *Reconciler {
+	return &Reconciler{store: resourceStore, newClient: factory}
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) error {
@@ -41,6 +43,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	}
 	if err != nil {
 		return fmt.Errorf("get Router %q: %w", request.Name, err)
+	}
+	// Router deletion never authorizes removing live network addresses.
+	if raw.Metadata.DeletionTimestamp != nil {
+		return nil
 	}
 	routerResource, err := registry.RouterResource.Decode(raw)
 	if err != nil {
@@ -88,7 +94,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 	probeContext, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	endpoint := net.JoinHostPort(address.String(), routerOSAPIPort)
-	if err := r.prober.Probe(probeContext, endpoint, credential.Spec.Username, credential.Spec.Password); err != nil {
+	client := r.newClient(endpoint, credential.Spec.Username, credential.Spec.Password)
+	if err := client.Probe(probeContext); err != nil {
 		message := fmt.Sprintf("RouterOS API at %s is not reachable: %v", endpoint, err)
 		if statusErr := r.updateStatus(ctx, routerResource, routerStatus(routerResource, apigen.RouterStatusPhaseFailed, "APIUnreachable", message)); statusErr != nil {
 			return statusErr
@@ -96,8 +103,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, request controller.Request) 
 		return fmt.Errorf("probe Router %q API: %w", routerResource.Metadata.Name, err)
 	}
 
+	if routerResource.Spec.Addresses == nil {
+		return r.updateStatus(ctx, routerResource, routerStatus(routerResource, apigen.RouterStatusPhaseReady,
+			"APIReachable", "RouterOS API accepted an authenticated command; addresses are unmanaged"))
+	}
+	if err := r.reconcileAddresses(ctx, routerResource, client, address); err != nil {
+		return r.addressFailure(ctx, routerResource, err)
+	}
 	return r.updateStatus(ctx, routerResource, routerStatus(routerResource, apigen.RouterStatusPhaseReady,
-		"APIReachable", "RouterOS API accepted an authenticated command"))
+		"AddressesReconciled", "Desired addresses verified; unrelated and preexisting unowned addresses preserved"))
 }
 
 func credentialReady(credential registry.UsernamePasswordCredential) bool {
