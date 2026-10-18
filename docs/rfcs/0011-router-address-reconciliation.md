@@ -1,6 +1,6 @@
 # RFC 0011: Owned RouterOS address reconciliation
 
-Status: Implemented locally; not deployed or accepted against a physical router.
+Status: Implemented and deployed; verified against mikrotik-1 on 2026-10-18.
 
 ## Contract
 
@@ -78,3 +78,20 @@ matching entries need no re-creation or comment rewrite. Deploy generated API an
 controller together, then inspect Router conditions and actual RouterOS settings.
 Do not run physical-router mutation tests, change management routing, clear an
 Operation or restart the platform as a substitute for scoped acceptance.
+
+### Site acceptance
+
+Before rollout, a read-only physical-router snapshot was passed through the
+production planner: exactly one creation, `10.0.3.1/24` on `bridge`, with zero
+updates or removals. DHCP pools, leases and ARP observations showed no conflicting
+10.0.3.x allocation; three ARP probes detected no duplicate router address. This
+cannot prove the absence of an offline static device.
+
+After scoped API deployment and a conditional Router spec patch, Router status
+reported Ready/AddressesReconciled for generation 2. Actual RouterOS read-back
+confirmed all four original address entries (including IDs and comments), every
+original route, DHCP configuration and bridge settings were unchanged. The only
+additions were the owned address and its connected `10.0.3.0/24` bridge route.
+The same planner then required zero writes. Public API readiness, Concourse and
+LAN reachability were checked separately; these are acceptance observations,
+not a guarantee that arbitrary future address changes are network-safe.
